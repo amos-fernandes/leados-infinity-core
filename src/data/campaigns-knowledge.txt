@@ -1,0 +1,171 @@
+# KNOWLEDGE BASE - CAMPANHAS DE PROSPECÇÃO
+# Sistema Integrado CRM + WhatsApp + E-mail + IA
+# Última Atualização: 04/09/2025
+
+## EXPERTISE DO AGENTE IA
+=================================
+
+### Conhecimento Base - PhD em Contabilidade e Finanças
+- Especialização em planejamento tributário para grandes empresas
+- Expertise em regimes Lucro Real, Lucro Presumido e multinacionais
+- Conhecimento avançado em ICMS, PIS/COFINS, IRPJ/CSLL
+- Experiência em recuperação de créditos tributários
+- Auditoria contábil e compliance fiscal
+- Gestão de holdings e reestruturações societárias
+
+### Setores de Atuação Prioritários
+- Agroindústria (açúcar, etanol, soja, carnes)
+- Logística e Transportes
+- Construção Civil
+- Energia e Utilities
+- Saúde e Farmacêutica
+- Tecnologia e E-commerce
+- Atacado e Distribuição
+
+## ESTRATÉGIAS DE PROSPECÇÃO
+=================================
+
+### Metodologia BANT Adaptada
+- **Budget**: Faturamento R$ 30M+/ano, regime tributário complexo
+- **Authority**: CFO, Diretor Financeiro, Contador-Chefe, Sócios
+- **Need**: Sinais de necessidade de otimização fiscal ou compliance
+- **Timing**: Mudanças, expansões, auditorias, multas recentes
+
+### Ganchos de Prospecção (Fontes Auditáveis)
+1. **Fiscal/Contábil**:
+   - Mudanças em regimes especiais de tributação
+   - Autuações fiscais públicas
+   - Incentivos fiscais expirando
+   - Alta carga de ICMS/ST
+
+2. **Financeiro**:
+   - Balanços com alta carga tributária
+   - Margens de lucro apertadas
+   - Perdas recorrentes
+   - Alto volume de transações
+
+3. **Operacional/Estratégico**:
+   - Fusões e aquisições
+   - Expansão para novos estados
+   - Recuperação judicial
+   - Novos investimentos
+
+4. **Regulatório**:
+   - Problemas com órgãos fiscalizadores
+   - Mudanças em compliance
+   - Requisitos complexos do setor
+
+## TEMPLATES DE COMUNICAÇÃO
+=================================
+
+### Script de Ligação Base
+"Bom dia, [Nome]. Falo com o CFO/responsável tributário? Notamos [GANCHO ESPECÍFICO] da [EMPRESA]. Nosso escritório atua em [SOLUÇÃO ESPECÍFICA] para empresas do seu porte. Gostaria de marcar 15 minutos para explorar se isso pode gerar ganhos para vocês?"
+
+### Template E-mail Base
+Assunto: [Oportunidade específica] - [Nome da Empresa]
+
+Prezado [Nome],
+
+Identificamos [GANCHO ESPECÍFICO] que pode representar uma oportunidade de [BENEFÍCIO CONCRETO] para a [EMPRESA].
+
+Nossa expertise inclui:
+- Recuperação de créditos tributários
+- Otimização de carga fiscal
+- Compliance preventivo
+- Planejamento estratégico
+
+Podemos agendar uma conversa de 20 minutos para detalhar os cenários aplicáveis?
+
+Atenciosamente,
+[Nome do Consultor]
+
+### Template WhatsApp
+🏢 Olá [Nome]!
+
+Vi que a [EMPRESA] [GANCHO ESPECÍFICO]. 
+
+💡 Ajudamos empresas similares a:
+✅ Recuperar créditos de ICMS/PIS/COFINS
+✅ Reduzir carga tributária
+✅ Estruturar compliance
+
+🎯 Posso enviar um case similar por e-mail?
+
+## FLUXO DE CAMPANHA AUTOMATIZADA
+=================================
+
+### Fase 1: Identificação (IA)
+- Prospecção web com fontes auditáveis
+- Qualificação BANT automatizada
+- Scoring por potencial de receita
+- Priorização por urgência
+
+### Fase 2: Abordagem Multi-canal
+- WhatsApp (primeiro contato)
+- E-mail (material técnico)
+- Ligação (agendamento)
+- Follow-up programado
+
+### Fase 3: Qualificação Avançada
+- Análise de balanços públicos
+- Mapeamento de dores específicas
+- Cálculo de potencial de economia
+- Proposta personalizada
+
+### Fase 4: Acompanhamento
+- CRM integrado com histórico
+- Automação de follow-ups
+- Tracking de conversões
+- Analytics de performance
+
+## INDICADORES DE PERFORMANCE
+=================================
+
+### Métricas de Prospecção
+- Taxa de resposta WhatsApp: >25%
+- Taxa de abertura e-mail: >30%
+- Taxa de conexão telefônica: >15%
+- Taxa de agendamento: >8%
+
+### Métricas de Conversão
+- Lead para oportunidade: >20%
+- Oportunidade para proposta: >40%
+- Proposta para fechamento: >25%
+- Ticket médio: R$ 50k - R$ 500k
+
+### ROI Esperado por Setor
+- Agroindústria: 15-25% economia fiscal
+- Logística: 8-15% redução de custos
+- Manufatura: 12-20% otimização tributária
+- Energia: 10-18% recuperação de créditos
+
+## COMPLIANCE E FONTES DE DADOS
+=================================
+
+### Fontes Auditáveis Aprovadas
+- Diário Oficial da União/Estados
+- Demonstrações financeiras publicadas
+- Junta Comercial
+- Receita Federal
+- SEFAZ estaduais
+- Órgãos de classe (OAB, CRC, etc.)
+- Imprensa especializada (Valor, InfoMoney)
+
+### Protocolos de Verificação
+- Sempre citar fontes específicas
+- Verificar dados em múltiplas fontes
+- Evitar especulações ou rumores
+- Focar em fatos documentados
+- Respeitar prazos de confidencialidade
+
+## ATUALIZAÇÃO CONTÍNUA
+=================================
+Este knowledge base é atualizado automaticamente com:
+- Novos prospects identificados
+- Scripts testados e otimizados
+- Resultados de campanhas
+- Feedback dos consultores
+- Mudanças na legislação tributária
+
+Última sincronização: Tempo real via CRM integrado
+Próxima revisão: Automática a cada campanha
