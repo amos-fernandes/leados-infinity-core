@@ -7,6 +7,7 @@ import RAGChat from "@/components/RAGChat";
 import CRMDashboard from "@/components/CRM/CRMDashboard";
 import WhatsAppBot from "@/components/WhatsAppBot";
 import WhatsAppDashboard from "@/components/WhatsAppDashboard";
+import SupabaseConnectionTest from "@/components/SupabaseConnectionTest";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -58,6 +59,7 @@ const Index = () => {
       <main className="container mx-auto px-6 py-8 space-y-8">
         <Dashboard />
         <CRMDashboard />
+        <SupabaseConnectionTest />
         {showWhatsApp ? <WhatsAppBot /> : <RAGChat />}
       </main>
     </div>
