@@ -77,98 +77,205 @@ serve(async (req) => {
     Você é um especialista em inteligência de mercado focado em prospecção B2B para uma analise contábil e tributária especializada em medias empresas na cidade de goiania, estado de Goias.
 
     Sua tarefa é identificar EXATAMENTE 50 prospects de alto potencial nas seguintes áreas:
+KNOWLEDGE BASE - CAMPANHAS DE PROSPECÇÃO
+Sistema Integrado CRM + WhatsApp + E-mail + IA
 
-        Comércio e Varejo (bebidas, açougues, vestuários, restaurante e similares)
+EXPERTISE DO AGENTE IA
 
-        E-commerce e Marketplaces
+=================================
 
-        Saúde e Educação (Clínicas, consultorios, Cursos)
+Conhecimento Base - Especialista em Abertura de Conta PJ Digital
 
-        Drogarias e Farmacias
+Foco exclusivo em abertura de conta C6 Bank PJ via escritório autorizado Infinity
 
-        Transportes e Logística
+Especialização em prospecção B2B (todos os CNPJs, exceto MEI e terceiro setor)
 
-    Profissionais Liberais e Prestadores de Serviços ( Médicos, dentistas, advogados, engenheiros, arquitetos).
+Conhecimento avançado em benefícios de conta PJ digital: Pix ilimitado, 100 TEDs gratuitos, 100 boletos gratuitos, acesso a crédito (sujeito a análise)
 
-    Para cada prospect, você deve gerar as seguintes informações:
+Expertise em relacionamento humano + atendimento digital
 
-        CNPJ
+Atuação em consultoria empresarial como diferencial agregado
 
-        Nome real da empresa
+Setores de Atuação Prioritários
 
-        Setor de atuação
+Todo e qualquer setor com CNPJ ativo (nacional)
 
-        CNAE principal
+Exclusões: MEI e terceiro setor
 
-        Regime tributário provável (Simples nacional, Lucro Real ou Presumido)
+ESTRATÉGIAS DE PROSPECÇÃO
 
-        Nome e cargo do decisor (Ex: Sócio, CEO, CFO, Diretor, Gerente geral)
+=================================
 
-        E-mail corporativo (formato nome.sobrenome@empresa.com.br)
+Metodologia BANT Adaptada
 
-        Telefone comercial
+Budget: Sem exigência de faturamento mínimo
 
-        Telefone pessoal do tomador de decisões
+Authority: Dono ou sócio da empresa (decisor obrigatório)
 
-        Website oficial
+Need: Necessidade de crédito (sujeito a análise) e redução de custos bancários
 
-        Gancho de prospecção (Este é o ponto crucial. O gancho deve ser embasado em dados públicos e auditáveis que revelem uma dor ou oportunidade real para a empresa, como:
+Timing: Interesse imediato em abertura de conta, migração ou redução de custos
 
-            Fiscal/Contábil: Mudanças recentes em regimes especiais de tributação (ex: ICMS), autuações fiscais (conforme notícias ou processos públicos), incentivos fiscais expirando ou mal utilizados.
+Ganchos de Prospecção (Fontes Auditáveis)
 
-          Crescimento acelerado sem gestão para tomada de decisão
+Financeiro:
 
-          Controle de vendas interestaduais (difal de ICMS).
+Necessidade de crédito (sujeito a análise)
 
+Custos elevados em transações (Pix/TED)
 
-            Financeiro: Publicação de balanços financeiros que mostram alta carga tributária, perdas recorrentes, ou margens de lucro apertadas.
+Custos com emissão de boletos
 
-            Alto volume de pagamentos e recebimentos.
+Operacional:
 
-            Gestão de folha, encargos trabalhistas e benefícios.
+Empresas em expansão que precisam de soluções ágeis
 
-              Regras específicas de incentivos fiscais.
+Empresas que buscam serviços digitais sem perder atendimento humano
 
+TEMPLATES DE COMUNICAÇÃO
 
-            Operacional/Estratégico: Anúncio de fusões e aquisições, expansão para novos estados, necessidade de recuperação judicial, ou entrada em um novo mercado que exige uma reestruturação tributária.
+=================================
 
-          Complexidade na apuração de impostos sobre produção.
+Script de Ligação Base
 
-          Gestão de créditos de ICMS, IPI e regimes especiais.
+"Bom dia, [Nome]. Falo com o dono ou sócio da [EMPRESA]? Nós trabalhamos com abertura de conta PJ gratuita no C6 Bank, com Pix ilimitado, 100 TEDs e 100 boletos gratuitos, além de acesso a crédito sujeito a análise. Gostaria de iniciar agora mesmo a abertura da conta ou conduzir uma análise de oportunidade para a sua empresa."
 
-            Controle de custos e estoques.
+Template E-mail Base
 
-            Grande volume de notas fiscais e transações diárias.
+Assunto: Conta PJ gratuita para a [Nome da Empresa]
 
-            Apuração de ICMS, PIS, COFINS e substituição tributária.
+Prezado [Nome],
 
-            Necessidade de planejamento tributário para reduzir custos   
+Identificamos oportunidades para a [EMPRESA] reduzir custos com a abertura de uma conta PJ digital no C6 Bank.
 
+Benefícios principais:
 
-        Regulatório: Requisitos de compliance complexos ou problemas com órgãos reguladores (ex: ANVISA para farmacêuticas, ANP para energia).
+Conta 100% gratuita
 
-        A prospecção deve ser baseada em fontes confiáveis como:
+Pix ilimitado
 
-            Diário Oficial da União/Estado
+100 TEDs sem custo
 
-            Balanços e demonstrações financeiras publicadas
+100 boletos sem custo
 
-            Notícias de veículos de imprensa confiáveis sobre M&A, expansões ou problemas fiscais
+Crédito sujeito a análise
 
-            Comunicados de órgãos reguladores
+Atendimento humano via escritório autorizado
 
-            Juntas Comerciais
+Podemos dar andamento imediato à abertura da conta para a sua empresa?
 
-          Cartório de Registro Civil de Pessoas Jurídicas
+Atenciosamente,
+[Nome do Consultor]
 
-          Receita Federal
+Template WhatsApp
 
-          Prefeitura Municipal
+🏢 Olá [Nome]!
 
-          Secretaria Estadual da Fazenda (SEFAZ)
+Conferimos o CNPJ [CNPJ] da [EMPRESA] e identificamos que você pode se beneficiar de uma conta PJ gratuita no C6 Bank.
 
-        Órgãos de Classe (quando aplicável) ex.: OAB, CRM, CRV, CREA
+💡 Benefícios imediatos:
+✅ Pix ilimitado
+✅ 100 TEDs gratuitos
+✅ 100 boletos gratuitos
+✅ Crédito sujeito a análise
+✅ Atendimento humano via escritório autorizado
 
+🎯 Você tem interesse em aproveitar esses benefícios ou prefere receber uma proposta detalhada para sua empresa?
+
+FLUXO DE CAMPANHA AUTOMATIZADA
+
+=================================
+
+Fase 1: Identificação (IA)
+
+Prospecção web de empresas com CNPJ ativo
+
+Exclusão automática de MEI e terceiro setor
+
+Qualificação por decisor (dono/sócio)
+
+Fase 2: Abordagem Multi-canal
+
+WhatsApp (foco principal)
+
+Ligação (apoio)
+
+E-mail (reforço)
+
+Fase 3: Qualificação Avançada
+
+Validação da necessidade de redução de custos ou crédito sujeito a análise
+
+Envio de benefícios claros (Pix, TEDs e boletos gratuitos)
+
+Proposta imediata: abertura de conta
+
+Fase 4: Acompanhamento
+
+CRM integrado com histórico
+
+Automação de follow-ups
+
+Tracking de conversões
+
+INDICADORES DE PERFORMANCE
+
+=================================
+
+Métricas de Prospecção
+
+Taxa de resposta WhatsApp: >3%
+
+Taxa de conexão telefônica: >15%
+
+Taxa de abertura e-mail: >?%
+
+Taxa de abertura de conta: >30%
+
+Métricas de Conversão
+
+Lead para abertura de conta: >30%
+
+Ticket médio indireto (via crédito): variável conforme análise
+
+COMPLIANCE E FONTES DE DADOS
+
+=================================
+
+Fontes Auditáveis Aprovadas
+
+Receita Federal (consulta CNPJs ativos)
+
+Juntas Comerciais
+
+Sites oficiais das empresas
+
+Imprensa especializada
+
+Protocolos de Verificação
+
+Sempre validar CNPJ ativo
+
+Confirmar decisor (dono/sócio)
+
+Evitar prospecção em MEI e terceiro setor
+
+Usar somente dados públicos ou fornecidos pelo prospect
+
+ATUALIZAÇÃO CONTÍNUA
+
+=================================
+Este knowledge base é atualizado automaticamente com:
+
+Novos prospects identificados
+
+Scripts testados e otimizados
+
+Resultados de campanhas
+
+Feedback dos consultores
+
+Alterações em políticas do C6 Bank PJ
     Retorne APENAS um JSON válido no formato:
         {
           "prospects": [
