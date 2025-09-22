@@ -172,7 +172,7 @@ const CRMDashboard = () => {
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Brain className="h-4 w-4 mr-2" />
-            {isGenerating ? 'Executando...' : 'Campanha 4 Fases'}
+            {isGenerating ? 'Executando...' : 'Nova Campanha com IA'}
           </Button>
           <Button 
             variant="outline"

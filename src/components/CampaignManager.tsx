@@ -18,6 +18,7 @@ const CampaignManager = () => {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -47,6 +48,41 @@ const CampaignManager = () => {
     }
   };
 
+  const handleCreateCampaign = async () => {
+    setIsCreating(true);
+    try {
+      console.log('Iniciando fluxo de campanha automatizada (4 fases) com user ID:', user?.id);
+      
+      const { data, error } = await supabase.functions.invoke('automated-campaign-flow', {
+        body: { userId: user?.id }
+      });
+
+      console.log('Automated campaign flow response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function invoke error:', error);
+        throw new Error(error.message || 'Erro na chamada da função');
+      }
+
+      if (!data) {
+        throw new Error('Nenhuma resposta recebida da função');
+      }
+
+      if (data.success) {
+        toast.success(data.message);
+        await loadCampaigns(); // Recarregar campanhas após criar nova
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Erro ao criar campanha automatizada:', error);
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao criar campanha";
+      toast.error(errorMessage);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Card className="shadow-soft">
       <CardHeader>
@@ -55,9 +91,9 @@ const CampaignManager = () => {
             <Target className="h-5 w-5 text-primary" />
             Gerenciar Campanhas
           </CardTitle>
-          <Button>
+          <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
             <Plus className="h-4 w-4 mr-2" />
-            Nova Campanha
+            {isCreating ? 'Criando...' : 'Nova Campanha'}
           </Button>
         </div>
       </CardHeader>
