@@ -73,6 +73,9 @@ class AgnoSmartCollectorAgent {
     situacao?: string;
     porte?: string;
     excludeMEI?: boolean;
+    excludeThirdSector?: boolean;
+    requireActiveDecisionMaker?: boolean;
+    onlyActiveCNPJ?: boolean;
   }): Promise<CNPJData[]> {
     console.log('🤖 Agno + Bright Data: Iniciando busca híbrida por empresas com filtros:', filters);
     
@@ -158,7 +161,7 @@ class AgnoSmartCollectorAgent {
         }
       ];
 
-      // Aplicar filtros
+      // Aplicar filtros da Fase 1: Identificação (IA)
       let filteredData = mockData;
       
       if (filters.uf) {
@@ -171,8 +174,41 @@ class AgnoSmartCollectorAgent {
         );
       }
       
+      // FASE 1: Exclusão automática de MEI
       if (filters.excludeMEI) {
+        const beforeMEI = filteredData.length;
         filteredData = filteredData.filter(company => company.porte !== 'MEI');
+        console.log(`🚫 MEI excluídos: ${beforeMEI - filteredData.length}`);
+      }
+      
+      // FASE 1: Exclusão automática de terceiro setor
+      if (filters.excludeThirdSector) {
+        const beforeThirdSector = filteredData.length; 
+        // Naturezas jurídicas do terceiro setor: Associações, Fundações, ONGs, etc.
+        const thirdSectorCodes = ['399-9', '398-1', '201-1', '209-7', '116-3', '124-4'];
+        filteredData = filteredData.filter(company => 
+          !thirdSectorCodes.some(code => company.natureza_juridica?.includes(code))
+        );
+        console.log(`🚫 Terceiro setor excluídos: ${beforeThirdSector - filteredData.length}`);
+      }
+      
+      // FASE 1: Qualificação por decisor (apenas CNPJs com sócios ativos)
+      if (filters.requireActiveDecisionMaker) {
+        const beforeDecisionMaker = filteredData.length;
+        filteredData = filteredData.filter(company => 
+          company.socios && company.socios.length > 0 && 
+          company.socios.some(socio => 
+            socio.cargo.includes('ADMINISTRADOR') || 
+            socio.cargo.includes('SÓCIO') ||
+            socio.cargo.includes('DIRETOR')
+          )
+        );
+        console.log(`👥 Com decisor ativo: ${filteredData.length} de ${beforeDecisionMaker}`);
+      }
+      
+      // FASE 1: Apenas CNPJs ativos
+      if (filters.onlyActiveCNPJ) {
+        filteredData = filteredData.filter(company => company.situacao_cadastral === 'ATIVA');
       }
       
       if (filters.porte) {
@@ -540,11 +576,14 @@ serve(async (req) => {
     // Inicializar o agente híbrido
     const agent = new AgnoSmartCollectorAgent();
     
-    // Definir filtros padrão para Goiânia
+    // Definir filtros da Fase 1: Identificação (IA)
     const searchFilters = {
       uf: 'GO',
       municipio: 'GOIANIA',
-      excludeMEI: true,
+      excludeMEI: true,              // Exclusão automática de MEI
+      excludeThirdSector: true,      // Exclusão automática de terceiro setor  
+      requireActiveDecisionMaker: true, // Qualificação por decisor (dono/sócio)
+      onlyActiveCNPJ: true,         // Prospecção web de empresas com CNPJ ativo
       situacao: 'ATIVA',
       ...filters
     };

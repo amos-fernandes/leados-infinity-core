@@ -19,6 +19,9 @@ port = 54325
 [functions.agno-prospect-collector]
 verify_jwt = false
 
+[functions.automated-campaign-flow]
+verify_jwt = false
+
 [functions.calendar-integration]
 verify_jwt = false
 
