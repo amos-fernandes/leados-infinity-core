@@ -18,26 +18,33 @@ async function generatePersonalizedScript(lead: any) {
 
   try {
     const prompt = `
-Você é um especialista em prospecção B2B para uma agência de contabilidade em Goiás.
+Você é um especialista em prospecção B2B para abertura de contas PJ no C6 Bank.
 Crie um script de vendas personalizado para:
 
 EMPRESA: ${lead.empresa}
 SETOR: ${lead.setor || 'Não informado'}
 REGIME TRIBUTÁRIO: ${lead.regime_tributario || 'Não informado'}
-GANCHO DE PROSPECÇÃO: ${lead.gancho_prospeccao || 'Oportunidade fiscal'}
+GANCHO DE PROSPECÇÃO: ${lead.gancho_prospeccao || 'Conta PJ gratuita'}
 CONTATO DECISOR: ${lead.contato_decisor || '[Nome]'}
+
+Use como base estes templates, mas personalize para a empresa:
+
+SCRIPT BASE: "Bom dia, [Nome]. Falo com o dono ou sócio da [EMPRESA]? Nós trabalhamos com abertura de conta PJ gratuita no C6 Bank, com Pix ilimitado, 100 TEDs e 100 boletos gratuitos, além de acesso a crédito sujeito a análise. Gostaria de iniciar agora mesmo a abertura da conta ou conduzir uma análise de oportunidade para a sua empresa."
+
+EMAIL BASE: "Prezado [Nome], Identificamos oportunidades para a [EMPRESA] reduzir custos com a abertura de uma conta PJ digital no C6 Bank. Benefícios principais: Conta 100% gratuita, Pix ilimitado, 100 TEDs sem custo, 100 boletos sem custo, Crédito sujeito a análise, Atendimento humano via escritório autorizado. Podemos dar andamento imediato à abertura da conta para a sua empresa?"
 
 Crie um JSON com:
 {
-  "roteiro_ligacao": "Script de telefone direto, objetivo, mencionando ganhos específicos (máx 150 palavras)",
-  "assunto_email": "Assunto atrativo e específico (máx 60 caracteres)", 
-  "modelo_email": "E-mail personalizado, profissional, com CTA claro (máx 200 palavras)"
+  "roteiro_ligacao": "Script personalizado baseado no template, adaptado para o setor da empresa (máx 150 palavras)",
+  "assunto_email": "Assunto específico para a empresa (máx 60 caracteres)", 
+  "modelo_email": "E-mail personalizado baseado no template, com benefícios específicos do setor (máx 200 palavras)"
 }
 
 Foque em:
-- Recuperação tributária (ICMS, PIS/COFINS)
-- Compliance e planejamento fiscal
-- Benefícios específicos do setor
+- Conta PJ gratuita no C6 Bank
+- Benefícios específicos (Pix ilimitado, TEDs, boletos gratuitos)
+- Acesso a crédito
+- Redução de custos bancários
 - Linguagem executiva e direta
 `;
 
@@ -87,10 +94,13 @@ Foque em:
 
 // Função para gerar script template quando IA não está disponível
 function generateTemplateScript(lead: any) {
+  const nomeEmpresa = lead.empresa || '[EMPRESA]';
+  const nomeContato = lead.contato_decisor || '[Nome]';
+  
   return {
-    roteiro_ligacao: `Bom dia, falo com ${lead.contato_decisor || '[Nome]'}? Sou da [Agência], especializada em recuperação tributária. Identificamos oportunidades na ${lead.empresa} relacionadas a ${lead.gancho_prospeccao || 'créditos fiscais'}. Posso explicar como maximizar esses benefícios em 15 minutos?`,
-    assunto_email: `Oportunidades fiscais para ${lead.empresa}`,
-    modelo_email: `Prezado ${lead.contato_decisor || '[Nome]'},\n\nIdentificamos oportunidades de recuperação tributária na ${lead.empresa}, especificamente relacionadas a ${lead.gancho_prospeccao || 'créditos de ICMS e benefícios fiscais'}.\n\nAtuamos com empresas do setor ${lead.setor || 'similar'} para maximizar créditos e reduzir passivos tributários.\n\nPodemos agendar 20 minutos para apresentar os ganhos potenciais?\n\nAtenciosamente,\n[Seu Nome]`
+    roteiro_ligacao: `Bom dia, ${nomeContato}. Falo com o dono ou sócio da ${nomeEmpresa}? Nós trabalhamos com abertura de conta PJ gratuita no C6 Bank, com Pix ilimitado, 100 TEDs e 100 boletos gratuitos, além de acesso a crédito sujeito a análise. Gostaria de iniciar agora mesmo a abertura da conta ou conduzir uma análise de oportunidade para a sua empresa.`,
+    assunto_email: `Conta PJ gratuita para a ${nomeEmpresa}`,
+    modelo_email: `Prezado ${nomeContato},\n\nIdentificamos oportunidades para a ${nomeEmpresa} reduzir custos com a abertura de uma conta PJ digital no C6 Bank.\n\nBenefícios principais:\n\n• Conta 100% gratuita\n• Pix ilimitado\n• 100 TEDs sem custo\n• 100 boletos sem custo\n• Crédito sujeito a análise\n• Atendimento humano via escritório autorizado\n\nPodemos dar andamento imediato à abertura da conta para a sua empresa?\n\nAtenciosamente,\n[Nome do Consultor]`
   };
 }
 
