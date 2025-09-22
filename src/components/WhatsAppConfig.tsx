@@ -21,7 +21,7 @@ import { toast } from "sonner";
 
 interface WhatsAppConfigData {
   id?: string;
-  api_token: string;
+  access_token: string;
   phone_number: string;
   webhook_url: string;
   welcome_message: string;
@@ -31,7 +31,7 @@ interface WhatsAppConfigData {
 const WhatsAppConfig = () => {
   const { user } = useAuth();
   const [config, setConfig] = useState<WhatsAppConfigData>({
-    api_token: "",
+    access_token: "",
     phone_number: "",
     webhook_url: "",
     welcome_message: "Olá! Obrigado por entrar em contato. Como posso ajudá-lo?",
@@ -67,7 +67,7 @@ const WhatsAppConfig = () => {
         const configData = data[0];
         setConfig({
           id: configData.id,
-          api_token: configData.api_token || "",
+          access_token: configData.access_token || "",
           phone_number: configData.phone_number || "",
           webhook_url: configData.webhook_url || "",
           welcome_message: "Olá! Obrigado por entrar em contato. Como posso ajudá-lo?",
@@ -93,7 +93,7 @@ const WhatsAppConfig = () => {
   const handleSave = async () => {
     if (!user) return;
 
-    if (!config.api_token || !config.phone_number) {
+    if (!config.access_token || !config.phone_number) {
       toast.error("Token da API e Número de Telefone são obrigatórios");
       return;
     }
@@ -103,7 +103,7 @@ const WhatsAppConfig = () => {
 
       const configData = {
         user_id: user.id,
-        api_token: config.api_token,
+        access_token: config.access_token,
         phone_number: config.phone_number,
         webhook_url: config.webhook_url,
         welcome_message: config.welcome_message,
@@ -142,7 +142,7 @@ const WhatsAppConfig = () => {
   };
 
   const handleTestConnection = async () => {
-    if (!config.api_token || !config.phone_number) {
+    if (!config.access_token || !config.phone_number) {
       toast.error("Configure o Token da API e Número de Telefone primeiro");
       return;
     }
@@ -152,7 +152,7 @@ const WhatsAppConfig = () => {
       const testResponse = await fetch(`https://graph.facebook.com/v17.0/${config.phone_number}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${config.api_token}`,
+          'Authorization': `Bearer ${config.access_token}`,
         },
       });
 
@@ -219,8 +219,8 @@ Para configurar o webhook no Meta Business:
           <Input
             id="api_token"
             type="password"
-            value={config.api_token}
-            onChange={(e) => setConfig({...config, api_token: e.target.value})}
+            value={config.access_token}
+            onChange={(e) => setConfig({...config, access_token: e.target.value})}
             placeholder="Token da API do Meta Business"
           />
           <p className="text-xs text-muted-foreground">
@@ -305,7 +305,7 @@ Para configurar o webhook no Meta Business:
           <Button 
             variant="outline" 
             onClick={handleTestConnection}
-            disabled={!config.api_token || !config.phone_number}
+            disabled={!config.access_token || !config.phone_number}
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Testar Conexão
@@ -313,7 +313,7 @@ Para configurar o webhook no Meta Business:
         </div>
 
         {/* Status da Configuração */}
-        {config.api_token && config.phone_number && (
+        {config.access_token && config.phone_number && (
           <div className="p-4 rounded-lg bg-muted/50">
             <h4 className="font-medium mb-2">Status da Configuração</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
