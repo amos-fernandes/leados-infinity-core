@@ -18,7 +18,10 @@ import {
   Mail,
   Phone,
   Globe,
-  Upload
+  Upload,
+  Zap,
+  Eye,
+  Brain
 } from "lucide-react";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
@@ -28,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { exportLeadsToCSV } from "@/utils/csvExport";
+import LeadQualificationView from "./LeadQualificationView";
 
 const leadSchema = z.object({
   empresa: z.string().min(1, "Nome da empresa é obrigatório"),
@@ -48,6 +52,17 @@ interface Lead extends LeadFormData {
   id: string;
   created_at: string;
   updated_at: string;
+  qualification_score?: string;
+  qualification_level?: string;
+  approach_strategy?: string;
+  estimated_revenue?: string;
+  recommended_channel?: string;
+  bant_analysis?: string;
+  next_steps?: string;
+  recent_events?: string;
+  last_event_date?: string;
+  whatsapp?: string;
+  qualified_at?: string;
 }
 
 interface LeadsManagerProps {
@@ -63,6 +78,9 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [importing, setImporting] = useState(false);
+  const [scrapingContacts, setScrapingContacts] = useState<string | null>(null);
+  const [scrapingEvents, setScrapingEvents] = useState<string | null>(null);
+  const [qualifyingLead, setQualifyingLead] = useState<string | null>(null);
   
   const LEADS_PER_PAGE = 10;
 
@@ -295,6 +313,109 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     event.target.value = '';
   };
 
+  const handleScrapeContacts = async (lead: Lead) => {
+    if (!lead.website) {
+      toast.error('Lead não possui website para fazer scraping');
+      return;
+    }
+
+    setScrapingContacts(lead.id);
+    
+    try {
+      const response = await fetch('/supabase/functions/v1/scrape-contact-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          website: lead.website,
+          leadId: lead.id,
+          userId: user?.id
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(result.message);
+        loadLeads(); // Recarregar para mostrar dados atualizados
+      } else {
+        toast.error(result.error || 'Erro ao fazer scraping de contatos');
+      }
+    } catch (error) {
+      console.error('Erro no scraping de contatos:', error);
+      toast.error('Erro ao conectar com o serviço de scraping');
+    } finally {
+      setScrapingContacts(null);
+    }
+  };
+
+  const handleScrapeEvents = async (lead: Lead) => {
+    setScrapingEvents(lead.id);
+    
+    try {
+      const response = await fetch('/supabase/functions/v1/scrape-recent-events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: lead.empresa,
+          sector: lead.setor,
+          leadId: lead.id,
+          userId: user?.id
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(result.message);
+        loadLeads(); // Recarregar para mostrar dados atualizados
+      } else {
+        toast.error(result.error || 'Erro ao buscar eventos recentes');
+      }
+    } catch (error) {
+      console.error('Erro na busca de eventos:', error);
+      toast.error('Erro ao conectar com o serviço de busca');
+    } finally {
+      setScrapingEvents(null);
+    }
+  };
+
+  const handleQualifyWithAI = async (lead: Lead) => {
+    setQualifyingLead(lead.id);
+    
+    try {
+      const response = await fetch('/supabase/functions/v1/qualify-lead-with-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          leadId: lead.id,
+          userId: user?.id,
+          leadData: lead
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(result.message);
+        loadLeads(); // Recarregar para mostrar dados atualizados
+        onStatsUpdate();
+      } else {
+        toast.error(result.error || 'Erro na qualificação com IA');
+      }
+    } catch (error) {
+      console.error('Erro na qualificação com IA:', error);
+      toast.error('Erro ao conectar com o serviço de IA');
+    } finally {
+      setQualifyingLead(null);
+    }
+  };
+
   const filteredLeads = leads.filter(lead =>
     lead.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lead.setor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -338,7 +459,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
             />
             <Button variant="outline" onClick={() => document.getElementById('file-input')?.click()}>
               <Upload className="h-4 w-4 mr-2" />
-              Abrir
+              Importar
             </Button>
             <Button variant="outline" onClick={handleExport} disabled={leads.length === 0}>
               <Download className="h-4 w-4 mr-2" />
@@ -702,6 +823,19 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
           Mostrando {startIndex + 1}-{Math.min(endIndex, filteredLeads.length)} de {filteredLeads.length} leads
           {filteredLeads.length !== leads.length && ` (${leads.length} no total)`}
         </div>
+
+        {/* Exibir dados de qualificação se existirem */}
+        {paginatedLeads.some(lead => lead.qualification_score) && (
+          <div className="mt-6 space-y-4">
+            <h3 className="text-lg font-semibold">Leads Qualificados com IA</h3>
+            {paginatedLeads
+              .filter(lead => lead.qualification_score)
+              .map(lead => (
+                <LeadQualificationView key={`qual-${lead.id}`} lead={lead} />
+              ))
+            }
+          </div>
+        )}
       </CardContent>
     </Card>
   );
