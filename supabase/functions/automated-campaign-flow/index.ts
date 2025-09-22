@@ -388,9 +388,12 @@ serve(async (req) => {
         });
       } else if (campaign) {
         campaignId = campaign.id;
+        console.log('✅ Campanha criada com sucesso. ID:', campaignId);
 
         // Executar fases 2, 3 e 4 apenas se houver leads qualificados
         if (phase1.details.qualifiedLeads > 0) {
+          console.log('🚀 Executando fases 2-4 pois há leads qualificados');
+          
           // FASE 2: Abordagem Multi-canal
           const phase2 = await executePhase2(userId, campaignId, supabase);
           campaignResults.push(phase2);
@@ -403,6 +406,8 @@ serve(async (req) => {
           const phase4 = await executePhase4(userId, campaignId, supabase);
           campaignResults.push(phase4);
         } else {
+          console.log('⏳ Fases 2-4 marcadas como pendentes (aguardando leads)');
+          
           // Adicionar fases como "aguardando" se não há leads
           campaignResults.push({
             phase: 2,

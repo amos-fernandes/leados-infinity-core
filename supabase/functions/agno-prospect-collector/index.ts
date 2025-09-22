@@ -504,47 +504,62 @@ class AgnoSmartCollectorAgent {
     console.log(`💾 Salvando ${leads.length} leads no banco de dados`);
     
     const leadPromises = leads.map(async (lead) => {
+      console.log('📝 Tentando salvar lead:', {
+        empresa: lead.company.nome_fantasia || lead.company.nome,
+        cnpj: lead.company.cnpj
+      });
+      
       // Inserir na tabela leads
       const { data: leadData, error: leadError } = await this.supabase
         .from('leads')
         .insert({
           user_id: userId,
-          campaign_id: campaignId,
           empresa: lead.company.nome_fantasia || lead.company.nome,
-          cnpj: lead.company.cnpj,
           telefone: lead.company.telefone,
           email: lead.company.email,
-          endereco: `${lead.company.municipio}, ${lead.company.uf}`,
           setor: lead.company.cnae_descricao,
           status: 'novo',
           qualification_score: lead.qualification.qualificationScore,
-          qualification_level: lead.qualification.urgencyLevel,
           approach_strategy: lead.qualification.gancho_prospeccao,
-          estimated_revenue: lead.qualification.estimated_revenue,
-          recommended_channel: lead.qualification.recommended_channel,
-          source: 'agno_agent'
+          estimated_employees: lead.company.bright_data?.employees_count || null,
+          tech_stack: lead.company.bright_data?.tech_stack || null,
+          social_media: lead.company.bright_data?.social_media || null,
+          website: lead.company.bright_data?.website || null,
+          linkedin: lead.company.bright_data?.social_media?.linkedin || null,
+          whatsapp: lead.qualification.contactChannels?.whatsapp || lead.company.telefone || null,
+          cnae: lead.company.cnae_principal,
+          regime_tributario: lead.company.porte,
+          contato_decisor: lead.qualification.decisionMaker?.name || null,
+          gancho_prospeccao: lead.qualification.gancho_prospeccao,
+          bright_data_enriched: !!lead.company.bright_data
         })
         .select()
         .single();
 
       if (leadError) {
-        console.error('Erro ao salvar lead:', leadError);
+        console.error('❌ Erro ao salvar lead:', leadError);
         return null;
       }
 
+      console.log('✅ Lead salvo com sucesso:', leadData.id);
+
       // Inserir na tabela contacts
       if (lead.qualification.decisionMaker.name !== 'Não identificado') {
-        await this.supabase
+        const { error: contactError } = await this.supabase
           .from('contacts')
           .insert({
             user_id: userId,
-            lead_id: leadData.id,
             nome: lead.qualification.decisionMaker.name,
             cargo: lead.qualification.decisionMaker.role,
             telefone: lead.company.telefone,
             email: lead.company.email,
-            empresa: lead.company.nome_fantasia || lead.company.nome
+            empresa: lead.company.nome_fantasia || lead.company.nome,
+            linkedin: lead.company.bright_data?.social_media?.linkedin || null
           });
+        
+        if (contactError) {
+          console.warn('⚠️ Erro ao salvar contato:', contactError);
+        }
       }
 
       return leadData;
@@ -553,7 +568,7 @@ class AgnoSmartCollectorAgent {
     const results = await Promise.all(leadPromises);
     const successfulLeads = results.filter(result => result !== null);
     
-    console.log(`✅ ${successfulLeads.length} leads salvos com sucesso`);
+    console.log(`✅ ${successfulLeads.length} leads salvos com sucesso de ${leads.length} tentativas`);
     return successfulLeads;
   }
 }
@@ -608,6 +623,10 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Agno + Bright Data coletou e enriqueceu ${savedLeads.length} leads qualificados`,
+        prospectsCount: companies.length,
+        qualifiedCount: savedLeads.length,
+        excludedMEI: 0, // Será calculado nos filtros
+        excludedThirdSector: 0, // Será calculado nos filtros
         data: {
           leads_collected: savedLeads.length,
           agent_used: 'AgnoSmartCollectorAgent',
