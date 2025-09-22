@@ -24,18 +24,17 @@ interface CampaignResult {
   name: string;
   description: string;
   status: string;
-  target_companies: string[];
+  target_companies: any; // Changed from string[] to any to handle Json type
   created_at: string;
   scripts: {
-    id: string;
+    id?: string;
     empresa: string;
-    roteiro_ligacao: string;
-    modelo_email: string;
-    assunto_email: string;
-    whatsapp_sent: boolean;
-    email_sent: boolean;
-    call_made: boolean;
-    status: string;
+    roteiro_ligacao: string | null;
+    modelo_email: string | null;
+    assunto_email: string | null;
+    whatsapp_enviado: boolean | null;
+    email_enviado: boolean | null;
+    ligacao_feita: boolean | null;
   }[];
 }
 
@@ -127,9 +126,9 @@ const CampaignResults = () => {
 
   const getProgressStats = (scripts: any[]) => {
     const total = scripts.length;
-    const whatsappSent = scripts.filter(s => s.whatsapp_sent).length;
-    const emailsSent = scripts.filter(s => s.email_sent).length;
-    const callsMade = scripts.filter(s => s.call_made).length;
+    const whatsappSent = scripts.filter(s => s.whatsapp_enviado).length;
+    const emailsSent = scripts.filter(s => s.email_enviado).length;
+    const callsMade = scripts.filter(s => s.ligacao_feita).length;
     
     return { total, whatsappSent, emailsSent, callsMade };
   };
@@ -272,9 +271,9 @@ const CampaignResults = () => {
                         </TableHeader>
                         <TableBody>
                           {selectedCampaign.scripts
-                            .filter(script => script.email_sent)
-                            .map((script) => (
-                              <TableRow key={script.id}>
+                            .filter(script => script.email_enviado)
+                            .map((script, index) => (
+                              <TableRow key={script.id || index}>
                                 <TableCell className="font-medium">{script.empresa}</TableCell>
                                 <TableCell>{script.assunto_email}</TableCell>
                                 <TableCell>
@@ -313,12 +312,12 @@ const CampaignResults = () => {
                         </TableHeader>
                         <TableBody>
                           {selectedCampaign.scripts
-                            .filter(script => script.whatsapp_sent)
-                            .map((script) => (
-                              <TableRow key={script.id}>
+                            .filter(script => script.whatsapp_enviado)
+                            .map((script, index) => (
+                              <TableRow key={script.id || index}>
                                 <TableCell className="font-medium">{script.empresa}</TableCell>
                                 <TableCell className="max-w-md truncate">
-                                  {script.roteiro_ligacao.substring(0, 100)}...
+                                  {script.roteiro_ligacao?.substring(0, 100) || 'Sem roteiro'}...
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant="outline" className="bg-success/10 text-success">
@@ -344,26 +343,25 @@ const CampaignResults = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-6">
-                        {selectedCampaign.scripts.map((script) => (
-                          <div key={script.id} className="border rounded-lg p-4">
+                        {selectedCampaign.scripts.map((script, index) => (
+                          <div key={script.id || index} className="border rounded-lg p-4">
                             <div className="flex items-center justify-between mb-4">
                               <h4 className="font-semibold text-lg">{script.empresa}</h4>
-                              {getStatusBadge(script.status)}
                             </div>
                             
                             <div className="grid md:grid-cols-2 gap-4">
                               <div>
                                 <h5 className="font-medium mb-2 text-primary">Roteiro de Ligação</h5>
                                 <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                                  {script.roteiro_ligacao}
+                                  {script.roteiro_ligacao || 'Sem roteiro disponível'}
                                 </p>
                               </div>
                               
                               <div>
                                 <h5 className="font-medium mb-2 text-primary">Modelo de E-mail</h5>
-                                <p className="text-sm font-medium mb-1">{script.assunto_email}</p>
+                                <p className="text-sm font-medium mb-1">{script.assunto_email || 'Sem assunto'}</p>
                                 <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                                  {script.modelo_email}
+                                  {script.modelo_email || 'Sem modelo disponível'}
                                 </p>
                               </div>
                             </div>

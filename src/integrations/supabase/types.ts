@@ -14,7 +14,425 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      campaign_knowledge: {
+        Row: {
+          campaign_id: string | null
+          content: string
+          created_at: string
+          id: string
+          knowledge_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          knowledge_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          knowledge_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_knowledge_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_scripts: {
+        Row: {
+          assunto_email: string | null
+          campaign_id: string
+          created_at: string
+          email_enviado: boolean | null
+          empresa: string
+          id: string
+          ligacao_feita: boolean | null
+          modelo_email: string | null
+          roteiro_ligacao: string | null
+          whatsapp_enviado: boolean | null
+        }
+        Insert: {
+          assunto_email?: string | null
+          campaign_id: string
+          created_at?: string
+          email_enviado?: boolean | null
+          empresa: string
+          id?: string
+          ligacao_feita?: boolean | null
+          modelo_email?: string | null
+          roteiro_ligacao?: string | null
+          whatsapp_enviado?: boolean | null
+        }
+        Update: {
+          assunto_email?: string | null
+          campaign_id?: string
+          created_at?: string
+          email_enviado?: boolean | null
+          empresa?: string
+          id?: string
+          ligacao_feita?: boolean | null
+          modelo_email?: string | null
+          roteiro_ligacao?: string | null
+          whatsapp_enviado?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_scripts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          status: string | null
+          target_companies: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          status?: string | null
+          target_companies?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string | null
+          target_companies?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          cargo: string | null
+          created_at: string
+          email: string | null
+          empresa: string | null
+          id: string
+          linkedin: string | null
+          nome: string
+          telefone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cargo?: string | null
+          created_at?: string
+          email?: string | null
+          empresa?: string | null
+          id?: string
+          linkedin?: string | null
+          nome: string
+          telefone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cargo?: string | null
+          created_at?: string
+          email?: string | null
+          empresa?: string | null
+          id?: string
+          linkedin?: string | null
+          nome?: string
+          telefone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      interactions: {
+        Row: {
+          assunto: string
+          contact_id: string | null
+          created_at: string
+          data_interacao: string | null
+          descricao: string | null
+          id: string
+          lead_id: string | null
+          opportunity_id: string | null
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          assunto: string
+          contact_id?: string | null
+          created_at?: string
+          data_interacao?: string | null
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          opportunity_id?: string | null
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          assunto?: string
+          contact_id?: string | null
+          created_at?: string
+          data_interacao?: string | null
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          opportunity_id?: string | null
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interactions_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          cnae: string | null
+          contato_decisor: string | null
+          created_at: string
+          email: string | null
+          empresa: string
+          gancho_prospeccao: string | null
+          id: string
+          linkedin: string | null
+          regime_tributario: string | null
+          setor: string | null
+          status: string | null
+          telefone: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          cnae?: string | null
+          contato_decisor?: string | null
+          created_at?: string
+          email?: string | null
+          empresa: string
+          gancho_prospeccao?: string | null
+          id?: string
+          linkedin?: string | null
+          regime_tributario?: string | null
+          setor?: string | null
+          status?: string | null
+          telefone?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          cnae?: string | null
+          contato_decisor?: string | null
+          created_at?: string
+          email?: string | null
+          empresa?: string
+          gancho_prospeccao?: string | null
+          id?: string
+          linkedin?: string | null
+          regime_tributario?: string | null
+          setor?: string | null
+          status?: string | null
+          telefone?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      opportunities: {
+        Row: {
+          created_at: string
+          empresa: string
+          estagio: string | null
+          id: string
+          probabilidade: number | null
+          status: string | null
+          titulo: string
+          updated_at: string
+          user_id: string
+          valor: number | null
+        }
+        Insert: {
+          created_at?: string
+          empresa: string
+          estagio?: string | null
+          id?: string
+          probabilidade?: number | null
+          status?: string | null
+          titulo: string
+          updated_at?: string
+          user_id: string
+          valor?: number | null
+        }
+        Update: {
+          created_at?: string
+          empresa?: string
+          estagio?: string | null
+          id?: string
+          probabilidade?: number | null
+          status?: string | null
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_config: {
+        Row: {
+          access_token: string | null
+          business_account_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          phone_number: string | null
+          phone_number_id: string | null
+          updated_at: string
+          user_id: string
+          verify_token: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          business_account_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          phone_number?: string | null
+          phone_number_id?: string | null
+          updated_at?: string
+          user_id: string
+          verify_token?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          business_account_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          phone_number?: string | null
+          phone_number_id?: string | null
+          updated_at?: string
+          user_id?: string
+          verify_token?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          message_content: string
+          message_type: string | null
+          phone_number: string
+          processed_at: string | null
+          response_sent: boolean | null
+          sender_name: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          id?: string
+          message_content: string
+          message_type?: string | null
+          phone_number: string
+          processed_at?: string | null
+          response_sent?: boolean | null
+          sender_name?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          message_content?: string
+          message_type?: string | null
+          phone_number?: string
+          processed_at?: string | null
+          response_sent?: boolean | null
+          sender_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

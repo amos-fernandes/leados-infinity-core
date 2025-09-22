@@ -314,7 +314,8 @@ const WhatsAppBot = () => {
         sender_name: 'Teste Cliente',
         message_content: 'Olá! Gostaria de saber mais sobre seus serviços contábeis.',
         message_type: 'text',
-        processed: false,
+        direction: 'incoming',
+        processed_at: null,
         response_sent: false
       };
 

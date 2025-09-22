@@ -111,7 +111,21 @@ export async function getCampaignKnowledge(userId: string): Promise<CampaignData
       campaignData.push({
         id: campaign.id,
         name: campaign.name,
-        targets: targets.filter(t => campaign.target_companies.includes(t.empresa)),
+        targets: targets.filter(t => {
+          if (!campaign.target_companies) return false;
+          // Handle different types of target_companies (Json type)
+          if (Array.isArray(campaign.target_companies)) {
+            return campaign.target_companies.includes(t.empresa);
+          }
+          if (typeof campaign.target_companies === 'string') {
+            return campaign.target_companies.includes(t.empresa);
+          }
+          if (typeof campaign.target_companies === 'object' && campaign.target_companies !== null) {
+            const companies = Object.values(campaign.target_companies as any);
+            return companies.includes(t.empresa);
+          }
+          return false;
+        }),
         scripts,
         status: campaign.status,
         created_at: campaign.created_at
