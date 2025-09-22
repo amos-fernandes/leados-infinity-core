@@ -141,6 +141,7 @@ export type Database = {
           id: string
           linkedin: string | null
           nome: string
+          status: string | null
           telefone: string | null
           updated_at: string
           user_id: string
@@ -153,6 +154,7 @@ export type Database = {
           id?: string
           linkedin?: string | null
           nome: string
+          status?: string | null
           telefone?: string | null
           updated_at?: string
           user_id: string
@@ -165,6 +167,7 @@ export type Database = {
           id?: string
           linkedin?: string | null
           nome?: string
+          status?: string | null
           telefone?: string | null
           updated_at?: string
           user_id?: string
