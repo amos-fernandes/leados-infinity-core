@@ -96,13 +96,13 @@ const CRMDashboard = () => {
   const handleGenerateProspects = async () => {
     setIsGenerating(true);
     try {
-      console.log('Calling generate-prospects with user ID:', user?.id);
+      console.log('Iniciando fluxo de campanha automatizada (4 fases) com user ID:', user?.id);
       
-      const { data, error } = await supabase.functions.invoke('generate-prospects', {
+      const { data, error } = await supabase.functions.invoke('automated-campaign-flow', {
         body: { userId: user?.id }
       });
 
-      console.log('Generate prospects response:', { data, error });
+      console.log('Automated campaign flow response:', { data, error });
 
       if (error) {
         console.error('Supabase function invoke error:', error);
@@ -120,8 +120,8 @@ const CRMDashboard = () => {
         throw new Error(data.error || 'Erro desconhecido');
       }
     } catch (error) {
-      console.error('Erro ao gerar prospects:', error);
-      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao gerar prospects";
+      console.error('Erro ao executar campanha automatizada:', error);
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao executar campanha";
       toast.error(errorMessage);
     } finally {
       setIsGenerating(false);
@@ -162,7 +162,7 @@ const CRMDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">CRM Dashboard</h1>
           <p className="text-muted-foreground">
-            Hub de prospecção inteligente com IA real para geração e qualificação de leads
+            Fluxo automatizado de 4 fases: Identificação IA → Abordagem Multi-canal → Qualificação C6 Bank → Acompanhamento CRM
           </p>
         </div>
         <div className="flex gap-2">
@@ -172,7 +172,7 @@ const CRMDashboard = () => {
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Brain className="h-4 w-4 mr-2" />
-            {isGenerating ? 'Gerando...' : 'Nova Campanha IA'}
+            {isGenerating ? 'Executando...' : 'Nova Campanha com IA'}
           </Button>
           <Button 
             variant="outline"

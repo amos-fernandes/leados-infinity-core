@@ -75,12 +75,12 @@ serve(async (req) => {
       const email = relatedLead?.email || `contato@${script.empresa.toLowerCase().replace(/\s+/g, '')}.com.br`;
       const contactName = relatedLead?.contato_decisor || 'Prezado(a) Responsável Financeiro';
       
-      // Personalizar e-mail
+      // Personalizar e-mail usando template C6 Bank
       const personalizedEmail = script.modelo_email
         .replace('[Nome]', contactName)
-        .replace('[Seu Nome]', 'Equipe Consultoria Tributária Premium');
+        .replace('[Nome do Consultor]', 'Equipe C6 Bank - Escritório Autorizado');
 
-      // Template HTML do e-mail
+      // Template HTML do e-mail C6 Bank
       const htmlTemplate = `
         <!DOCTYPE html>
         <html>
@@ -89,38 +89,44 @@ serve(async (req) => {
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .header { background: linear-gradient(135deg, #FF6B00 0%, #FF8533 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
             .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-            .cta-button { background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+            .cta-button { background: #FF6B00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
             .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.9em; color: #666; }
+            .benefit-list { background: white; padding: 20px; border-radius: 5px; margin: 15px 0; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h2>🏆 Consultoria Tributária Premium</h2>
-              <p>Especialistas em Recuperação de Créditos Tributários</p>
+              <h2>🏦 C6 Bank - Conta PJ Digital</h2>
+              <p>Escritório Autorizado - Abertura de Contas Empresariais</p>
             </div>
             <div class="content">
               <h3>${script.assunto_email}</h3>
               <p>${personalizedEmail.replace(/\n/g, '<br>')}</p>
               
-              <a href="https://calendly.com/consultoria-tributaria" class="cta-button">
-                📅 Agendar Reunião de 20 minutos
+              <div class="benefit-list">
+                <h4>💡 Benefícios da Conta PJ C6 Bank:</h4>
+                <ul>
+                  <li>✅ <strong>Conta 100% gratuita</strong> - Zero mensalidade</li>
+                  <li>✅ <strong>Pix ilimitado</strong> - Sem limite de transações</li>
+                  <li>✅ <strong>100 TEDs gratuitos</strong> por mês</li>
+                  <li>✅ <strong>100 boletos gratuitos</strong> por mês</li>
+                  <li>✅ <strong>Crédito empresarial</strong> sujeito a análise</li>
+                  <li>✅ <strong>Atendimento humano</strong> via escritório autorizado</li>
+                </ul>
+              </div>
+              
+              <a href="https://c6bank.com.br/conta-pj" class="cta-button">
+                🚀 Abrir Conta Agora
               </a>
               
-              <p><strong>Por que escolher nossa consultoria?</strong></p>
-              <ul>
-                <li>✅ Especialistas em grandes corporações</li>
-                <li>✅ Recuperação média de R$ 2-15 milhões por cliente</li>
-                <li>✅ 95% de aprovação nos órgãos fiscais</li>
-                <li>✅ Sem cobrança inicial - apenas success fee</li>
-              </ul>
-              
               <div class="footer">
-                <p>📞 <strong>Contato Direto:</strong> (11) 9999-9999 | WhatsApp disponível</p>
-                <p>🏢 <strong>Escritório:</strong> São Paulo/SP - Atendemos todo Brasil</p>
-                <p>🎓 <strong>Equipe:</strong> PHD em Contabilidade e Finanças</p>
+                <p>📞 <strong>Contato Direto:</strong> (62) 98195-9829 | WhatsApp disponível</p>
+                <p>🏢 <strong>Escritório Autorizado C6 Bank:</strong> Goiânia/GO</p>
+                <p>🎯 <strong>Especialidade:</strong> Contas PJ para todos os tipos de empresa</p>
+                <p><small>C6 Bank S.A. - Banco múltiplo autorizado pelo Banco Central do Brasil</small></p>
               </div>
             </div>
           </div>
@@ -158,7 +164,7 @@ serve(async (req) => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              from: 'Única Contábil <contato@unicacontabil.com>',
+              from: 'C6 Bank Escritório Autorizado <contato@c6bank-autorizado.com>',
               to: [emailData.to],
               subject: emailData.subject,
               html: emailData.html
