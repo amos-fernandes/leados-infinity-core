@@ -1,1 +1,92 @@
 project_id = "rcfmbjkolnzjhrlgrtda"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+enabled = true
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[edge-runtime]
+enabled = true
+port = 54325
+
+[functions.agno-prospect-collector]
+verify_jwt = false
+
+[functions.calendar-integration]
+verify_jwt = false
+
+[functions.content-agent]
+verify_jwt = false
+
+[functions.email-campaign]
+verify_jwt = false
+
+[functions.generate-prospects]
+verify_jwt = false
+
+[functions.launch-campaign]
+verify_jwt = false
+
+[functions.proposal-generator]
+verify_jwt = false
+
+[functions.qualify-lead-with-ai]
+verify_jwt = false
+
+[functions.qualify-leads]
+verify_jwt = false
+
+[functions.rag-chat]
+verify_jwt = false
+
+[functions.scrape-contact-info]
+verify_jwt = false
+
+[functions.scrape-google-maps]
+verify_jwt = false
+
+[functions.scrape-recent-events]
+verify_jwt = false
+
+[functions.scrape-social-media]
+verify_jwt = false
+
+[functions.scrape-websites]
+verify_jwt = false
+
+[functions.send-onboarding-emails]
+verify_jwt = false
+
+[functions.send-upsell-email]
+verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.sentiment-analysis]
+verify_jwt = false
+
+[functions.validate-whatsapp-number]
+verify_jwt = false
+
+[functions.whatsapp-bot-responder]
+verify_jwt = false
+
+[functions.whatsapp-campaign]
+verify_jwt = false
+
+[functions.whatsapp-promo]
+verify_jwt = false
+
+[functions.whatsapp-send-message]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
