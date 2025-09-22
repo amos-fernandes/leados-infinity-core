@@ -217,22 +217,17 @@ serve(async (req) => {
     console.log('Calling WhatsApp function...');
     
     try {
-      const whatsappResponse = await fetch(`${supabaseUrl}/functions/v1/whatsapp-campaign`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
+      const { data: whatsappResult, error: whatsappError } = await supabase.functions.invoke('whatsapp-campaign', {
+        body: { 
           campaignId: campaign.id,
           userId: userId
-        })
+        }
       });
 
-      if (whatsappResponse.ok) {
-        console.log('WhatsApp campaign triggered successfully');
+      if (whatsappError) {
+        console.warn('WhatsApp campaign failed:', whatsappError);
       } else {
-        console.warn('WhatsApp campaign failed:', await whatsappResponse.text());
+        console.log('WhatsApp campaign triggered successfully:', whatsappResult);
       }
     } catch (whatsappError) {
       console.warn('Erro ao disparar WhatsApp (não crítico):', whatsappError);
