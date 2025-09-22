@@ -356,18 +356,37 @@ serve(async (req) => {
 
     if (phase1.status === 'completed') {
       // Criar campanha após identificação (mesmo sem leads qualificados)
+      console.log('🔄 Tentando criar campanha no banco de dados...');
+      
+      const campaignData = {
+        user_id: userId,
+        name: `Campanha C6 Bank - ${new Date().toLocaleDateString('pt-BR')}`,
+        description: `Campanha automatizada 4 fases - ${phase1.details.prospectsGenerated || 0} prospects processados, ${phase1.details.qualifiedLeads || 0} leads qualificados`,
+        status: phase1.details.qualifiedLeads > 0 ? 'ativa' : 'aguardando_leads'
+      };
+      
+      console.log('📝 Dados da campanha para inserção:', campaignData);
+      
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
-        .insert({
-          user_id: userId,
-          name: `Campanha C6 Bank - ${new Date().toLocaleDateString('pt-BR')}`,
-          description: `Campanha automatizada 4 fases - ${phase1.details.prospectsGenerated || 0} prospects processados, ${phase1.details.qualifiedLeads} leads qualificados`,
-          status: phase1.details.qualifiedLeads > 0 ? 'ativa' : 'aguardando_leads'
-        })
+        .insert(campaignData)
         .select()
         .single();
 
-      if (!campaignError && campaign) {
+      console.log('💾 Resultado da inserção da campanha:', { campaign, campaignError });
+
+      if (campaignError) {
+        console.error('❌ Erro detalhado ao criar campanha:', campaignError);
+        campaignResults.push({
+          phase: 2,
+          name: 'Criação de Campanha',
+          status: 'failed',
+          details: { 
+            error: `Erro ao criar campanha no banco: ${campaignError.message}`,
+            details: campaignError
+          }
+        });
+      } else if (campaign) {
         campaignId = campaign.id;
 
         // Executar fases 2, 3 e 4 apenas se houver leads qualificados
