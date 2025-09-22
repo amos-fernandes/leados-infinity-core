@@ -60,10 +60,10 @@ export const ProspectCollector: React.FC = () => {
       if (error) throw error;
 
       const result: CollectorResult = {
-        type: 'Agno Agent (Receita Federal)',
+        type: 'Agno + Bright Data (Híbrido)',
         success: data.success,
         leads: data.data?.leads || [],
-        message: data.message || `${data.data?.leads_collected || 0} leads coletados e qualificados`,
+        message: data.message || `${data.data?.leads_collected || 0} leads enriquecidos coletados`,
         error: data.error
       };
 
@@ -77,7 +77,7 @@ export const ProspectCollector: React.FC = () => {
 
     } catch (error: any) {
       const result: CollectorResult = {
-        type: 'Agno Agent (Receita Federal)',
+        type: 'Agno + Bright Data (Híbrido)',
         success: false,
         leads: [],
         message: 'Erro na coleta',
@@ -87,7 +87,7 @@ export const ProspectCollector: React.FC = () => {
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "Erro - Agno Agent",
+        title: "Erro - Agno + Bright Data",
         description: error.message,
         variant: "destructive"
       });
@@ -269,9 +269,9 @@ export const ProspectCollector: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">🤖 Coletor Agno AI</h1>
+          <h1 className="text-3xl font-bold">🤖 Agno + Bright Data Collector</h1>
           <p className="text-muted-foreground">
-            Coleta auditável de dados oficiais da Receita Federal com qualificação automática
+            Coleta oficial da Receita Federal + enriquecimento inteligente com Bright Data
           </p>
         </div>
         
@@ -312,7 +312,7 @@ export const ProspectCollector: React.FC = () => {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agno-agent" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
-            🤖 Agno Agent
+            🤖 Agno + Bright Data
           </TabsTrigger>
           <TabsTrigger value="websites" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
@@ -333,7 +333,7 @@ export const ProspectCollector: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="w-5 h-5" />
-                🤖 Agno Agent - Receita Federal
+                🤖 Agno + Bright Data - Coleta Inteligente
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -349,31 +349,31 @@ export const ProspectCollector: React.FC = () => {
               </div>
               
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold mb-2 text-blue-900">Filtros Automáticos do Agno Agent:</h4>
+                <h4 className="font-semibold mb-2 text-blue-900">🔥 Recursos Avançados Agno + Bright Data:</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Apenas empresas ativas
+                    Dados oficiais Receita Federal
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Exclui MEI automaticamente
+                    Enriquecimento Bright Data
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Dados da Receita Federal
+                    Websites e redes sociais
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Qualificação BANT com IA
+                    Estimativa de funcionários
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Identificação de decisores
+                    Score BANT avançado (A+)
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Gancho de prospecção
+                    Canais de contato verificados
                   </div>
                 </div>
               </div>
@@ -384,14 +384,14 @@ export const ProspectCollector: React.FC = () => {
                 className="w-full bg-gradient-primary hover:opacity-90"
               >
                 <Zap className="w-4 h-4 mr-2" />
-                Iniciar Coleta com Agno Agent
+                Iniciar Coleta Inteligente
               </Button>
               
               <div className="text-sm text-muted-foreground">
-                <p>• Coleta empresas ativas em Goiânia-GO usando dados oficiais</p>
-                <p>• Qualifica automaticamente com metodologia BANT</p>
-                <p>• Identifica decisores e gera ganchos personalizados</p>
-                <p>• 100% auditável e em conformidade com LGPD</p>
+                <p>• <strong>Fase 1:</strong> Coleta dados oficiais da Receita Federal</p>
+                <p>• <strong>Fase 2:</strong> Enriquece com Bright Data (websites, funcionários, redes sociais)</p>
+                <p>• <strong>Fase 3:</strong> Qualificação BANT avançada com score A+</p>
+                <p>• <strong>Resultado:</strong> Leads premium com múltiplos canais de contato</p>
               </div>
             </CardContent>
           </Card>

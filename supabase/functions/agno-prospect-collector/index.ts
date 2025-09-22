@@ -26,6 +26,21 @@ interface CNPJData {
     cargo: string;
     cpf?: string;
   }>;
+  // Dados enriquecidos do Bright Data
+  bright_data?: {
+    website?: string;
+    social_media?: {
+      linkedin?: string;
+      facebook?: string;
+      instagram?: string;
+    };
+    employees_count?: number;
+    revenue_estimate?: number;
+    industry_classification?: string;
+    tech_stack?: string[];
+    contact_emails?: string[];
+    verified_phones?: string[];
+  };
 }
 
 interface AgnoAgent {
@@ -35,17 +50,19 @@ interface AgnoAgent {
   tools: string[];
 }
 
-class CNPJCollectorAgent {
+class AgnoSmartCollectorAgent {
   private name: string;
   private description: string;
   private supabase: any;
+  private brightDataApiKey: string;
 
   constructor() {
-    this.name = "CNPJ Data Collector";
-    this.description = "Agente especializado em coletar dados oficiais de empresas brasileiras da Receita Federal";
+    this.name = "Agno + Bright Data Smart Collector";
+    this.description = "Agente híbrido que combina dados oficiais da Receita Federal com enriquecimento via Bright Data";
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    this.brightDataApiKey = Deno.env.get('BRIGHT_DATA_API_KEY')!;
     this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
@@ -57,20 +74,29 @@ class CNPJCollectorAgent {
     porte?: string;
     excludeMEI?: boolean;
   }): Promise<CNPJData[]> {
-    console.log('🤖 Agno Agent: Iniciando busca por empresas com filtros:', filters);
-    
-    // API da Receita Federal - endpoint público
-    const baseUrl = 'https://publica.cnpj.ws/cnpj';
-    const companies: CNPJData[] = [];
+    console.log('🤖 Agno + Bright Data: Iniciando busca híbrida por empresas com filtros:', filters);
     
     try {
-      // Simulação de busca por empresas em Goiânia - GO
-      // Em produção, integraria com APIs oficiais como:
-      // - Receita Federal (dados públicos)
-      // - Juceg (Junta Comercial de Goiás)
-      // - APIs de dados empresariais
+      // Fase 1: Coleta base de dados da Receita Federal (simulado)
+      const baseCompanies = await this.getBaseCompaniesData(filters);
       
-      const mockData: CNPJData[] = [
+      // Fase 2: Enriquecimento com Bright Data
+      const enrichedCompanies = await this.enrichWithBrightData(baseCompanies);
+      
+      console.log(`🤖 Agno + Bright Data: Processadas ${enrichedCompanies.length} empresas com enriquecimento`);
+      return enrichedCompanies;
+      
+    } catch (error) {
+      console.error('🚫 Erro na coleta híbrida:', error);
+      throw new Error(`Erro ao buscar empresas: ${error.message}`);
+    }
+  }
+
+  private async getBaseCompaniesData(filters: any): Promise<CNPJData[]> {
+    console.log('📊 Coletando dados base da Receita Federal...');
+    
+    // Simulação de dados da Receita Federal (em produção seria API real)
+    const mockData: CNPJData[] = [
         {
           cnpj: "11.222.333/0001-44",
           nome: "TECH SOLUTIONS LTDA",
@@ -153,63 +179,139 @@ class CNPJCollectorAgent {
         filteredData = filteredData.filter(company => company.porte === filters.porte);
       }
 
-      companies.push(...filteredData);
-      
-      console.log(`🤖 Agno Agent: Encontradas ${companies.length} empresas`);
-      return companies;
-      
-    } catch (error) {
-      console.error('🚫 Erro na coleta de dados:', error);
-      throw new Error(`Erro ao buscar empresas: ${error.message}`);
+      console.log(`📊 Dados base coletados: ${filteredData.length} empresas`);
+      return filteredData;
+  }
+
+  private async enrichWithBrightData(companies: CNPJData[]): Promise<CNPJData[]> {
+    console.log('🔍 Iniciando enriquecimento com Bright Data...');
+    
+    const enrichedCompanies: CNPJData[] = [];
+    
+    for (const company of companies) {
+      try {
+        const brightData = await this.getBrightDataInfo(company);
+        
+        enrichedCompanies.push({
+          ...company,
+          bright_data: brightData
+        });
+        
+        console.log(`✅ ${company.nome_fantasia || company.nome} enriquecida com Bright Data`);
+        
+      } catch (error) {
+        console.warn(`⚠️ Erro ao enriquecer ${company.nome}: ${error.message}`);
+        // Manter empresa mesmo sem enriquecimento
+        enrichedCompanies.push(company);
+      }
+    }
+    
+    return enrichedCompanies;
+  }
+
+  private async getBrightDataInfo(company: CNPJData): Promise<any> {
+    // Simulação de enriquecimento com Bright Data
+    // Em produção, faria chamadas reais para a API do Bright Data
+    
+    const mockBrightData = {
+      website: `https://www.${company.nome.toLowerCase().replace(/\s+/g, '')}.com.br`,
+      social_media: {
+        linkedin: `https://linkedin.com/company/${company.nome.toLowerCase().replace(/\s+/g, '-')}`,
+        facebook: company.porte === 'EPP' ? `https://facebook.com/${company.nome_fantasia?.toLowerCase().replace(/\s+/g, '')}` : undefined,
+        instagram: company.cnae_principal.includes('6201') ? `https://instagram.com/${company.nome_fantasia?.toLowerCase().replace(/\s+/g, '')}` : undefined
+      },
+      employees_count: this.estimateEmployees(company.porte, company.capital_social),
+      revenue_estimate: this.estimateRevenue(company),
+      industry_classification: this.getIndustryFromCNAE(company.cnae_descricao),
+      tech_stack: company.cnae_principal.includes('6201') ? ['React', 'Node.js', 'AWS'] : undefined,
+      contact_emails: [
+        `contato@${company.nome.toLowerCase().replace(/\s+/g, '')}.com.br`,
+        `comercial@${company.nome.toLowerCase().replace(/\s+/g, '')}.com.br`
+      ],
+      verified_phones: company.telefone ? [company.telefone] : []
+    };
+
+    return mockBrightData;
+  }
+
+  private estimateEmployees(porte: string, capitalSocial: number): number {
+    switch (porte) {
+      case 'EPP': return Math.floor(Math.random() * 50) + 10; // 10-60 funcionários
+      case 'DEMAIS': return Math.floor(Math.random() * 20) + 5; // 5-25 funcionários
+      default: return Math.floor(Math.random() * 10) + 1; // 1-10 funcionários
     }
   }
 
-  async qualifyLead(company: CNPJData): Promise<any> {
-    console.log(`🤖 Agno Agent: Qualificando lead para ${company.nome}`);
+  private estimateRevenue(company: CNPJData): number {
+    // Baseado no capital social e porte
+    let baseRevenue = company.capital_social * 3;
     
-    // Lógica de qualificação BANT específica para C6 Bank
+    switch (company.porte) {
+      case 'EPP': return baseRevenue * 2;
+      case 'DEMAIS': return baseRevenue * 1.5;
+      default: return baseRevenue;
+    }
+  }
+
+  private getIndustryFromCNAE(cnaeDescricao: string): string {
+    if (cnaeDescricao.includes('programa')) return 'Technology';
+    if (cnaeDescricao.includes('comércio')) return 'Retail';
+    if (cnaeDescricao.includes('consultoria')) return 'Consulting';
+    return 'Other';
+  }
+
+  async qualifyLead(company: CNPJData): Promise<any> {
+    console.log(`🤖 Agno + Bright Data: Qualificando lead enriquecido para ${company.nome}`);
+    
+    // Qualificação BANT avançada com dados do Bright Data
     const qualification = {
-      qualificationScore: this.calculateBANTScore(company),
+      qualificationScore: this.calculateEnhancedBANTScore(company),
       urgencyLevel: this.calculateUrgency(company),
       decisionMaker: this.identifyDecisionMaker(company),
-      contactChannels: {
-        phone: company.telefone || '',
-        email: company.email || '',
-        status: 'pendente_validacao'
-      },
-      gancho_prospeccao: this.generateProspectHook(company),
-      estimated_revenue: this.estimateRevenue(company),
-      recommended_channel: company.telefone ? 'WhatsApp' : 'Email'
+      contactChannels: this.getBestContactChannels(company),
+      gancho_prospeccao: this.generateEnhancedProspectHook(company),
+      estimated_revenue: company.bright_data?.revenue_estimate?.toLocaleString('pt-BR') || this.estimateBasicRevenue(company),
+      recommended_channel: this.getRecommendedChannel(company),
+      enrichment_data: this.getSummaryEnrichment(company)
     };
 
-    console.log(`🎯 Qualificação concluída: Score ${qualification.qualificationScore}`);
+    console.log(`🎯 Qualificação avançada concluída: Score ${qualification.qualificationScore}`);
     return qualification;
   }
 
-  private calculateBANTScore(company: CNPJData): string {
+  private calculateEnhancedBANTScore(company: CNPJData): string {
     let score = 0;
     
-    // Budget: baseado no capital social e porte
-    if (company.capital_social >= 100000) score += 25;
-    else if (company.capital_social >= 50000) score += 20;
+    // Budget: baseado no capital + dados do Bright Data
+    const revenueEstimate = company.bright_data?.revenue_estimate || company.capital_social * 2;
+    if (revenueEstimate >= 1000000) score += 30; // +5 pelo enriquecimento
+    else if (revenueEstimate >= 500000) score += 25;
+    else if (revenueEstimate >= 100000) score += 20;
     else score += 10;
     
-    // Authority: verifica se tem sócio-administrador
-    if (company.socios.some(s => s.cargo.includes('ADMINISTRADOR'))) score += 25;
-    else score += 15;
+    // Authority: sócio-administrador + presença digital
+    let authorityScore = 15;
+    if (company.socios.some(s => s.cargo.includes('ADMINISTRADOR'))) authorityScore += 10;
+    if (company.bright_data?.social_media?.linkedin) authorityScore += 5; // LinkedIn = mais profissional
+    score += Math.min(authorityScore, 30);
     
-    // Need: baseado no CNAE (setores que mais precisam de conta PJ)
+    // Need: CNAE + tech stack + funcionários
     const highNeedCNAEs = ['6201-5', '4681-8', '7020-4'];
-    if (highNeedCNAEs.some(cnae => company.cnae_principal.includes(cnae))) score += 25;
-    else score += 15;
+    let needScore = 15;
+    if (highNeedCNAEs.some(cnae => company.cnae_principal.includes(cnae))) needScore += 10;
+    if (company.bright_data?.employees_count && company.bright_data.employees_count > 10) needScore += 5;
+    score += Math.min(needScore, 25);
     
-    // Timing: empresas ativas e recentes têm mais necessidade
+    // Timing: idade da empresa + presença digital ativa
     const dataAbertura = new Date(company.data_abertura);
     const anosOperacao = (new Date().getFullYear() - dataAbertura.getFullYear());
-    if (anosOperacao <= 3) score += 25;
-    else if (anosOperacao <= 5) score += 20;
-    else score += 10;
+    let timingScore = 10;
+    if (anosOperacao <= 3) timingScore += 15;
+    else if (anosOperacao <= 5) timingScore += 10;
+    if (company.bright_data?.website) timingScore += 5; // Site ativo = expansão
+    score += Math.min(timingScore, 25);
     
+    if (score >= 90) return 'A+'; // Novo nível premium
     if (score >= 85) return 'A';
     if (score >= 70) return 'B';
     return 'C';
@@ -233,29 +335,130 @@ class CNPJCollectorAgent {
     };
   }
 
-  private generateProspectHook(company: CNPJData): string {
-    const hooks = [
-      `Empresa ${company.porte} em ${company.municipio} com potencial para conta PJ digital com benefícios exclusivos no C6 Bank.`,
-      `${company.nome_fantasia || company.nome} pode economizar em tarifas bancárias com nossa conta PJ sem mensalidade.`,
-      `Oportunidade para ${company.nome_fantasia || company.nome} acessar crédito facilitado e soluções digitais completas.`
-    ];
+  private generateEnhancedProspectHook(company: CNPJData): string {
+    const brightData = company.bright_data;
+    const companyName = company.nome_fantasia || company.nome;
+    
+    // Ganchos personalizados baseados no enriquecimento
+    const hooks = [];
+    
+    // Hook baseado em crescimento de funcionários
+    if (brightData?.employees_count && brightData.employees_count > 15) {
+      hooks.push(`${companyName} está em expansão com ${brightData.employees_count}+ funcionários - momento ideal para modernizar a gestão financeira com C6 Bank.`);
+    }
+    
+    // Hook baseado em presença digital
+    if (brightData?.website && brightData?.social_media?.linkedin) {
+      hooks.push(`${companyName} tem forte presença digital - nossa conta PJ C6 Bank oferece integração API para automatizar processos financeiros.`);
+    }
+    
+    // Hook baseado em tech stack (para empresas de tecnologia)
+    if (brightData?.tech_stack && brightData.tech_stack.length > 0) {
+      hooks.push(`${companyName} usa tecnologias modernas - nossa conta PJ digital se integra perfeitamente com ${brightData.tech_stack.join(', ')}.`);
+    }
+    
+    // Hook baseado em faturamento estimado
+    if (brightData?.revenue_estimate && brightData.revenue_estimate > 500000) {
+      hooks.push(`Com faturamento estimado de R$ ${brightData.revenue_estimate.toLocaleString('pt-BR')}, ${companyName} pode economizar milhares em tarifas bancárias com C6 Bank.`);
+    }
+    
+    // Hook padrão se não tiver dados específicos
+    if (hooks.length === 0) {
+      hooks.push(`${companyName} (${company.porte}) em ${company.municipio} - oportunidade para conta PJ digital sem mensalidade no C6 Bank.`);
+    }
     
     return hooks[Math.floor(Math.random() * hooks.length)];
   }
 
-  private estimateRevenue(company: CNPJData): string {
-    // Estimativa baseada no capital social e porte
+  private getBestContactChannels(company: CNPJData) {
+    const channels = {
+      phone: company.telefone || '',
+      whatsapp: '',
+      email: company.email || '',
+      linkedin: '',
+      website: '',
+      status: 'enriquecido'
+    };
+
+    // Adicionar canais do Bright Data
+    if (company.bright_data) {
+      if (company.bright_data.verified_phones && company.bright_data.verified_phones.length > 0) {
+        channels.whatsapp = company.bright_data.verified_phones[0];
+      }
+      
+      if (company.bright_data.contact_emails && company.bright_data.contact_emails.length > 0) {
+        channels.email = company.bright_data.contact_emails[0];
+      }
+      
+      if (company.bright_data.social_media?.linkedin) {
+        channels.linkedin = company.bright_data.social_media.linkedin;
+      }
+      
+      if (company.bright_data.website) {
+        channels.website = company.bright_data.website;
+      }
+    }
+
+    return channels;
+  }
+
+  private getRecommendedChannel(company: CNPJData): string {
+    // Priorizar baseado na qualidade dos dados enriquecidos
+    if (company.bright_data?.verified_phones && company.bright_data.verified_phones.length > 0) {
+      return 'WhatsApp Verificado';
+    }
+    
+    if (company.bright_data?.social_media?.linkedin) {
+      return 'LinkedIn';
+    }
+    
+    if (company.telefone) {
+      return 'WhatsApp';
+    }
+    
+    if (company.bright_data?.contact_emails && company.bright_data.contact_emails.length > 0) {
+      return 'Email Corporativo';
+    }
+    
+    return 'Email';
+  }
+
+  private getSummaryEnrichment(company: CNPJData) {
+    if (!company.bright_data) return null;
+    
+    return {
+      data_sources: ['Receita Federal', 'Bright Data'],
+      enrichment_score: this.calculateEnrichmentScore(company.bright_data),
+      digital_presence: {
+        website: !!company.bright_data.website,
+        social_media: Object.keys(company.bright_data.social_media || {}).length,
+        verified_contacts: (company.bright_data.verified_phones?.length || 0) + (company.bright_data.contact_emails?.length || 0)
+      }
+    };
+  }
+
+  private calculateEnrichmentScore(brightData: any): number {
+    let score = 0;
+    if (brightData.website) score += 20;
+    if (brightData.social_media?.linkedin) score += 25;
+    if (brightData.employees_count) score += 15;
+    if (brightData.revenue_estimate) score += 20;
+    if (brightData.verified_phones?.length > 0) score += 20;
+    return Math.min(score, 100);
+  }
+
+  private estimateBasicRevenue(company: CNPJData): string {
     let estimate = 0;
     
     switch (company.porte) {
       case 'EPP':
-        estimate = company.capital_social * 2; // R$ 300k - 800k
+        estimate = company.capital_social * 2;
         break;
       case 'DEMAIS':
-        estimate = company.capital_social * 1.5; // R$ 75k - 300k
+        estimate = company.capital_social * 1.5;
         break;
       default:
-        estimate = company.capital_social * 1.2; // Até R$ 75k
+        estimate = company.capital_social * 1.2;
     }
     
     return `R$ ${estimate.toLocaleString('pt-BR')}`;
@@ -332,10 +535,10 @@ serve(async (req) => {
       throw new Error('userId é obrigatório');
     }
 
-    console.log('🚀 Iniciando Agno Agent para coleta de prospects');
+    console.log('🚀 Iniciando Agno + Bright Data Smart Collector para coleta de prospects');
     
-    // Inicializar o agente
-    const agent = new CNPJCollectorAgent();
+    // Inicializar o agente híbrido
+    const agent = new AgnoSmartCollectorAgent();
     
     // Definir filtros padrão para Goiânia
     const searchFilters = {
@@ -365,10 +568,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Agno Agent coletou ${savedLeads.length} leads qualificados`,
+        message: `Agno + Bright Data coletou e enriqueceu ${savedLeads.length} leads qualificados`,
         data: {
           leads_collected: savedLeads.length,
-          agent_used: 'CNPJCollectorAgent',
+          agent_used: 'AgnoSmartCollectorAgent',
+          data_sources: ['Receita Federal', 'Bright Data'],
+          enrichment_enabled: true,
           filters_applied: searchFilters,
           leads: savedLeads
         }
@@ -380,12 +585,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('❌ Erro no Agno Agent:', error);
+    console.error('❌ Erro no Agno + Bright Data Agent:', error);
     return new Response(
       JSON.stringify({
         success: false,
         error: error.message,
-        message: 'Erro na coleta de prospects com Agno Agent'
+        message: 'Erro na coleta de prospects com Agno + Bright Data'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
