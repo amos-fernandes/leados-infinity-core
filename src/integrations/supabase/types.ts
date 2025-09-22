@@ -237,17 +237,23 @@ export type Database = {
       }
       leads: {
         Row: {
+          approach_strategy: string | null
+          bright_data_enriched: boolean | null
           cnae: string | null
           contato_decisor: string | null
           created_at: string
           email: string | null
           empresa: string
+          estimated_employees: number | null
           gancho_prospeccao: string | null
           id: string
           linkedin: string | null
+          qualification_score: string | null
           regime_tributario: string | null
           setor: string | null
+          social_media: Json | null
           status: string | null
+          tech_stack: Json | null
           telefone: string | null
           updated_at: string
           user_id: string
@@ -255,17 +261,23 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          approach_strategy?: string | null
+          bright_data_enriched?: boolean | null
           cnae?: string | null
           contato_decisor?: string | null
           created_at?: string
           email?: string | null
           empresa: string
+          estimated_employees?: number | null
           gancho_prospeccao?: string | null
           id?: string
           linkedin?: string | null
+          qualification_score?: string | null
           regime_tributario?: string | null
           setor?: string | null
+          social_media?: Json | null
           status?: string | null
+          tech_stack?: Json | null
           telefone?: string | null
           updated_at?: string
           user_id: string
@@ -273,17 +285,23 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          approach_strategy?: string | null
+          bright_data_enriched?: boolean | null
           cnae?: string | null
           contato_decisor?: string | null
           created_at?: string
           email?: string | null
           empresa?: string
+          estimated_employees?: number | null
           gancho_prospeccao?: string | null
           id?: string
           linkedin?: string | null
+          qualification_score?: string | null
           regime_tributario?: string | null
           setor?: string | null
+          social_media?: Json | null
           status?: string | null
+          tech_stack?: Json | null
           telefone?: string | null
           updated_at?: string
           user_id?: string
