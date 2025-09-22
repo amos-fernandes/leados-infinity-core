@@ -40,49 +40,44 @@ export const ProspectCollector: React.FC = () => {
   const [numbersToValidate, setNumbersToValidate] = useState('');
   const [validatedNumbers, setValidatedNumbers] = useState<any[]>([]);
 
-  const collectFromGoogleMaps = async () => {
-    if (!mapsQuery.trim()) {
-      toast({
-        title: "Erro",
-        description: "Digite uma busca para o Google Maps",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const collectFromAgnoAgent = async () => {
     try {
       setProgress(25);
       
-      const { data, error } = await supabase.functions.invoke('scrape-google-maps', {
+      const { data, error } = await supabase.functions.invoke('agno-prospect-collector', {
         body: {
-          searchQuery: mapsQuery,
-          location: mapsLocation,
           userId: user?.id,
-          campaignId: null
+          filters: {
+            uf: 'GO',
+            municipio: 'GOIANIA',
+            excludeMEI: true,
+            situacao: 'ATIVA'
+          },
+          campaignId: 'agno-agent-' + Date.now()
         }
       });
 
       if (error) throw error;
 
       const result: CollectorResult = {
-        type: 'Google Maps',
+        type: 'Agno Agent (Receita Federal)',
         success: data.success,
-        leads: data.leads || [],
-        message: data.message || `${data.leads?.length || 0} leads coletados`,
+        leads: data.data?.leads || [],
+        message: data.message || `${data.data?.leads_collected || 0} leads coletados e qualificados`,
         error: data.error
       };
 
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "Google Maps",
+        title: "🤖 Agno Agent",
         description: result.message,
         variant: result.success ? "default" : "destructive"
       });
 
     } catch (error: any) {
       const result: CollectorResult = {
-        type: 'Google Maps',
+        type: 'Agno Agent (Receita Federal)',
         success: false,
         leads: [],
         message: 'Erro na coleta',
@@ -92,7 +87,7 @@ export const ProspectCollector: React.FC = () => {
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "Erro - Google Maps",
+        title: "Erro - Agno Agent",
         description: error.message,
         variant: "destructive"
       });
@@ -239,11 +234,12 @@ export const ProspectCollector: React.FC = () => {
     setResults([]);
     
     try {
-      // Executar todas as coletas em sequência
-      if (mapsQuery.trim()) {
-        await collectFromGoogleMaps();
-      }
+      // Executar Agno Agent como método principal
+      await collectFromAgnoAgent();
       
+      setProgress(60);
+      
+      // Executar coleta de sites se configurado
       if (websites.trim()) {
         await collectFromWebsites();
       }
@@ -252,7 +248,7 @@ export const ProspectCollector: React.FC = () => {
       
       toast({
         title: "Coleta Finalizada",
-        description: "Todos os métodos de coleta foram executados",
+        description: "Agno Agent executado com sucesso",
         variant: "default"
       });
 
@@ -273,9 +269,9 @@ export const ProspectCollector: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Coletor de Prospects</h1>
+          <h1 className="text-3xl font-bold">🤖 Coletor Agno AI</h1>
           <p className="text-muted-foreground">
-            Colete números WhatsApp de múltiplas fontes e valide automaticamente
+            Coleta auditável de dados oficiais da Receita Federal com qualificação automática
           </p>
         </div>
         
@@ -287,12 +283,12 @@ export const ProspectCollector: React.FC = () => {
           {isCollecting ? (
             <>
               <Zap className="w-4 h-4 mr-2 animate-spin" />
-              Coletando...
+              Agno Coletando...
             </>
           ) : (
             <>
               <Zap className="w-4 h-4 mr-2" />
-              Coletar Todos
+              Iniciar Agno Agent
             </>
           )}
         </Button>
@@ -312,11 +308,11 @@ export const ProspectCollector: React.FC = () => {
         </Card>
       )}
 
-      <Tabs defaultValue="google-maps" className="space-y-4">
+      <Tabs defaultValue="agno-agent" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="google-maps" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Google Maps
+          <TabsTrigger value="agno-agent" className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            🤖 Agno Agent
           </TabsTrigger>
           <TabsTrigger value="websites" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
@@ -332,48 +328,70 @@ export const ProspectCollector: React.FC = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="google-maps">
+        <TabsContent value="agno-agent">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Google Maps & Google Meu Negócio
+                <Zap className="w-5 h-5" />
+                🤖 Agno Agent - Receita Federal
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="maps-query">Busca no Google Maps *</Label>
-                  <Input
-                    id="maps-query"
-                    placeholder="Ex: restaurantes, clínicas, escritórios"
-                    value={mapsQuery}
-                    onChange={(e) => setMapsQuery(e.target.value)}
-                  />
+                  <Label>Estado</Label>
+                  <Input value="GO - Goiás" disabled />
                 </div>
                 <div>
-                  <Label htmlFor="maps-location">Localização (opcional)</Label>
-                  <Input
-                    id="maps-location"
-                    placeholder="Ex: São Paulo, SP"
-                    value={mapsLocation}
-                    onChange={(e) => setMapsLocation(e.target.value)}
-                  />
+                  <Label>Município</Label>
+                  <Input value="GOIÂNIA" disabled />
+                </div>
+              </div>
+              
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-semibold mb-2 text-blue-900">Filtros Automáticos do Agno Agent:</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Apenas empresas ativas
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Exclui MEI automaticamente
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Dados da Receita Federal
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Qualificação BANT com IA
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Identificação de decisores
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    Gancho de prospecção
+                  </div>
                 </div>
               </div>
               
               <Button 
-                onClick={collectFromGoogleMaps}
-                disabled={isCollecting || !mapsQuery.trim()}
-                className="w-full"
+                onClick={collectFromAgnoAgent}
+                disabled={isCollecting}
+                className="w-full bg-gradient-primary hover:opacity-90"
               >
-                Coletar do Google Maps
+                <Zap className="w-4 h-4 mr-2" />
+                Iniciar Coleta com Agno Agent
               </Button>
               
               <div className="text-sm text-muted-foreground">
-                <p>• Busca empresas no Google Maps com a query especificada</p>
-                <p>• Extrai telefones e identifica possíveis números WhatsApp</p>
-                <p>• Filtra apenas números móveis brasileiros</p>
+                <p>• Coleta empresas ativas em Goiânia-GO usando dados oficiais</p>
+                <p>• Qualifica automaticamente com metodologia BANT</p>
+                <p>• Identifica decisores e gera ganchos personalizados</p>
+                <p>• 100% auditável e em conformidade com LGPD</p>
               </div>
             </CardContent>
           </Card>
