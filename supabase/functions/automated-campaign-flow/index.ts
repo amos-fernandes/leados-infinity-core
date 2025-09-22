@@ -354,15 +354,15 @@ serve(async (req) => {
     const phase1 = await executePhase1(userId, supabase);
     campaignResults.push(phase1);
 
-    if (phase1.status === 'completed' && phase1.details.qualifiedLeads > 0) {
-      // Criar campanha após identificação bem-sucedida
+    if (phase1.status === 'completed') {
+      // Criar campanha após identificação (mesmo sem leads qualificados)
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .insert({
           user_id: userId,
           name: `Campanha C6 Bank - ${new Date().toLocaleDateString('pt-BR')}`,
-          description: `Campanha automatizada 4 fases - ${phase1.details.qualifiedLeads} leads qualificados`,
-          status: 'ativa'
+          description: `Campanha automatizada 4 fases - ${phase1.details.prospectsGenerated || 0} prospects processados, ${phase1.details.qualifiedLeads} leads qualificados`,
+          status: phase1.details.qualifiedLeads > 0 ? 'ativa' : 'aguardando_leads'
         })
         .select()
         .single();
@@ -370,17 +370,40 @@ serve(async (req) => {
       if (!campaignError && campaign) {
         campaignId = campaign.id;
 
-        // FASE 2: Abordagem Multi-canal
-        const phase2 = await executePhase2(userId, campaignId, supabase);
-        campaignResults.push(phase2);
+        // Executar fases 2, 3 e 4 apenas se houver leads qualificados
+        if (phase1.details.qualifiedLeads > 0) {
+          // FASE 2: Abordagem Multi-canal
+          const phase2 = await executePhase2(userId, campaignId, supabase);
+          campaignResults.push(phase2);
 
-        // FASE 3: Qualificação Avançada
-        const phase3 = await executePhase3(userId, campaignId, supabase);
-        campaignResults.push(phase3);
+          // FASE 3: Qualificação Avançada
+          const phase3 = await executePhase3(userId, campaignId, supabase);
+          campaignResults.push(phase3);
 
-        // FASE 4: Acompanhamento
-        const phase4 = await executePhase4(userId, campaignId, supabase);
-        campaignResults.push(phase4);
+          // FASE 4: Acompanhamento
+          const phase4 = await executePhase4(userId, campaignId, supabase);
+          campaignResults.push(phase4);
+        } else {
+          // Adicionar fases como "aguardando" se não há leads
+          campaignResults.push({
+            phase: 2,
+            name: 'Abordagem Multi-canal',
+            status: 'pending',
+            details: { message: 'Aguardando leads qualificados para iniciar abordagem' }
+          });
+          campaignResults.push({
+            phase: 3,
+            name: 'Qualificação Avançada',
+            status: 'pending',
+            details: { message: 'Aguardando leads qualificados' }
+          });
+          campaignResults.push({
+            phase: 4,
+            name: 'Acompanhamento',
+            status: 'pending',
+            details: { message: 'Aguardando leads qualificados' }
+          });
+        }
       } else {
         campaignResults.push({
           phase: 2,
@@ -400,13 +423,14 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: overallStatus !== 'failed',
       status: overallStatus,
-      message: `✅ **Campanha Automatizada Executada - ${completedPhases}/${totalPhases} Fases Concluídas**\n\n` +
+      message: `✅ **Campanha Criada e Executada - ${completedPhases}/${totalPhases} Fases Concluídas**\n\n` +
                `🔍 **Fase 1 - Identificação (IA):** ${phase1.status === 'completed' ? '✅' : '❌'} ${phase1.details.qualifiedLeads || 0} leads qualificados\n` +
-               `📞 **Fase 2 - Abordagem Multi-canal:** ${campaignResults[1]?.status === 'completed' ? '✅' : '❌'} WhatsApp + E-mail + Ligação\n` +
-               `🎯 **Fase 3 - Qualificação Avançada:** ${campaignResults[2]?.status === 'completed' ? '✅' : '❌'} Foco em C6 Bank\n` +
-               `📊 **Fase 4 - Acompanhamento:** ${campaignResults[3]?.status === 'completed' ? '✅' : '❌'} CRM + Follow-ups + Tracking\n\n` +
+               `📞 **Fase 2 - Abordagem Multi-canal:** ${campaignResults[1]?.status === 'completed' ? '✅' : campaignResults[1]?.status === 'pending' ? '⏳' : '❌'} WhatsApp + E-mail + Ligação\n` +
+               `🎯 **Fase 3 - Qualificação Avançada:** ${campaignResults[2]?.status === 'completed' ? '✅' : campaignResults[2]?.status === 'pending' ? '⏳' : '❌'} Foco em C6 Bank\n` +
+               `📊 **Fase 4 - Acompanhamento:** ${campaignResults[3]?.status === 'completed' ? '✅' : campaignResults[3]?.status === 'pending' ? '⏳' : '❌'} CRM + Follow-ups + Tracking\n\n` +
                `🏦 **Foco:** Abertura de Conta PJ C6 Bank\n` +
-               `💡 **Benefícios:** Pix ilimitado, TEDs/boletos gratuitos, crédito sujeito a análise`,
+               `💡 **Benefícios:** Pix ilimitado, TEDs/boletos gratuitos, crédito sujeito a análise\n` +
+               (phase1.details.qualifiedLeads === 0 ? `\n⚠️ **Nota:** Campanha criada mas aguardando leads qualificados para executar fases 2-4` : ''),
       campaignId,
       phases: campaignResults,
       summary: {
