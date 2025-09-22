@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { ProspectCollector } from "@/components/ProspectCollector";
 import LandingPage from "@/components/LandingPage";
 import Dashboard from "@/components/Dashboard";
 import RAGChat from "@/components/RAGChat";
@@ -57,7 +58,8 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-8 space-y-8">
-        <Dashboard />
+      <Dashboard />
+      <ProspectCollector />
         <CRMDashboard />
         <SupabaseConnectionTest />
         {showWhatsApp ? <WhatsAppBot /> : <RAGChat />}
