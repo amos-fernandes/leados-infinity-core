@@ -58,7 +58,7 @@ async function executePhase1(userId: string, supabase: any): Promise<CampaignPha
 }
 
 // Fase 2: Abordagem Multi-canal
-async function executePhase2(userId: string, campaignId: string, supabase: any): Promise<CampaignPhase> {
+async function executePhase2(userId: string, campaignId: string, supabase: any, qualifiedLeads: any[] = []): Promise<CampaignPhase> {
   console.log('📞 Executando Fase 2: Abordagem Multi-canal');
   
   try {
@@ -67,6 +67,77 @@ async function executePhase2(userId: string, campaignId: string, supabase: any):
       email: null,
       call: null
     };
+
+    // Primeiro, criar os roteiros para todos os leads qualificados
+    if (qualifiedLeads.length > 0) {
+      console.log('📝 Criando roteiros personalizados para', qualifiedLeads.length, 'leads...');
+      
+      const scriptPromises = qualifiedLeads.map(async (lead: any) => {
+        const emailSubject = `${lead.empresa} - Proposta Conta PJ C6 Bank Gratuita`;
+        const emailTemplate = `Olá ${lead.contato_decisor || 'Responsável Financeiro'},
+
+Sou da equipe do C6 Bank - Escritório Autorizado em Goiânia, e identifiquei uma oportunidade interessante para ${lead.empresa}.
+
+💡 **Proposta Especial - Conta PJ 100% Gratuita:**
+✅ Zero mensalidade para sempre
+✅ Pix ilimitado sem custo
+✅ 100 TEDs gratuitos por mês  
+✅ 100 boletos gratuitos por mês
+✅ Crédito empresarial sujeito a análise
+✅ Atendimento humano via escritório autorizado
+
+🎯 **Gancho específico para ${lead.empresa}:** ${lead.gancho_prospeccao || 'Redução significativa nos custos bancários mensais'}
+
+Gostaria de agendar uma conversa rápida para apresentar os benefícios específicos para sua empresa?
+
+Atenciosamente,
+Equipe C6 Bank - Escritório Autorizado
+📞 (62) 98195-9829`;
+
+        const callScript = `Roteiro de Ligação - ${lead.empresa}
+
+1. ABERTURA:
+Olá, aqui é [Nome] da equipe C6 Bank - Escritório Autorizado em Goiânia. 
+Estou ligando para o responsável financeiro da ${lead.empresa}.
+
+2. GANCHO ESPECÍFICO:
+Identificamos que vocês podem ter interesse em reduzir custos bancários. 
+${lead.gancho_prospeccao || 'Nossa conta PJ é 100% gratuita'}
+
+3. PROPOSTA:
+- Conta PJ sem mensalidade
+- Pix ilimitado gratuito
+- 100 TEDs e boletos gratuitos por mês
+- Crédito empresarial sujeito a análise
+
+4. FECHAMENTO:
+Posso enviar uma proposta detalhada por WhatsApp ou e-mail?
+Quando seria um bom momento para uma apresentação rápida?`;
+
+        return {
+          campaign_id: campaignId,
+          empresa: lead.empresa,
+          assunto_email: emailSubject,
+          modelo_email: emailTemplate,
+          roteiro_ligacao: callScript
+        };
+      });
+
+      const scripts = await Promise.all(scriptPromises);
+      
+      // Inserir todos os roteiros no banco
+      const { data: insertedScripts, error: scriptsError } = await supabase
+        .from('campaign_scripts')
+        .insert(scripts)
+        .select();
+
+      if (scriptsError) {
+        console.error('Erro ao inserir roteiros:', scriptsError);
+        throw new Error(`Erro ao criar roteiros: ${scriptsError.message}`);
+      }
+
+      console.log('✅ Roteiros criados:', insertedScripts?.length || 0);
+    }
 
     // 1. WhatsApp (foco principal) - executar primeiro
     console.log('📱 Enviando WhatsApp (canal principal)...');
@@ -418,9 +489,9 @@ serve(async (req) => {
         if (phase1.details.qualifiedLeads > 0) {
           console.log('🚀 Executando fases 2-4 pois há leads qualificados');
           
-          // FASE 2: Abordagem Multi-canal
-          const phase2 = await executePhase2(userId, campaignId, supabase);
-          campaignResults.push(phase2);
+      // FASE 2: Abordagem Multi-canal (passar os leads qualificados)
+      const phase2 = await executePhase2(userId, campaignId, supabase, phase1.details.qualifiedLeads || []);
+      campaignResults.push(phase2);
 
           // FASE 3: Qualificação Avançada
           const phase3 = await executePhase3(userId, campaignId, supabase);
