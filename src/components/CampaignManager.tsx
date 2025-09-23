@@ -71,6 +71,11 @@ const CampaignManager = () => {
       if (data.success) {
         toast.success(data.message);
         await loadCampaigns(); // Recarregar campanhas após criar nova
+        
+        // Mostrar detalhes da campanha criada
+        if (data.campaignId) {
+          toast.success("✅ Campanha executada com sucesso! Verifique os resultados na aba Resultados das Campanhas.");
+        }
       } else {
         throw new Error(data.error || 'Erro desconhecido');
       }

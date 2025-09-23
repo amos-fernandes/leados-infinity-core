@@ -24,7 +24,7 @@ interface CampaignResult {
   name: string;
   description: string;
   status: string;
-  target_companies: any; // Changed from string[] to any to handle Json type
+  target_companies: any;
   created_at: string;
   scripts: {
     id?: string;
@@ -414,35 +414,75 @@ const CampaignResults = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Phone className="h-5 w-5" />
-                        Roteiros Completos
+                        Roteiros Utilizados nos Leads Qualificados
                       </CardTitle>
+                      <p className="text-muted-foreground">
+                        Todos os roteiros personalizados criados para esta campanha
+                      </p>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-6">
                         {selectedCampaign.scripts.map((script, index) => (
-                          <div key={script.id || index} className="border rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-4">
+                          <div key={script.id || index} className="border rounded-lg p-4 space-y-4">
+                            <div className="flex items-center justify-between">
                               <h4 className="font-semibold text-lg">{script.empresa}</h4>
+                              <div className="flex gap-2">
+                                {script.whatsapp_enviado && <Badge className="bg-green-100 text-green-700">WhatsApp ✓</Badge>}
+                                {script.email_enviado && <Badge className="bg-blue-100 text-blue-700">E-mail ✓</Badge>}
+                                {script.ligacao_feita && <Badge className="bg-yellow-100 text-yellow-700">Ligação ✓</Badge>}
+                              </div>
                             </div>
                             
-                            <div className="grid md:grid-cols-2 gap-4">
-                              <div>
-                                <h5 className="font-medium mb-2 text-primary">Roteiro de Ligação</h5>
-                                <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                                  {script.roteiro_ligacao || 'Sem roteiro disponível'}
-                                </p>
-                              </div>
+                            <Tabs defaultValue="email" className="w-full">
+                              <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="email">E-mail</TabsTrigger>
+                                <TabsTrigger value="ligacao">Ligação</TabsTrigger>
+                                <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                              </TabsList>
                               
-                              <div>
-                                <h5 className="font-medium mb-2 text-primary">Modelo de E-mail</h5>
-                                <p className="text-sm font-medium mb-1">{script.assunto_email || 'Sem assunto'}</p>
-                                <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                                  {script.modelo_email || 'Sem modelo disponível'}
-                                </p>
-                              </div>
-                            </div>
+                              <TabsContent value="email" className="space-y-3">
+                                <div>
+                                  <h5 className="font-medium text-sm text-muted-foreground">Assunto:</h5>
+                                  <p className="text-sm bg-muted/50 p-2 rounded">{script.assunto_email}</p>
+                                </div>
+                                <div>
+                                  <h5 className="font-medium text-sm text-muted-foreground">Conteúdo:</h5>
+                                  <div className="text-sm bg-muted/50 p-3 rounded whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                    {script.modelo_email || 'Modelo de e-mail não disponível'}
+                                  </div>
+                                </div>
+                              </TabsContent>
+                              
+                              <TabsContent value="ligacao" className="space-y-3">
+                                <div>
+                                  <h5 className="font-medium text-sm text-muted-foreground">Roteiro de Ligação:</h5>
+                                  <div className="text-sm bg-muted/50 p-3 rounded whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                    {script.roteiro_ligacao || 'Roteiro de ligação não disponível'}
+                                  </div>
+                                </div>
+                              </TabsContent>
+                              
+                              <TabsContent value="whatsapp" className="space-y-3">
+                                <div>
+                                  <h5 className="font-medium text-sm text-muted-foreground">Mensagem WhatsApp:</h5>
+                                  <div className="text-sm bg-muted/50 p-3 rounded whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                    {interactions
+                                      .filter(i => i.tipo === 'whatsapp' && i.assunto.includes(script.empresa))
+                                      .map(i => i.descricao.split('Mensagem enviada:\n\n')[1]?.split('\n\nTelefone:')[0])
+                                      .find(msg => msg) || 'Mensagem WhatsApp baseada no template padrão C6 Bank'}
+                                  </div>
+                                </div>
+                              </TabsContent>
+                            </Tabs>
                           </div>
                         ))}
+                        
+                        {selectedCampaign.scripts.length === 0 && (
+                          <div className="text-center py-8">
+                            <Phone className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                            <p className="text-muted-foreground">Nenhum roteiro encontrado para esta campanha</p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -454,7 +494,7 @@ const CampaignResults = () => {
                   <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Selecione uma campanha</h3>
                   <p className="text-muted-foreground">
-                    Clique em uma campanha à esquerda para ver os resultados detalhados
+                    Escolha uma campanha da lista para ver seus resultados detalhados
                   </p>
                 </CardContent>
               </Card>
