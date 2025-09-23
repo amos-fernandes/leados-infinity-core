@@ -89,8 +89,19 @@ serve(async (req) => {
       // Atualizar status do script
       await supabase
         .from('campaign_scripts')
-        .update({ whatsapp_sent: true })
+        .update({ whatsapp_enviado: true })
         .eq('id', script.id);
+
+      // Registrar interação no histórico completo
+      await supabase
+        .from('interactions')
+        .insert({
+          user_id: userId,
+          tipo: 'whatsapp',
+          assunto: `WhatsApp Campanha - ${script.empresa}`,
+          descricao: `Mensagem enviada:\n\n${whatsappMessage}\n\nTelefone: ${phoneNumber}\nGancho: Conta PJ gratuita C6 Bank com benefícios exclusivos`,
+          data_interacao: new Date().toISOString()
+        });
     }
 
     console.log('WhatsApp messages prepared:', whatsappMessages.length);

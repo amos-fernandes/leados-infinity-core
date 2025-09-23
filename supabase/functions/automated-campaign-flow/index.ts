@@ -111,6 +111,27 @@ async function executePhase2(userId: string, campaignId: string, supabase: any):
       .select('*')
       .eq('campaign_id', campaignId);
 
+    // Registrar roteiros de ligação no histórico completo
+    if (scripts && scripts.length > 0) {
+      const callInteractions = scripts.map(script => ({
+        user_id: userId,
+        tipo: 'ligacao',
+        assunto: `Roteiro Ligação - ${script.empresa}`,
+        descricao: `Roteiro preparado:\n\n${script.roteiro_ligacao || 'Roteiro personalizado para conta PJ C6 Bank'}\n\nGancho: ${script.empresa} - Proposta conta PJ gratuita com benefícios exclusivos`,
+        data_interacao: new Date().toISOString()
+      }));
+
+      await supabase
+        .from('interactions')
+        .insert(callInteractions);
+
+      // Marcar roteiros como preparados
+      await supabase
+        .from('campaign_scripts')
+        .update({ ligacao_feita: true })
+        .eq('campaign_id', campaignId);
+    }
+
     results.call = {
       status: 'prepared',
       scripts: scripts?.length || 0,
@@ -257,7 +278,10 @@ async function executePhase4(userId: string, campaignId: string, supabase: any):
     // Inserir tarefas de follow-up
     const { error: followUpError } = await supabase
       .from('interactions')
-      .insert(followUpTasks);
+      .insert(followUpTasks.map(task => ({
+        ...task,
+        tipo: 'follow_up'
+      })));
 
     if (followUpError) {
       console.warn('Erro ao criar follow-ups:', followUpError);

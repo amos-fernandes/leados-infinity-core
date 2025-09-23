@@ -42,6 +42,7 @@ const CampaignResults = () => {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<CampaignResult[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignResult | null>(null);
+  const [interactions, setInteractions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [knowledgeContent, setKnowledgeContent] = useState<string>('');
 
@@ -59,6 +60,16 @@ const CampaignResults = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      // Carregar interações relacionadas às campanhas
+      const { data: interactionsData } = await supabase
+        .from('interactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('tipo', ['email', 'whatsapp', 'ligacao', 'follow_up'])
+        .order('created_at', { ascending: false });
+
+      setInteractions(interactionsData || []);
 
       const formattedCampaigns: CampaignResult[] = campaignsData?.map(campaign => ({
         id: campaign.id,
@@ -207,6 +218,7 @@ const CampaignResults = () => {
               <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+                  <TabsTrigger value="historico">Histórico Completo</TabsTrigger>
                   <TabsTrigger value="emails">E-mails</TabsTrigger>
                   <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
                   <TabsTrigger value="scripts">Roteiros</TabsTrigger>
@@ -247,6 +259,70 @@ const CampaignResults = () => {
                           </div>
                         );
                       })()}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="historico">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Histórico Completo de Interações
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Data/Hora</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Empresa</TableHead>
+                            <TableHead>Descrição</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {interactions
+                            .filter(interaction => {
+                              // Filtrar interações relacionadas à campanha selecionada
+                              const campaignDate = new Date(selectedCampaign.created_at);
+                              const interactionDate = new Date(interaction.created_at);
+                              const diffHours = Math.abs(interactionDate.getTime() - campaignDate.getTime()) / 36e5;
+                              return diffHours <= 24; // Interações do mesmo dia da campanha
+                            })
+                            .map((interaction, index) => (
+                              <TableRow key={interaction.id || index}>
+                                <TableCell>
+                                  {new Date(interaction.created_at).toLocaleString('pt-BR')}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={
+                                    interaction.tipo === 'whatsapp' ? 'bg-green-100 text-green-700' :
+                                    interaction.tipo === 'email' ? 'bg-blue-100 text-blue-700' :
+                                    interaction.tipo === 'ligacao' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }>
+                                    {interaction.tipo.toUpperCase()}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {interaction.assunto.split(' - ')[1] || interaction.assunto}
+                                </TableCell>
+                                <TableCell className="max-w-lg">
+                                  <details className="cursor-pointer">
+                                    <summary className="text-sm text-muted-foreground">
+                                      {interaction.descricao.substring(0, 100)}...
+                                    </summary>
+                                    <div className="mt-2 p-3 bg-muted/50 rounded text-sm whitespace-pre-wrap">
+                                      {interaction.descricao}
+                                    </div>
+                                  </details>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          }
+                        </TableBody>
+                      </Table>
                     </CardContent>
                   </Card>
                 </TabsContent>

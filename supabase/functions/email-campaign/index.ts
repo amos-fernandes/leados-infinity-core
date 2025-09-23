@@ -145,8 +145,19 @@ serve(async (req) => {
       // Atualizar status do script
       await supabase
         .from('campaign_scripts')
-        .update({ email_sent: true })
+        .update({ email_enviado: true })
         .eq('id', script.id);
+
+      // Registrar interação no histórico completo
+      await supabase
+        .from('interactions')
+        .insert({
+          user_id: userId,
+          tipo: 'email',
+          assunto: `E-mail Campanha - ${script.empresa}`,
+          descricao: `Assunto: ${emailSubject}\n\nConteúdo:\n${emailContent}\n\nGancho: ${script.empresa} - Conta PJ C6 Bank com benefícios exclusivos`,
+          data_interacao: new Date().toISOString()
+        });
     }
 
     console.log('Email templates prepared:', emails.length);
