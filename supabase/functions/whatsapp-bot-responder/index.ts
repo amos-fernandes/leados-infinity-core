@@ -68,7 +68,7 @@ Olá ${clientName || 'Cliente'}!
 ${botResponse}
 
 📞 *Fale conosco:*
-*(62) 9 8195-9829*
+*(62) 9 9179-2303*
 
 📅 *Agende sua consultoria:*
 https://calendly.com/unica-contabil
