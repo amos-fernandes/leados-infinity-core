@@ -444,20 +444,73 @@ export const ProspectCollector: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-yellow-800 mb-2">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="font-semibold">Em Desenvolvimento</span>
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-purple-800 mb-3">
+                  <Instagram className="w-5 h-5" />
+                  <span className="font-semibold">🚀 Recursos Avançados de Redes Sociais</span>
                 </div>
-                <p className="text-sm text-yellow-700">
-                  Esta funcionalidade será implementada em breve. Utilizará:
-                </p>
-                <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                  <li>• Apify Instagram Scraper para perfis públicos</li>
-                  <li>• PhantomBuster para automação de coleta</li>
-                  <li>• Extração de contatos de bio e stories</li>
-                  <li>• Foco em perfis comerciais verificados</li>
-                </ul>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-purple-900 flex items-center gap-2">
+                      <Instagram className="w-4 h-4" />
+                      Apify Instagram Scraper
+                    </h4>
+                    <ul className="text-sm text-purple-700 space-y-1">
+                      <li>• Coleta perfis públicos em massa</li>
+                      <li>• Extração de dados de bio completa</li>
+                      <li>• Análise de stories em tempo real</li>
+                      <li>• Identificação de perfis comerciais</li>
+                      <li>• Verificação de badges verificados</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-purple-900 flex items-center gap-2">
+                      <Facebook className="w-4 h-4" />
+                      PhantomBuster Automation
+                    </h4>
+                    <ul className="text-sm text-purple-700 space-y-1">
+                      <li>• Automação inteligente de coleta</li>
+                      <li>• Bypass de limitações de API</li>
+                      <li>• Extração de dados de páginas comerciais</li>
+                      <li>• Análise de engajamento</li>
+                      <li>• Coleta de informações de contato</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-white/70 p-3 rounded-lg border border-purple-100">
+                  <h4 className="font-semibold text-purple-900 mb-2">🎯 Foco em Perfis Comerciais:</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3 text-green-600" />
+                      Perfis verificados
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3 text-green-600" />
+                      Bio com contatos
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3 text-green-600" />
+                      Links para WhatsApp
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3 text-green-600" />
+                      Stories comerciais
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-yellow-800 mb-1">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="font-semibold text-sm">Status: Em Desenvolvimento</span>
+                  </div>
+                  <p className="text-xs text-yellow-700">
+                    Funcionalidade em fase final de implementação. Disponível em breve.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
