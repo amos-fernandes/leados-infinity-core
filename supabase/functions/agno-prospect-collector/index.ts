@@ -99,7 +99,8 @@ class AgnoSmartCollectorAgent {
     console.log('📊 Coletando dados base da Receita Federal...');
     
     // Simulação de dados da Receita Federal (em produção seria API real)
-    const mockData: CNPJData[] = [
+      // Base diversificada com 15 empresas reais simuladas de diferentes setores
+      const mockData: CNPJData[] = [
         {
           cnpj: "11.222.333/0001-44",
           nome: "TECH SOLUTIONS LTDA",
@@ -157,6 +158,242 @@ class AgnoSmartCollectorAgent {
           capital_social: 25000,
           socios: [
             { nome: "PEDRO ALMEIDA", cargo: "SÓCIO-ADMINISTRADOR" }
+          ]
+        },
+        {
+          cnpj: "44.555.666/0001-77",
+          nome: "COMERCIO GAMMA MATERIAIS LTDA",
+          nome_fantasia: "Gamma Materiais",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2017-04-10",
+          cnae_principal: "4744-0/99",
+          cnae_descricao: "Comércio varejista de materiais de construção",
+          natureza_juridica: "206-2",
+          porte: "EPP",
+          municipio: "ANAPOLIS",
+          uf: "GO",
+          telefone: "(62) 3567-8901",
+          email: "vendas@gammamateriais.com.br",
+          capital_social: 200000,
+          socios: [
+            { nome: "LUCIANA FERREIRA", cargo: "SÓCIA-ADMINISTRADORA" },
+            { nome: "ROBERTO COSTA", cargo: "SÓCIO" }
+          ]
+        },
+        {
+          cnpj: "55.666.777/0001-88",
+          nome: "INDUSTRIA DELTA ALIMENTOS LTDA",
+          nome_fantasia: "Delta Foods",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2015-09-25",
+          cnae_principal: "1091-1/01",
+          cnae_descricao: "Fabricação de produtos de panificação industrial",
+          natureza_juridica: "206-2",
+          porte: "EPP",
+          municipio: "APARECIDA DE GOIANIA",
+          uf: "GO",
+          telefone: "(62) 3678-9012",
+          email: "contato@deltafoods.com.br",
+          capital_social: 300000,
+          socios: [
+            { nome: "MARCOS PEREIRA", cargo: "SÓCIO-ADMINISTRADOR" },
+            { nome: "CLAUDIA SOUZA", cargo: "DIRETORA COMERCIAL" }
+          ]
+        },
+        {
+          cnpj: "66.777.888/0001-99",
+          nome: "TRANSPORTES EPSILON LTDA",
+          nome_fantasia: "Epsilon Transportes",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2019-01-18",
+          cnae_principal: "4930-2/02",
+          cnae_descricao: "Transporte rodoviário de carga",
+          natureza_juridica: "206-2",
+          porte: "DEMAIS",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 3789-0123",
+          email: "logistica@epsilontransportes.com.br",
+          capital_social: 80000,
+          socios: [
+            { nome: "ANTONIO LIMA", cargo: "SÓCIO-ADMINISTRADOR" }
+          ]
+        },
+        {
+          cnpj: "77.888.999/0001-00",
+          nome: "CLINICA ZETA SAUDE LTDA",
+          nome_fantasia: "Clínica Zeta",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2020-11-03",
+          cnae_principal: "8630-5/01",
+          cnae_descricao: "Atividade médica ambulatorial",
+          natureza_juridica: "206-2",
+          porte: "DEMAIS",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 3890-1234",
+          email: "atendimento@clinicazeta.com.br",
+          capital_social: 120000,
+          socios: [
+            { nome: "DRA. PATRICIA ROCHA", cargo: "SÓCIA-ADMINISTRADORA" },
+            { nome: "DR. FELIPE NUNES", cargo: "SÓCIO" }
+          ]
+        },
+        {
+          cnpj: "88.999.000/0001-11",
+          nome: "AGENCIA ETA MARKETING LTDA",
+          nome_fantasia: "Eta Marketing",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2021-06-14",
+          cnae_principal: "7319-0/02",
+          cnae_descricao: "Promoção de vendas",
+          natureza_juridica: "206-2",
+          porte: "ME",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 3901-2345",
+          email: "contato@etamarketing.com.br",
+          capital_social: 35000,
+          socios: [
+            { nome: "RAFAEL MIRANDA", cargo: "SÓCIO-ADMINISTRADOR" },
+            { nome: "CAMILA DIAS", cargo: "SÓCIA" }
+          ]
+        },
+        {
+          cnpj: "99.000.111/0001-22",
+          nome: "EDUCACIONAL THETA LTDA",
+          nome_fantasia: "Theta Cursos",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2018-03-20",
+          cnae_principal: "8599-6/04",
+          cnae_descricao: "Treinamento em desenvolvimento profissional",
+          natureza_juridica: "206-2",
+          porte: "DEMAIS",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 4012-3456",
+          email: "info@thetacursos.com.br",
+          capital_social: 75000,
+          socios: [
+            { nome: "PROFESSORA HELENA CASTRO", cargo: "SÓCIA-ADMINISTRADORA" }
+          ]
+        },
+        {
+          cnpj: "10.111.222/0001-33",
+          nome: "OFICINA IOTA VEICULOS LTDA",
+          nome_fantasia: "Iota Auto Center",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2016-08-12",
+          cnae_principal: "4520-0/01",
+          cnae_descricao: "Serviços de manutenção e reparação mecânica",
+          natureza_juridica: "206-2",
+          porte: "DEMAIS",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 4123-4567",
+          email: "servicos@iotaauto.com.br",
+          capital_social: 60000,
+          socios: [
+            { nome: "JOSE CARLOS MOREIRA", cargo: "SÓCIO-ADMINISTRADOR" },
+            { nome: "EDILSON BARBOSA", cargo: "SÓCIO" }
+          ]
+        },
+        {
+          cnpj: "21.222.333/0001-44",
+          nome: "KAPPA CONFECCOES LTDA",
+          nome_fantasia: "Kappa Fashion",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2019-12-05",
+          cnae_principal: "1412-6/01",
+          cnae_descricao: "Confecção de roupas íntimas",
+          natureza_juridica: "206-2",
+          porte: "ME",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 4234-5678",
+          email: "vendas@kappafashion.com.br",
+          capital_social: 40000,
+          socios: [
+            { nome: "SANDRA GOMES", cargo: "SÓCIA-ADMINISTRADORA" }
+          ]
+        },
+        {
+          cnpj: "32.333.444/0001-55",
+          nome: "LAMBDA ENERGIA RENOVAVEL LTDA",
+          nome_fantasia: "Lambda Solar",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2021-02-18",
+          cnae_principal: "4399-1/99",
+          cnae_descricao: "Instalação de sistemas de energia solar",
+          natureza_juridica: "206-2",
+          porte: "EPP",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 4345-6789",
+          email: "projetos@lambdasolar.com.br",
+          capital_social: 250000,
+          socios: [
+            { nome: "ENG. RICARDO VIANA", cargo: "SÓCIO-ADMINISTRADOR" },
+            { nome: "JULIA MARTINS", cargo: "SÓCIA" }
+          ]
+        },
+        {
+          cnpj: "43.444.555/0001-66",
+          nome: "MU RESTAURANTE E LANCHONETE LTDA",
+          nome_fantasia: "Mu Gastronomia",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2020-07-30",
+          cnae_principal: "5611-2/01",
+          cnae_descricao: "Restaurantes e similares",
+          natureza_juridica: "206-2",
+          porte: "ME",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 4456-7890",
+          email: "contato@mugastronomia.com.br",
+          capital_social: 45000,
+          socios: [
+            { nome: "CHEF GUSTAVO REIS", cargo: "SÓCIO-ADMINISTRADOR" },
+            { nome: "BIANCA SILVA", cargo: "SÓCIA" }
+          ]
+        },
+        {
+          cnpj: "54.555.666/0001-77",
+          nome: "NU FARMACIA E DROGARIA LTDA",
+          nome_fantasia: "Nu Farma",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2017-10-15",
+          cnae_principal: "4771-7/01",
+          cnae_descricao: "Comércio varejista de produtos farmacêuticos",
+          natureza_juridica: "206-2",
+          porte: "DEMAIS",
+          municipio: "ANAPOLIS",
+          uf: "GO",
+          telefone: "(62) 4567-8901",
+          email: "atendimento@nufarma.com.br",
+          capital_social: 90000,
+          socios: [
+            { nome: "FARMACEUTICA LUCIA CAMPOS", cargo: "SÓCIA-ADMINISTRADORA" }
+          ]
+        },
+        {
+          cnpj: "65.666.777/0001-88",
+          nome: "XI SEGURANCA PRIVADA LTDA",
+          nome_fantasia: "Xi Segurança",
+          situacao_cadastral: "ATIVA",
+          data_abertura: "2018-05-08",
+          cnae_principal: "8011-1/01",
+          cnae_descricao: "Atividades de vigilância e segurança privada",
+          natureza_juridica: "206-2",
+          porte: "EPP",
+          municipio: "GOIANIA",
+          uf: "GO",
+          telefone: "(62) 4678-9012",
+          email: "operacoes@xiseguranca.com.br",
+          capital_social: 180000,
+          socios: [
+            { nome: "CORONEL FERNANDO ALVES", cargo: "SÓCIO-ADMINISTRADOR" },
+            { nome: "MAJOR CRISTINA LOPES", cargo: "SÓCIA" }
           ]
         }
       ];

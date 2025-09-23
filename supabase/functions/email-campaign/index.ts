@@ -75,10 +75,29 @@ serve(async (req) => {
       const email = relatedLead?.email || `contato@${script.empresa.toLowerCase().replace(/\s+/g, '')}.com.br`;
       const contactName = relatedLead?.contato_decisor || 'Prezado(a) Responsável Financeiro';
       
-      // Personalizar e-mail usando template C6 Bank
-      const personalizedEmail = script.modelo_email
-        .replace('[Nome]', contactName)
-        .replace('[Nome do Consultor]', 'Equipe C6 Bank - Escritório Autorizado');
+      // Template usando base de conhecimento C6 Bank
+      const personalizedEmail = `Prezado ${contactName},
+
+Identificamos oportunidades para a ${script.empresa} reduzir custos com a abertura de uma conta PJ digital no C6 Bank.
+
+Benefícios principais:
+
+Conta 100% gratuita
+
+Pix ilimitado
+
+100 TEDs sem custo
+
+100 boletos sem custo
+
+Crédito sujeito a análise
+
+Atendimento humano via escritório autorizado
+
+Podemos dar andamento imediato à abertura da conta para a sua empresa?
+
+Atenciosamente,
+Escritório Autorizado Infinity - C6 Bank PJ`;
 
       // Template HTML do e-mail C6 Bank
       const htmlTemplate = `
@@ -103,7 +122,7 @@ serve(async (req) => {
               <p>Escritório Autorizado - Abertura de Contas Empresariais</p>
             </div>
             <div class="content">
-              <h3>${script.assunto_email}</h3>
+              <h3>Conta PJ gratuita para a ${script.empresa}</h3>
               <p>${personalizedEmail.replace(/\n/g, '<br>')}</p>
               
               <div class="benefit-list">
