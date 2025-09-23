@@ -74,45 +74,45 @@ async function executePhase2(userId: string, campaignId: string, supabase: any, 
       
       const scriptPromises = qualifiedLeads.map(async (lead: any) => {
         const emailSubject = `${lead.empresa} - Proposta Conta PJ C6 Bank Gratuita`;
-        const emailTemplate = `Olá ${lead.contato_decisor || 'Responsável Financeiro'},
+        const emailTemplate = `Prezado ${lead.contato_decisor || 'Responsável Financeiro'},
 
-Sou da equipe do C6 Bank - Escritório Autorizado em Goiânia, e identifiquei uma oportunidade interessante para ${lead.empresa}.
+Identificamos oportunidades para a ${lead.empresa} reduzir custos com a abertura de uma conta PJ digital no C6 Bank.
 
-💡 **Proposta Especial - Conta PJ 100% Gratuita:**
-✅ Zero mensalidade para sempre
-✅ Pix ilimitado sem custo
-✅ 100 TEDs gratuitos por mês  
-✅ 100 boletos gratuitos por mês
-✅ Crédito empresarial sujeito a análise
+Benefícios principais:
+
+✅ Conta 100% gratuita
+✅ Pix ilimitado
+✅ 100 TEDs sem custo
+✅ 100 boletos sem custo
+✅ Crédito sujeito a análise
 ✅ Atendimento humano via escritório autorizado
 
-🎯 **Gancho específico para ${lead.empresa}:** ${lead.gancho_prospeccao || 'Redução significativa nos custos bancários mensais'}
+🎯 **Gancho específico:** ${lead.gancho_prospeccao || 'Redução significativa nos custos bancários e acesso a crédito'}
 
-Gostaria de agendar uma conversa rápida para apresentar os benefícios específicos para sua empresa?
+Podemos dar andamento imediato à abertura da conta para a sua empresa?
 
 Atenciosamente,
-Equipe C6 Bank - Escritório Autorizado
+Escritório Autorizado Infinity - C6 Bank PJ
 📞 (62) 99179-2303`;
 
-        const callScript = `Roteiro de Ligação - ${lead.empresa}
+         const callScript = `"Bom dia, ${lead.contato_decisor || 'responsável'}. Falo com o dono ou sócio da ${lead.empresa}? 
 
-1. ABERTURA:
-Olá, aqui é [Nome] da equipe C6 Bank - Escritório Autorizado em Goiânia. 
-Estou ligando para o responsável financeiro da ${lead.empresa}.
+Nós trabalhamos com abertura de conta PJ gratuita no C6 Bank, com Pix ilimitado, 100 TEDs e 100 boletos gratuitos, além de acesso a crédito sujeito a análise. 
 
-2. GANCHO ESPECÍFICO:
-Identificamos que vocês podem ter interesse em reduzir custos bancários. 
-${lead.gancho_prospeccao || 'Nossa conta PJ é 100% gratuita'}
+🎯 Gancho específico: ${lead.gancho_prospeccao || 'Redução de custos bancários'}
 
-3. PROPOSTA:
-- Conta PJ sem mensalidade
-- Pix ilimitado gratuito
-- 100 TEDs e boletos gratuitos por mês
-- Crédito empresarial sujeito a análise
+Gostaria de iniciar agora mesmo a abertura da conta ou conduzir uma análise de oportunidade para a sua empresa?"
 
-4. FECHAMENTO:
-Posso enviar uma proposta detalhada por WhatsApp ou e-mail?
-Quando seria um bom momento para uma apresentação rápida?`;
+BENEFÍCIOS A DESTACAR:
+- Conta 100% gratuita sem mensalidade
+- Pix ilimitado sem custo
+- 100 TEDs gratuitos mensais
+- 100 boletos gratuitos mensais
+- Acesso a crédito sujeito a análise
+- Atendimento humano via escritório autorizado
+
+FECHAMENTO:
+"Posso enviar uma proposta personalizada agora mesmo?"`;
 
         return {
           campaign_id: campaignId,
@@ -253,20 +253,23 @@ async function executePhase3(userId: string, campaignId: string, supabase: any):
       .eq('user_id', userId)
       .in('empresa', empresas);
 
-    // Aplicar qualificação focada em C6 Bank
+    // Qualificação focada em abertura de conta C6 Bank PJ
     const qualificationPrompt = `
-    Analise estes leads para abertura de conta PJ no C6 Bank.
+    Metodologia BANT Adaptada para C6 Bank PJ:
     
-    Critérios de qualificação:
-    1. Necessidade de redução de custos bancários
-    2. Potencial interesse em crédito sujeito a análise
-    3. Benefícios claros: Pix ilimitado, 100 TEDs gratuitos, 100 boletos gratuitos
-    4. Proposta imediata: abertura de conta PJ gratuita
+    Budget: Sem exigência de faturamento mínimo
+    Authority: Dono ou sócio da empresa (decisor obrigatório)
+    Need: Necessidade de crédito (sujeito a análise) e redução de custos bancários
+    Timing: Interesse imediato em abertura de conta, migração ou redução de custos
+    
+    Ganchos de Prospecção (Fontes Auditáveis):
+    - Financeiro: Necessidade de crédito, custos elevados em Pix/TED, custos com boletos
+    - Operacional: Empresas em expansão, busca por serviços digitais
     
     Para cada lead, determine:
-    - Pontuação BANT (Budget, Authority, Need, Timing) para conta PJ
+    - Pontuação BANT adaptada para conta PJ
     - Gancho específico (redução custos, crédito, facilidades)
-    - Proposta personalizada para C6 Bank
+    - Proposta personalizada para C6 Bank com foco em abertura imediata
     `;
 
     // Qualificar leads com IA focada em conta PJ
@@ -394,26 +397,27 @@ async function executePhase4(userId: string, campaignId: string, supabase: any):
   }
 }
 
-// Funções auxiliares para qualificação C6 Bank
 function determineC6BankHook(lead: any): string {
   const hooks = [
-    'Redução de custos com Pix ilimitado',
-    'Economia com 100 TEDs gratuitos por mês',
-    'Conta PJ 100% gratuita sem mensalidade',
-    'Acesso a crédito empresarial sujeito a análise',
-    'Boletos gratuitos para melhor fluxo de caixa'
+    'Redução de custos com Pix ilimitado gratuito',
+    'Economia com 100 TEDs gratuitos mensais',
+    'Conta PJ 100% gratuita - zero mensalidade',
+    'Acesso a crédito empresarial sujeito a análise', 
+    'Boletos gratuitos para melhor fluxo de caixa',
+    'Atendimento humano via escritório autorizado'
   ];
   
-  // Lógica simples baseada no setor
-  if (lead.setor?.includes('Comércio')) return hooks[0];
-  if (lead.setor?.includes('Serviços')) return hooks[1];
-  if (lead.setor?.includes('Indústria')) return hooks[3];
+  // Lógica baseada no setor e necessidades específicas
+  if (lead.setor?.includes('Comércio') || lead.setor?.includes('Varejo')) return hooks[0];
+  if (lead.setor?.includes('Serviços') || lead.setor?.includes('Consultoria')) return hooks[1];
+  if (lead.setor?.includes('Indústria') || lead.setor?.includes('Fabricação')) return hooks[3];
+  if (lead.setor?.includes('Tecnologia') || lead.setor?.includes('Desenvolvimento')) return hooks[2];
   
   return hooks[Math.floor(Math.random() * hooks.length)];
 }
 
 function generateImmediateProposal(lead: any): string {
-  return `Proposta imediata para ${lead.empresa}: Abertura de conta PJ C6 Bank com benefícios específicos - Pix ilimitado, 100 TEDs/boletos gratuitos mensais, sem mensalidade e acesso a crédito sujeito a análise. Processo 100% digital com suporte humano via escritório autorizado.`;
+  return `Proposta imediata para ${lead.empresa}: Abertura de conta PJ C6 Bank com benefícios exclusivos - Pix ilimitado, 100 TEDs/boletos gratuitos mensais, conta 100% gratuita e acesso a crédito sujeito a análise. Processo 100% digital com atendimento humano via escritório autorizado Infinity. Podemos iniciar agora mesmo!`;
 }
 
 // Função principal

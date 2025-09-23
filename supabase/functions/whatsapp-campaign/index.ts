@@ -75,9 +75,22 @@ serve(async (req) => {
       const phoneNumber = relatedLead?.telefone || '5562991792303'; // Número de atendimento Única Contábil
       const contactName = relatedLead?.contato_decisor || '[Nome]';
       
-      // Usar template WhatsApp específico para C6 Bank
+      // Usar template WhatsApp exato da knowledge base C6 Bank
       const cnpj = relatedLead?.cnpj || '[CNPJ]';
-      const whatsappMessage = `🏢 Olá ${contactName}!\n\nConferimos o CNPJ ${cnpj} da ${script.empresa} e identificamos que você pode se beneficiar de uma conta PJ gratuita no C6 Bank.\n\n💡 Benefícios imediatos:\n✅ Pix ilimitado\n✅ 100 TEDs gratuitos\n✅ 100 boletos gratuitos\n✅ Crédito sujeito a análise\n✅ Atendimento humano via escritório autorizado\n\n🎯 Você tem interesse em aproveitar esses benefícios ou prefere receber uma proposta detalhada para sua empresa?`;
+      const gancho = relatedLead?.gancho_prospeccao || 'conta PJ gratuita';
+      
+      const whatsappMessage = `🏢 Olá ${contactName}!
+
+Conferimos o CNPJ ${cnpj} da ${script.empresa} e identificamos que você pode se beneficiar de uma conta PJ gratuita no C6 Bank.
+
+💡 Benefícios imediatos:
+✅ Pix ilimitado
+✅ 100 TEDs gratuitos
+✅ 100 boletos gratuitos
+✅ Crédito sujeito a análise
+✅ Atendimento humano via escritório autorizado
+
+🎯 Você tem interesse em aproveitar esses benefícios ou prefere receber uma proposta detalhada para sua empresa?`;
 
       whatsappMessages.push({
         to: phoneNumber,
