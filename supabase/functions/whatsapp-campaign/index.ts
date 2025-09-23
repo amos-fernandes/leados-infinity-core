@@ -72,7 +72,7 @@ serve(async (req) => {
         script.empresa.toLowerCase().includes(lead.empresa.toLowerCase())
       );
 
-      const phoneNumber = relatedLead?.telefone || '5562981959829'; // Número de atendimento Única Contábil
+      const phoneNumber = relatedLead?.telefone || '5562991792303'; // Número de atendimento Única Contábil
       const contactName = relatedLead?.contato_decisor || '[Nome]';
       
       // Usar template WhatsApp específico para C6 Bank
