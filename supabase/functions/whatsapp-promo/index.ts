@@ -96,7 +96,7 @@ serve(async (req) => {
 https://calendly.com/unica-contabil
 
 📧 *Contato:* contato@unicacontabil.com
-📞 *(62) 9 8195-9829*
+📞 *(62) 9 9179-2303*
 
 *Atendemos todo o estado de Goiás e região Centro-Oeste*`;
 
@@ -134,7 +134,7 @@ ${script.roteiro_ligacao.substring(0, 200)}...
 ✅ Proposta sem compromisso
 
 📞 *Entre em contato:*
-*(62) 9 8195-9829*
+*(62) 9 9179-2303*
 
 📅 *Ou agende direto:*
 https://calendly.com/unica-contabil

@@ -92,7 +92,7 @@ Gostaria de agendar uma conversa rápida para apresentar os benefícios específ
 
 Atenciosamente,
 Equipe C6 Bank - Escritório Autorizado
-📞 (62) 98195-9829`;
+📞 (62) 99179-2303`;
 
         const callScript = `Roteiro de Ligação - ${lead.empresa}
 

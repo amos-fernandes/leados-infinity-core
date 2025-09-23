@@ -123,7 +123,7 @@ serve(async (req) => {
               </a>
               
               <div class="footer">
-                <p>📞 <strong>Contato Direto:</strong> (62) 98195-9829 | WhatsApp disponível</p>
+                <p>📞 <strong>Contato Direto:</strong> (62) 99179-2303 | WhatsApp disponível</p>
                 <p>🏢 <strong>Escritório Autorizado C6 Bank:</strong> Goiânia/GO</p>
                 <p>🎯 <strong>Especialidade:</strong> Contas PJ para todos os tipos de empresa</p>
                 <p><small>C6 Bank S.A. - Banco múltiplo autorizado pelo Banco Central do Brasil</small></p>
