@@ -322,25 +322,20 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     setScrapingContacts(lead.id);
     
     try {
-      const response = await fetch('/supabase/functions/v1/scrape-contact-info', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: result, error } = await supabase.functions.invoke('scrape-contact-info', {
+        body: {
           website: lead.website,
           leadId: lead.id,
           userId: user?.id
-        })
+        }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
+      if (error) throw error;
+      if (result && result.success) {
         toast.success(result.message);
         loadLeads(); // Recarregar para mostrar dados atualizados
       } else {
-        toast.error(result.error || 'Erro ao fazer scraping de contatos');
+        toast.error(result?.error || 'Erro ao fazer scraping de contatos');
       }
     } catch (error) {
       console.error('Erro no scraping de contatos:', error);
@@ -354,26 +349,21 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     setScrapingEvents(lead.id);
     
     try {
-      const response = await fetch('/supabase/functions/v1/scrape-recent-events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: result, error } = await supabase.functions.invoke('scrape-recent-events', {
+        body: {
           companyName: lead.empresa,
           sector: lead.setor,
           leadId: lead.id,
           userId: user?.id
-        })
+        }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
+      if (error) throw error;
+      if (result && result.success) {
         toast.success(result.message);
         loadLeads(); // Recarregar para mostrar dados atualizados
       } else {
-        toast.error(result.error || 'Erro ao buscar eventos recentes');
+        toast.error(result?.error || 'Erro ao buscar eventos recentes');
       }
     } catch (error) {
       console.error('Erro na busca de eventos:', error);
@@ -387,26 +377,21 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     setQualifyingLead(lead.id);
     
     try {
-      const response = await fetch('/supabase/functions/v1/qualify-lead-with-ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: result, error } = await supabase.functions.invoke('qualify-lead-with-ai', {
+        body: {
           leadId: lead.id,
           userId: user?.id,
           leadData: lead
-        })
+        }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
+      if (error) throw error;
+      if (result && result.success) {
         toast.success(result.message);
         loadLeads(); // Recarregar para mostrar dados atualizados
         onStatsUpdate();
       } else {
-        toast.error(result.error || 'Erro na qualificação com IA');
+        toast.error(result?.error || 'Erro na qualificação com IA');
       }
     } catch (error) {
       console.error('Erro na qualificação com IA:', error);

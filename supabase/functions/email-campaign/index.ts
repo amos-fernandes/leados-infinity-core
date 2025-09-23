@@ -155,7 +155,7 @@ serve(async (req) => {
           user_id: userId,
           tipo: 'email',
           assunto: `E-mail Campanha - ${script.empresa}`,
-          descricao: `Assunto: ${emailSubject}\n\nConteúdo:\n${emailContent}\n\nGancho: ${script.empresa} - Conta PJ C6 Bank com benefícios exclusivos`,
+          descricao: `Assunto: ${script.assunto_email}\n\nConteúdo:\n${personalizedEmail}\n\nGancho: ${script.empresa} - Conta PJ C6 Bank com benefícios exclusivos`,
           data_interacao: new Date().toISOString()
         });
     }
