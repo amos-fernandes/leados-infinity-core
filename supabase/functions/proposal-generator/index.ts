@@ -154,7 +154,7 @@ serve(async (req) => {
       created_at: new Date().toISOString()
     };
 
-    const { data: savedProposal, error: saveError } = await supabase
+    let { data: savedProposal, error: saveError } = await supabase
       .from('proposals')
       .insert(proposalData)
       .select()

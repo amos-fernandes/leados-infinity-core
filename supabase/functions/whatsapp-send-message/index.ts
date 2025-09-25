@@ -125,7 +125,7 @@ serve(async (req) => {
         .from('campaign_knowledge')
         .insert({
           user_id: userId,
-          content: `WhatsApp [SIMULADO] para ${to}: ${message} - Erro: ${apiError.message}`,
+          content: `WhatsApp [SIMULADO] para ${to}: ${message} - Erro: ${apiError instanceof Error ? apiError.message : 'Erro desconhecido'}`,
           generated_at: new Date().toISOString()
         });
 
@@ -134,7 +134,7 @@ serve(async (req) => {
         message: 'Mensagem enviada (modo simulação - erro na API real)',
         messageId: `sim_${Date.now()}`,
         to: to,
-        warning: `API Error: ${apiError.message}`
+        warning: `API Error: ${apiError instanceof Error ? apiError.message : 'Erro desconhecido'}`
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -143,7 +143,7 @@ serve(async (req) => {
     console.error('Error in whatsapp-send-message function:', error);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error instanceof Error ? error.message : 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
