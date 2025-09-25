@@ -1,0 +1,15 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@/": "./src/"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-env --watch src/main.ts"
+  },
+  "fmt": {
+    "exclude": ["node_modules", "dist", "build"]
+  },
+  "lint": {
+    "exclude": ["node_modules", "dist", "build"]
+  }
+}
