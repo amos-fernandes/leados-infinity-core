@@ -120,7 +120,7 @@ serve(async (req) => {
         results.push({
           profile,
           success: false,
-          error: profileError.message,
+          error: profileError instanceof Error ? profileError.message : 'Erro desconhecido',
           contacts: []
         });
       }
@@ -141,7 +141,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error scraping social media:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       success: false
     }), {
       status: 500,
@@ -175,7 +175,7 @@ async function scrapeInstagramProfile(profileUrl: string, apiKey: string) {
     };
 
   } catch (error) {
-    throw new Error(`Erro no scraping Instagram: ${error.message}`);
+    throw new Error(`Erro no scraping Instagram: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
   }
 }
 
@@ -204,7 +204,7 @@ async function scrapeFacebookProfile(profileUrl: string, apiKey: string) {
     };
 
   } catch (error) {
-    throw new Error(`Erro no scraping Facebook: ${error.message}`);
+    throw new Error(`Erro no scraping Facebook: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
   }
 }
 

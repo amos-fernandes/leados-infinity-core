@@ -130,7 +130,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error scraping Google Maps:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       success: false
     }), {
       status: 500,
