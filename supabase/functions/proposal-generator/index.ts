@@ -118,8 +118,12 @@ serve(async (req) => {
     const consultorName = profile?.display_name || 'Consultor Tributário';
     const consultorCompany = profile?.company || 'Consultoria Tributária Especializada';
 
+    if (!lead) {
+      throw new Error('Lead não encontrado');
+    }
+
     // Determinar serviços recomendados baseado no setor e regime tributário
-    const recommendedServices = determineRecommendedServices(lead.setor, lead.regime_tributario);
+    const recommendedServices = determineRecommendedServices(lead.setor || '', lead.regime_tributario || '');
 
     // Gerar proposta personalizada com IA
     if (!googleGeminiApiKey) {
@@ -143,7 +147,7 @@ serve(async (req) => {
     const proposalData = {
       user_id: userId,
       lead_id: leadId,
-      lead_name: lead.empresa,
+      lead_name: lead?.empresa || 'Empresa não identificada',
       proposal_content: aiProposal,
       services_included: recommendedServices.map(s => s.key),
       status: 'enviada',
@@ -170,7 +174,7 @@ serve(async (req) => {
         
       if (retryError) {
         console.log('Continuando sem salvar no banco...');
-      } else {
+      } else if (retryProposal) {
         savedProposal = retryProposal;
       }
     }
@@ -206,9 +210,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in proposal-generator function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

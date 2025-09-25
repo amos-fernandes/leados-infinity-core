@@ -119,7 +119,8 @@ serve(async (req) => {
           customPrompt
         });
       } catch (error) {
-        console.log('Agente de vendas externo não disponível, usando IA local:', error.message);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.log('Agente de vendas externo não disponível, usando IA local:', errorMessage);
         generatedContent = null;
       }
     }
@@ -210,16 +211,17 @@ serve(async (req) => {
         generatedBy: generatedContent.generatedBy || 'ai-local',
         tone
       },
-      usage: generatedContent.usage || null
+      usage: (generatedContent as any)?.usage || null
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in content-agent function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
