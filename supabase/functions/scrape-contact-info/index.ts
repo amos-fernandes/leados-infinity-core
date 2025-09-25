@@ -3,7 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const scrapingBeeApiKey = Deno.env.get('SCRAPINGBEE_API_KEY');
-const abstractApiKey = Deno.env.get('ABSTRACT_API_KEY');
+const abstractApiKey = Deno.env.get('ABSTRACT_API_KEY'); // Para telefones
+const abstractEmailApiKey = Deno.env.get('ABSTRACT_EMAIL_API_KEY'); // Para emails
 const maytapiApiKey = Deno.env.get('MAYTAPI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -43,13 +44,13 @@ function formatPhoneBrazilian(phone: string): string {
 
 // Função para validar e-mail usando AbstractAPI
 async function validateEmail(email: string): Promise<{ isValid: boolean; qualityScore: number; disposable: boolean; catchAll: boolean }> {
-  if (!abstractApiKey) {
-    console.warn('ABSTRACT_API_KEY não configurada. Validação de e-mail será limitada.');
+  if (!abstractEmailApiKey) {
+    console.warn('ABSTRACT_EMAIL_API_KEY não configurada. Validação de e-mail será limitada.');
     return { isValid: true, qualityScore: 0.5, disposable: false, catchAll: false };
   }
   
   try {
-    const response = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${abstractApiKey}&email=${email}`);
+    const response = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${abstractEmailApiKey}&email=${email}`);
     const data = await response.json();
     
     return {
