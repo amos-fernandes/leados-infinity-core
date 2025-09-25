@@ -231,9 +231,10 @@ Escritório Autorizado Infinity - C6 Bank PJ`;
 
   } catch (error) {
     console.error('Error in email-campaign function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: errorMessage || 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

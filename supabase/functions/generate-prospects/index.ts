@@ -420,7 +420,8 @@ Alterações em políticas do C6 Bank PJ
       console.log('Successfully parsed JSON, prospects count:', prospectsData?.prospects?.length || 0);
       
     } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
+      const errorMessage = parseError instanceof Error ? parseError.message : 'Erro de parsing desconhecido';
+      console.error('JSON parse error:', errorMessage);
       console.error('Content that failed to parse:', content.substring(0, 500) + '...');
       if (cleanedContent) {
         console.error('Cleaned content length:', cleanedContent.length);
@@ -498,7 +499,8 @@ Alterações em políticas do C6 Bank PJ
           throw new Error('Could not find prospects array in response');
         }
       } catch (altParseError) {
-        console.error('Alternative parsing also failed:', altParseError.message);
+        const altErrorMessage = altParseError instanceof Error ? altParseError.message : 'Erro de parsing alternativo desconhecido';
+        console.error('Alternative parsing also failed:', altErrorMessage);
         throw new Error('Resposta inválida da IA. A resposta não está em formato JSON válido.');
       }
     }
@@ -509,8 +511,15 @@ Alterações em políticas do C6 Bank PJ
 
     console.log('Saving to database...');
     
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Configuração do Supabase não encontrada');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const leadsToInsert = prospectsData.prospects.map((prospect) => ({
+    const leadsToInsert = prospectsData.prospects.map((prospect: any) => ({
       user_id: userId,
       empresa: prospect.empresa,
       setor: prospect.setor,
@@ -532,7 +541,7 @@ Alterações em políticas do C6 Bank PJ
     }
     
     // Salvar nos contatos
-    const contactsToInsert = prospectsData.prospects.map((prospect) => ({
+    const contactsToInsert = prospectsData.prospects.map((prospect: any) => ({
       user_id: userId,
       nome: prospect.contato_decisor,
       empresa: prospect.empresa,
@@ -559,9 +568,10 @@ Alterações em políticas do C6 Bank PJ
     });
   } catch (error) {
     console.error('Error in generate-prospects function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: errorMessage || 'Erro interno do servidor'
     }), {
       status: 500,
       headers: {

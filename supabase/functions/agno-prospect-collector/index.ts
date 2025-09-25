@@ -91,7 +91,8 @@ class AgnoSmartCollectorAgent {
       
     } catch (error) {
       console.error('🚫 Erro na coleta híbrida:', error);
-      throw new Error(`Erro ao buscar empresas: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      throw new Error(`Erro ao buscar empresas: ${errorMessage}`);
     }
   }
 
@@ -473,7 +474,8 @@ class AgnoSmartCollectorAgent {
         console.log(`✅ ${company.nome_fantasia || company.nome} enriquecida com Bright Data`);
         
       } catch (error) {
-        console.warn(`⚠️ Erro ao enriquecer ${company.nome}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.warn(`⚠️ Erro ao enriquecer ${company.nome}: ${errorMessage}`);
         // Manter empresa mesmo sem enriquecimento
         enrichedCompanies.push(company);
       }
@@ -881,10 +883,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Erro no Agno + Bright Data Agent:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         message: 'Erro na coleta de prospects com Agno + Bright Data'
       }),
       {

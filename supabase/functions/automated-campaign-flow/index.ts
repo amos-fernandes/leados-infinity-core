@@ -48,11 +48,12 @@ async function executePhase1(userId: string, supabase: any): Promise<CampaignPha
       }
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return {
       phase: 1,
       name: 'Identificação (IA)',
       status: 'failed',
-      details: { error: error.message }
+      details: { error: errorMessage }
     };
   }
 }
@@ -154,7 +155,8 @@ FECHAMENTO:
         };
       }
     } catch (error) {
-      results.whatsapp = { status: 'failed', error: error.message };
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      results.whatsapp = { status: 'failed', error: errorMessage };
     }
 
     // 2. E-mail (reforço) - executar após WhatsApp
@@ -172,7 +174,8 @@ FECHAMENTO:
         };
       }
     } catch (error) {
-      results.email = { status: 'failed', error: error.message };
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      results.email = { status: 'failed', error: errorMessage };
     }
 
     // 3. Ligação (apoio) - preparar roteiros para ligações manuais/automáticas
@@ -184,7 +187,7 @@ FECHAMENTO:
 
     // Registrar roteiros de ligação no histórico completo
     if (scripts && scripts.length > 0) {
-      const callInteractions = scripts.map(script => ({
+      const callInteractions = scripts.map((script: any) => ({
         user_id: userId,
         tipo: 'ligacao',
         assunto: `Roteiro Ligação - ${script.empresa}`,
@@ -209,7 +212,18 @@ FECHAMENTO:
       details: 'Roteiros de ligação preparados para execução manual/automática'
     };
 
-    const successfulChannels = Object.values(results).filter(r => r?.status === 'success' || r?.status === 'prepared').length;
+    type ResultItem = {
+      status: 'success' | 'failed' | 'prepared';
+      error?: string;
+      sent?: number;
+      details?: string;
+      scripts?: number;
+    };
+
+    const successfulChannels = Object.values(results).filter((r): r is ResultItem => 
+      r !== null && typeof r === 'object' && 'status' in r && 
+      (r.status === 'success' || r.status === 'prepared')
+    ).length;
 
     return {
       phase: 2,
@@ -222,11 +236,12 @@ FECHAMENTO:
       }
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return {
       phase: 2,
       name: 'Abordagem Multi-canal',
       status: 'failed',
-      details: { error: error.message }
+      details: { error: errorMessage }
     };
   }
 }
@@ -245,7 +260,7 @@ async function executePhase3(userId: string, campaignId: string, supabase: any):
       .select('empresa')
       .eq('campaign_id', campaignId);
 
-    const empresas = campaignScripts?.map(s => s.empresa) || [];
+    const empresas = campaignScripts?.map((s: any) => s.empresa) || [];
     
     const { data: leads } = await supabase
       .from('leads')
@@ -307,11 +322,12 @@ async function executePhase3(userId: string, campaignId: string, supabase: any):
       }
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return {
       phase: 3,
       name: 'Qualificação Avançada',
       status: 'failed',
-      details: { error: error.message }
+      details: { error: errorMessage }
     };
   }
 }
@@ -388,11 +404,12 @@ async function executePhase4(userId: string, campaignId: string, supabase: any):
       }
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return {
       phase: 4,
       name: 'Acompanhamento',
       status: 'failed',
-      details: { error: error.message }
+      details: { error: errorMessage }
     };
   }
 }
@@ -490,7 +507,7 @@ serve(async (req) => {
         console.log('✅ Campanha criada com sucesso. ID:', campaignId);
 
         // Executar fases 2, 3 e 4 apenas se houver leads qualificados
-        if (phase1.details.qualifiedLeads > 0) {
+        if (phase1.details.qualifiedLeads > 0 && campaignId) {
           console.log('🚀 Executando fases 2-4 pois há leads qualificados');
           
       // FASE 2: Abordagem Multi-canal (passar os leads qualificados)
@@ -568,9 +585,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in automated-campaign-flow function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: errorMessage || 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
