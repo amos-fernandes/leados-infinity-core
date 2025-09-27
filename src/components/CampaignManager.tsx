@@ -8,7 +8,8 @@ import {
   Play,
   Pause,
   Edit,
-  Trash2
+  Trash2,
+  Send
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -88,6 +89,45 @@ const CampaignManager = () => {
     }
   };
 
+  const handleLaunchCampaign = async () => {
+    setIsCreating(true);
+    try {
+      console.log('Lançando campanha com leads existentes qualificados para user ID:', user?.id);
+      
+      const { data, error } = await supabase.functions.invoke('launch-campaign', {
+        body: { userId: user?.id }
+      });
+
+      console.log('Launch campaign response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function invoke error:', error);
+        throw new Error(error.message || 'Erro na chamada da função');
+      }
+
+      if (!data) {
+        throw new Error('Nenhuma resposta recebida da função');
+      }
+
+      if (data.success) {
+        toast.success(data.message);
+        await loadCampaigns();
+        
+        if (data.campaignId) {
+          toast.success("✅ Campanha lançada com sucesso para leads qualificados!");
+        }
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error) {
+      console.error('Erro ao lançar campanha:', error);
+      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao lançar campanha";
+      toast.error(errorMessage);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Card className="shadow-soft">
       <CardHeader>
@@ -96,10 +136,20 @@ const CampaignManager = () => {
             <Target className="h-5 w-5 text-primary" />
             Gerenciar Campanhas
           </CardTitle>
-          <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
-            <Plus className="h-4 w-4 mr-2" />
-            {isCreating ? 'Criando...' : 'Nova Campanha'}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
+              <Plus className="h-4 w-4 mr-2" />
+              {isCreating ? 'Criando...' : 'Campanha Completa (4 Fases)'}
+            </Button>
+            <Button 
+              onClick={handleLaunchCampaign} 
+              disabled={isCreating || loading}
+              variant="outline"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Lançar p/ Leads Qualificados
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

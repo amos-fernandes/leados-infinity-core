@@ -13,7 +13,8 @@ import {
   Plus,
   Search,
   ArrowRight,
-  Send
+  Send,
+  MapPin
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -101,6 +102,37 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     console.log('🔵 createAutoLeadCampaign called');
     if (!user) return;
 
+    try {
+      setLoading(true);
+      
+      // Usar fluxo completo automatizado de 4 fases
+      const { data, error } = await supabase.functions.invoke('automated-campaign-flow', {
+        body: { userId: user.id }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(data.message);
+        loadFunnelStats();
+        onStatsUpdate();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Erro ao criar campanha completa:', error);
+      toast.error('Erro ao criar campanha automatizada');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const collectFromGoogleMaps = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    if (!user) return;
+
     // Solicitar parâmetros do usuário
     const searchQuery = prompt('Digite o termo de busca (ex: restaurante, advogado, clínica):');
     if (!searchQuery) return;
@@ -114,7 +146,7 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     try {
       setLoading(true);
       
-      // Usar busca oficial do Google Maps
+      // Usar apenas coleta do Google Maps
       const { data, error } = await supabase.functions.invoke('google-maps-scraper', {
         body: { 
           searchQuery,
@@ -134,7 +166,7 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
         throw new Error(data.error);
       }
     } catch (error) {
-      console.error('Erro ao criar leads via Google Maps:', error);
+      console.error('Erro ao coletar do Google Maps:', error);
       toast.error('Erro ao coletar leads do Google Maps');
     } finally {
       setLoading(false);
@@ -230,7 +262,16 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
               type="button"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Coletar do Google Maps
+              Criar Campanha Completa
+            </Button>
+            <Button 
+              onClick={(e) => collectFromGoogleMaps(e)}
+              disabled={loading}
+              variant="outline"
+              type="button"
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Coletar Google Maps
             </Button>
           </div>
         </div>
