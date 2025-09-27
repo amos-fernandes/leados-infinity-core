@@ -259,6 +259,7 @@ export type Database = {
           user_id: string
           website: string | null
           whatsapp: string | null
+          whatsapp_business: string | null
         }
         Insert: {
           approach_strategy?: string | null
@@ -283,6 +284,7 @@ export type Database = {
           user_id: string
           website?: string | null
           whatsapp?: string | null
+          whatsapp_business?: string | null
         }
         Update: {
           approach_strategy?: string | null
@@ -307,6 +309,7 @@ export type Database = {
           user_id?: string
           website?: string | null
           whatsapp?: string | null
+          whatsapp_business?: string | null
         }
         Relationships: []
       }
