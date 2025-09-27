@@ -40,7 +40,7 @@ class EmailService {
       }
 
       // Buscar leads correspondentes
-      const empresas = scripts.map(s => s.empresa);
+      const empresas = scripts.map((s: any) => s.empresa);
       const { data: leads } = await this.supabase
         .from('leads')
         .select('*')
@@ -60,7 +60,7 @@ class EmailService {
 
       // Enviar e-mails individualizados
       for (const lead of leads) {
-        const script = scripts.find(s => s.empresa === lead.empresa);
+        const script = scripts.find((s: any) => s.empresa === lead.empresa);
         if (!script || !lead.email) continue;
 
         try {
@@ -94,7 +94,7 @@ class EmailService {
           }
         } catch (error) {
           console.error(`Erro ao enviar e-mail para ${lead.empresa}:`, error);
-          errors.push({ empresa: lead.empresa, error: error.message });
+          errors.push({ empresa: lead.empresa, error: error instanceof Error ? error.message : 'Erro desconhecido' });
         }
 
         // Delay entre envios para evitar rate limiting
@@ -254,7 +254,7 @@ class EmailService {
       .eq('campaign_id', campaignId);
 
     // Criar interações simuladas
-    const interactions = scripts.map(script => ({
+    const interactions = scripts.map((script: any) => ({
       user_id: userId,
       tipo: 'email_simulado',
       assunto: script.assunto_email,

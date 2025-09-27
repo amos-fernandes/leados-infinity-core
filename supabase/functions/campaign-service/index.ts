@@ -39,7 +39,12 @@ class CampaignService {
   async runCampaign(campaignId: string, userId: string) {
     console.log('📊 CampaignService: Executando campanha multi-canal');
     
-    const results = {
+    const results: {
+      whatsapp: any;
+      email: any;
+      scripts: any;
+      interactions: any;
+    } = {
       whatsapp: null,
       email: null,
       scripts: null,
@@ -78,7 +83,7 @@ class CampaignService {
           { status: 'failed', error: whatsappError.message } :
           { status: 'success', sent: whatsappResult?.sent || 0 };
       } catch (error) {
-        results.whatsapp = { status: 'failed', error: error.message };
+        results.whatsapp = { status: 'failed', error: error instanceof Error ? error.message : 'Erro desconhecido' };
       }
 
       // 4. Disparar E-mails (canal de reforço)
@@ -92,7 +97,7 @@ class CampaignService {
           { status: 'failed', error: emailError.message } :
           { status: 'success', sent: emailResult?.sent || 0 };
       } catch (error) {
-        results.email = { status: 'failed', error: error.message };
+        results.email = { status: 'failed', error: error instanceof Error ? error.message : 'Erro desconhecido' };
       }
 
       // 5. Registrar interações no CRM
@@ -115,7 +120,7 @@ class CampaignService {
       return {
         success: false,
         campaignId,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
         results
       };
     }

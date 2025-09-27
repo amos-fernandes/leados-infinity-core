@@ -40,7 +40,7 @@ class WhatsAppService {
       }
 
       // Buscar leads correspondentes com WhatsApp
-      const empresas = scripts.map(s => s.empresa);
+      const empresas = scripts.map((s: any) => s.empresa);
       const { data: leads } = await this.supabase
         .from('leads')
         .select('*')
@@ -60,7 +60,7 @@ class WhatsAppService {
 
       // Enviar mensagens individualizadas
       for (const lead of leads) {
-        const script = scripts.find(s => s.empresa === lead.empresa);
+        const script = scripts.find((s: any) => s.empresa === lead.empresa);
         if (!script || !lead.whatsapp) continue;
 
         try {
@@ -106,7 +106,7 @@ class WhatsAppService {
           }
         } catch (error) {
           console.error(`Erro ao enviar WhatsApp para ${lead.empresa}:`, error);
-          errors.push({ empresa: lead.empresa, error: error.message });
+          errors.push({ empresa: lead.empresa, error: error instanceof Error ? error.message : 'Erro desconhecido' });
         }
 
         // Delay entre envios para evitar bloqueios
@@ -206,7 +206,7 @@ Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
       .eq('campaign_id', campaignId);
 
     // Criar interações simuladas
-    const interactions = scripts.map(script => ({
+    const interactions = scripts.map((script: any) => ({
       user_id: userId,
       tipo: 'whatsapp_simulado',
       assunto: `WhatsApp - ${script.empresa}`,
@@ -219,7 +219,7 @@ Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
       .insert(interactions);
 
     // Criar mensagens simuladas
-    const messages = scripts.map(script => ({
+    const messages = scripts.map((script: any) => ({
       user_id: userId,
       phone_number: '62999999999',
       sender_name: script.empresa,

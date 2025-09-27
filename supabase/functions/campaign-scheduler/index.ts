@@ -89,7 +89,7 @@ class CampaignScheduler {
             .from('campaigns')
             .update({ 
               status: 'erro',
-              error_message: error.message,
+              error_message: error instanceof Error ? error.message : 'Erro desconhecido',
               executed_at: new Date().toISOString()
             })
             .eq('id', campaign.id);
@@ -98,7 +98,7 @@ class CampaignScheduler {
             campaignId: campaign.id,
             name: campaign.name,
             status: 'erro',
-            error: error.message
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
           });
         }
       }
@@ -300,13 +300,13 @@ class CampaignScheduler {
 
       const stats = {
         totalCampaigns: campaigns.length,
-        activeCampaigns: campaigns.filter(c => c.status === 'ativa').length,
-        completedCampaigns: campaigns.filter(c => c.status === 'finalizada').length,
-        totalScripts: campaigns.reduce((acc, c) => acc + (c.campaign_scripts?.length || 0), 0),
-        totalInteractions: campaigns.reduce((acc, c) => acc + (c.interactions?.length || 0), 0),
-        whatsappSent: campaigns.reduce((acc, c) => 
+        activeCampaigns: campaigns.filter((c: any) => c.status === 'ativa').length,
+        completedCampaigns: campaigns.filter((c: any) => c.status === 'finalizada').length,
+        totalScripts: campaigns.reduce((acc: number, c: any) => acc + (c.campaign_scripts?.length || 0), 0),
+        totalInteractions: campaigns.reduce((acc: number, c: any) => acc + (c.interactions?.length || 0), 0),
+        whatsappSent: campaigns.reduce((acc: number, c: any) => 
           acc + (c.campaign_scripts?.filter((s: any) => s.whatsapp_enviado)?.length || 0), 0),
-        emailsSent: campaigns.reduce((acc, c) => 
+        emailsSent: campaigns.reduce((acc: number, c: any) => 
           acc + (c.campaign_scripts?.filter((s: any) => s.email_enviado)?.length || 0), 0)
       };
 
