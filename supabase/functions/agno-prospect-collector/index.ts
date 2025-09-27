@@ -97,310 +97,84 @@ class AgnoSmartCollectorAgent {
   }
 
   private async getBaseCompaniesData(filters: any): Promise<CNPJData[]> {
-    console.log('📊 Coletando dados base da Receita Federal...');
+    console.log('📊 Coletando dados reais do Google Maps...');
     
-    // Simulação de dados da Receita Federal (em produção seria API real)
-      // Base diversificada com 15 empresas reais simuladas de diferentes setores
-      const mockData: CNPJData[] = [
-        {
-          cnpj: "11.222.333/0001-44",
-          nome: "TECH SOLUTIONS LTDA",
-          nome_fantasia: "TechSol",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2020-03-15",
-          cnae_principal: "6201-5/00",
-          cnae_descricao: "Desenvolvimento de programas de computador sob encomenda",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3234-5678",
-          email: "contato@techsol.com.br",
-          capital_social: 50000,
-          socios: [
-            { nome: "JOÃO SILVA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "MARIA SANTOS", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "22.333.444/0001-55",
-          nome: "DISTRIBUIDORA ALPHA LTDA",
-          nome_fantasia: "Alpha Distribuidora",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2018-07-22",
-          cnae_principal: "4681-8/01",
-          cnae_descricao: "Comércio atacadista de máquinas e equipamentos",
-          natureza_juridica: "206-2",
-          porte: "EPP",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3345-6789",
-          email: "comercial@alphadist.com.br",
-          capital_social: 150000,
-          socios: [
-            { nome: "CARLOS OLIVEIRA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "ANA RODRIGUES", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "33.444.555/0001-66",
-          nome: "CONSULTORIA BETA EMPRESARIAL LTDA",
-          nome_fantasia: "Beta Consultoria",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2019-11-08",
-          cnae_principal: "7020-4/00",
-          cnae_descricao: "Atividades de consultoria em gestão empresarial",
-          natureza_juridica: "206-2",
-          porte: "ME",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3456-7890",
-          email: "info@betaconsult.com.br",
-          capital_social: 25000,
-          socios: [
-            { nome: "PEDRO ALMEIDA", cargo: "SÓCIO-ADMINISTRADOR" }
-          ]
-        },
-        {
-          cnpj: "44.555.666/0001-77",
-          nome: "COMERCIO GAMMA MATERIAIS LTDA",
-          nome_fantasia: "Gamma Materiais",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2017-04-10",
-          cnae_principal: "4744-0/99",
-          cnae_descricao: "Comércio varejista de materiais de construção",
-          natureza_juridica: "206-2",
-          porte: "EPP",
-          municipio: "ANAPOLIS",
-          uf: "GO",
-          telefone: "(62) 3567-8901",
-          email: "vendas@gammamateriais.com.br",
-          capital_social: 200000,
-          socios: [
-            { nome: "LUCIANA FERREIRA", cargo: "SÓCIA-ADMINISTRADORA" },
-            { nome: "ROBERTO COSTA", cargo: "SÓCIO" }
-          ]
-        },
-        {
-          cnpj: "55.666.777/0001-88",
-          nome: "INDUSTRIA DELTA ALIMENTOS LTDA",
-          nome_fantasia: "Delta Foods",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2015-09-25",
-          cnae_principal: "1091-1/01",
-          cnae_descricao: "Fabricação de produtos de panificação industrial",
-          natureza_juridica: "206-2",
-          porte: "EPP",
-          municipio: "APARECIDA DE GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3678-9012",
-          email: "contato@deltafoods.com.br",
-          capital_social: 300000,
-          socios: [
-            { nome: "MARCOS PEREIRA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "CLAUDIA SOUZA", cargo: "DIRETORA COMERCIAL" }
-          ]
-        },
-        {
-          cnpj: "66.777.888/0001-99",
-          nome: "TRANSPORTES EPSILON LTDA",
-          nome_fantasia: "Epsilon Transportes",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2019-01-18",
-          cnae_principal: "4930-2/02",
-          cnae_descricao: "Transporte rodoviário de carga",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3789-0123",
-          email: "logistica@epsilontransportes.com.br",
-          capital_social: 80000,
-          socios: [
-            { nome: "ANTONIO LIMA", cargo: "SÓCIO-ADMINISTRADOR" }
-          ]
-        },
-        {
-          cnpj: "77.888.999/0001-00",
-          nome: "CLINICA ZETA SAUDE LTDA",
-          nome_fantasia: "Clínica Zeta",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2020-11-03",
-          cnae_principal: "8630-5/01",
-          cnae_descricao: "Atividade médica ambulatorial",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3890-1234",
-          email: "atendimento@clinicazeta.com.br",
-          capital_social: 120000,
-          socios: [
-            { nome: "DRA. PATRICIA ROCHA", cargo: "SÓCIA-ADMINISTRADORA" },
-            { nome: "DR. FELIPE NUNES", cargo: "SÓCIO" }
-          ]
-        },
-        {
-          cnpj: "88.999.000/0001-11",
-          nome: "AGENCIA ETA MARKETING LTDA",
-          nome_fantasia: "Eta Marketing",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2021-06-14",
-          cnae_principal: "7319-0/02",
-          cnae_descricao: "Promoção de vendas",
-          natureza_juridica: "206-2",
-          porte: "ME",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3901-2345",
-          email: "contato@etamarketing.com.br",
-          capital_social: 35000,
-          socios: [
-            { nome: "RAFAEL MIRANDA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "CAMILA DIAS", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "99.000.111/0001-22",
-          nome: "EDUCACIONAL THETA LTDA",
-          nome_fantasia: "Theta Cursos",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2018-03-20",
-          cnae_principal: "8599-6/04",
-          cnae_descricao: "Treinamento em desenvolvimento profissional",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 4012-3456",
-          email: "info@thetacursos.com.br",
-          capital_social: 75000,
-          socios: [
-            { nome: "PROFESSORA HELENA CASTRO", cargo: "SÓCIA-ADMINISTRADORA" }
-          ]
-        },
-        {
-          cnpj: "10.111.222/0001-33",
-          nome: "OFICINA IOTA VEICULOS LTDA",
-          nome_fantasia: "Iota Auto Center",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2016-08-12",
-          cnae_principal: "4520-0/01",
-          cnae_descricao: "Serviços de manutenção e reparação mecânica",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 4123-4567",
-          email: "servicos@iotaauto.com.br",
-          capital_social: 60000,
-          socios: [
-            { nome: "JOSE CARLOS MOREIRA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "EDILSON BARBOSA", cargo: "SÓCIO" }
-          ]
-        },
-        {
-          cnpj: "21.222.333/0001-44",
-          nome: "KAPPA CONFECCOES LTDA",
-          nome_fantasia: "Kappa Fashion",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2019-12-05",
-          cnae_principal: "1412-6/01",
-          cnae_descricao: "Confecção de roupas íntimas",
-          natureza_juridica: "206-2",
-          porte: "ME",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 4234-5678",
-          email: "vendas@kappafashion.com.br",
-          capital_social: 40000,
-          socios: [
-            { nome: "SANDRA GOMES", cargo: "SÓCIA-ADMINISTRADORA" }
-          ]
-        },
-        {
-          cnpj: "32.333.444/0001-55",
-          nome: "LAMBDA ENERGIA RENOVAVEL LTDA",
-          nome_fantasia: "Lambda Solar",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2021-02-18",
-          cnae_principal: "4399-1/99",
-          cnae_descricao: "Instalação de sistemas de energia solar",
-          natureza_juridica: "206-2",
-          porte: "EPP",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 4345-6789",
-          email: "projetos@lambdasolar.com.br",
-          capital_social: 250000,
-          socios: [
-            { nome: "ENG. RICARDO VIANA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "JULIA MARTINS", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "43.444.555/0001-66",
-          nome: "MU RESTAURANTE E LANCHONETE LTDA",
-          nome_fantasia: "Mu Gastronomia",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2020-07-30",
-          cnae_principal: "5611-2/01",
-          cnae_descricao: "Restaurantes e similares",
-          natureza_juridica: "206-2",
-          porte: "ME",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 4456-7890",
-          email: "contato@mugastronomia.com.br",
-          capital_social: 45000,
-          socios: [
-            { nome: "CHEF GUSTAVO REIS", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "BIANCA SILVA", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "54.555.666/0001-77",
-          nome: "NU FARMACIA E DROGARIA LTDA",
-          nome_fantasia: "Nu Farma",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2017-10-15",
-          cnae_principal: "4771-7/01",
-          cnae_descricao: "Comércio varejista de produtos farmacêuticos",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "ANAPOLIS",
-          uf: "GO",
-          telefone: "(62) 4567-8901",
-          email: "atendimento@nufarma.com.br",
-          capital_social: 90000,
-          socios: [
-            { nome: "FARMACEUTICA LUCIA CAMPOS", cargo: "SÓCIA-ADMINISTRADORA" }
-          ]
-        },
-        {
-          cnpj: "65.666.777/0001-88",
-          nome: "XI SEGURANCA PRIVADA LTDA",
-          nome_fantasia: "Xi Segurança",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2018-05-08",
-          cnae_principal: "8011-1/01",
-          cnae_descricao: "Atividades de vigilância e segurança privada",
-          natureza_juridica: "206-2",
-          porte: "EPP",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 4678-9012",
-          email: "operacoes@xiseguranca.com.br",
-          capital_social: 180000,
-          socios: [
-            { nome: "CORONEL FERNANDO ALVES", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "MAJOR CRISTINA LOPES", cargo: "SÓCIA" }
-          ]
-        }
-      ];
+    // Usar Google Maps API para coleta real de dados
+    const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
+    
+    if (!GOOGLE_MAPS_API_KEY) {
+      console.error('❌ GOOGLE_MAPS_API_KEY não configurada. Impossível coletar leads reais.');
+      throw new Error('API key do Google Maps não configurada. Configure a chave para coletar leads reais.');
+    }
 
-      // Aplicar filtros da Fase 1: Identificação (IA)
-      let filteredData = mockData;
+    try {
+      const realCompanies = await this.fetchRealCompaniesFromGoogleMaps(filters, GOOGLE_MAPS_API_KEY);
+      console.log(`📊 Dados reais coletados: ${realCompanies.length} empresas`);
+      return realCompanies;
+    } catch (error) {
+      console.error('❌ Erro ao coletar dados reais:', error);
+      throw new Error(`Falha na coleta de dados reais: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  }
+
+  private async fetchRealCompaniesFromGoogleMaps(filters: any, apiKey: string): Promise<CNPJData[]> {
+    const query = this.buildGoogleMapsQuery(filters);
+    console.log('🔍 Buscando no Google Maps:', query);
+    
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`;
+    
+    const response = await fetch(searchUrl);
+    const data = await response.json();
+    
+    if (!response.ok || data.status !== 'OK') {
+      throw new Error(`Google Places API error: ${data.error_message || data.status}`);
+    }
+
+    const companies: CNPJData[] = [];
+    
+    for (const place of data.results.slice(0, 20)) {
+      try {
+        // Obter detalhes do lugar
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_phone_number,website,formatted_address,rating,user_ratings_total,types,business_status&key=${apiKey}`;
+        
+        const detailsResponse = await fetch(detailsUrl);
+        const detailsData = await detailsResponse.json();
+        
+        if (detailsResponse.ok && detailsData.status === 'OK') {
+          const details = detailsData.result;
+          
+          // Só incluir se tiver telefone ou website (dados de contato)
+          if (details.formatted_phone_number || details.website) {
+            const company: CNPJData = {
+              cnpj: `GOOGLE_${place.place_id}`, // Usar place_id como identificador único
+              nome: details.name,
+              nome_fantasia: details.name,
+              situacao_cadastral: details.business_status === 'OPERATIONAL' ? 'ATIVA' : 'INATIVA',
+              data_abertura: new Date().toISOString().split('T')[0],
+              cnae_principal: place.types?.[0] || 'unknown',
+              cnae_descricao: this.translateBusinessType(place.types?.[0] || 'business'),
+              natureza_juridica: "206-2",
+              porte: "DEMAIS",
+              municipio: filters.municipio || 'GOIANIA',
+              uf: filters.uf || 'GO',
+              telefone: details.formatted_phone_number,
+              email: this.extractEmailFromWebsite(details.website),
+              capital_social: 50000,
+              socios: [
+                { nome: "RESPONSÁVEL COMERCIAL", cargo: "SÓCIO-ADMINISTRADOR" }
+              ]
+            };
+            
+            companies.push(company);
+          }
+        }
+      } catch (detailError) {
+        console.warn('Erro ao buscar detalhes do lugar:', detailError);
+      }
+    }
+
+    // Aplicar filtros da Fase 1: Identificação (IA)
+    let filteredData = companies;
       
       if (filters.uf) {
         filteredData = filteredData.filter(company => company.uf === filters.uf);
@@ -455,6 +229,44 @@ class AgnoSmartCollectorAgent {
 
       console.log(`📊 Dados base coletados: ${filteredData.length} empresas`);
       return filteredData;
+  }
+
+  private buildGoogleMapsQuery(filters: any): string {
+    let query = "empresas negócios";
+    
+    if (filters.municipio) {
+      query += ` ${filters.municipio}`;
+    }
+    if (filters.uf) {
+      query += ` ${filters.uf}`;
+    }
+    
+    return query;
+  }
+
+  private translateBusinessType(type: string): string {
+    const translations: { [key: string]: string } = {
+      'store': 'Comércio varejista',
+      'restaurant': 'Restaurantes e similares',
+      'health': 'Atividades de atenção à saúde humana',
+      'finance': 'Atividades financeiras',
+      'establishment': 'Estabelecimento comercial',
+      'point_of_interest': 'Ponto comercial',
+      'business': 'Atividade empresarial'
+    };
+    
+    return translations[type] || 'Atividade empresarial geral';
+  }
+
+  private extractEmailFromWebsite(website?: string): string | undefined {
+    if (!website) return undefined;
+    
+    try {
+      const domain = new URL(website).hostname.replace('www.', '');
+      return `contato@${domain}`;
+    } catch {
+      return undefined;
+    }
   }
 
   private async enrichWithBrightData(companies: CNPJData[]): Promise<CNPJData[]> {
@@ -823,6 +635,21 @@ serve(async (req) => {
 
     if (!userId) {
       throw new Error('userId é obrigatório');
+    }
+
+    // Verificar se APIs necessárias estão configuradas para coleta real de dados
+    const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
+    
+    if (!GOOGLE_MAPS_API_KEY) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Agente Agno desabilitado: Configure GOOGLE_MAPS_API_KEY para coletar leads reais.',
+        message: 'O Agno foi desabilitado para evitar dados fictícios. Configure as APIs necessárias:\n1. Google Maps API Key (obrigatório)\n2. HubSpot API Key (opcional - para integração)\n3. Pipedrive API Key (opcional - para integração)',
+        disabledReason: 'Prevenção de dados simulados/fictícios'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('🚀 Iniciando Agno + Bright Data Smart Collector para coleta de prospects');
