@@ -8,7 +8,8 @@ import RAGChat from "@/components/RAGChat";
 import CRMDashboard from "@/components/CRM/CRMDashboard";
 import WhatsAppBot from "@/components/WhatsAppBot";
 import WhatsAppDashboard from "@/components/WhatsAppDashboard";
-import SupabaseConnectionTest from "@/components/SupabaseConnectionTest";
+import WhatsAppConversations from "@/components/WhatsAppConversations";
+import RAGAttendanceMonitor from "@/components/RAGAttendanceMonitor";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -58,10 +59,11 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-8 space-y-8">
-      <Dashboard />
-      <ProspectCollector />
+        <Dashboard />
+        <ProspectCollector />
         <CRMDashboard />
-        <SupabaseConnectionTest />
+        <RAGAttendanceMonitor />
+        <WhatsAppConversations />
         {showWhatsApp ? <WhatsAppBot /> : <RAGChat />}
       </main>
     </div>
