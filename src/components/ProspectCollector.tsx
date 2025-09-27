@@ -40,44 +40,49 @@ export const ProspectCollector: React.FC = () => {
   const [numbersToValidate, setNumbersToValidate] = useState('');
   const [validatedNumbers, setValidatedNumbers] = useState<any[]>([]);
 
-  const collectFromAgnoAgent = async () => {
+  const collectFromGoogleMaps = async () => {
+    if (!mapsQuery.trim() || !mapsLocation.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite o termo de busca e localização para Google Maps",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setProgress(25);
       
-      const { data, error } = await supabase.functions.invoke('agno-prospect-collector', {
+      const { data, error } = await supabase.functions.invoke('google-maps-scraper', {
         body: {
+          searchQuery: mapsQuery,
+          location: mapsLocation,
           userId: user?.id,
-          filters: {
-            uf: 'GO',
-            municipio: 'GOIANIA',
-            excludeMEI: true,
-            situacao: 'ATIVA'
-          },
-          campaignId: 'agno-agent-' + Date.now()
+          maxResults: 20
         }
       });
 
       if (error) throw error;
 
       const result: CollectorResult = {
-        type: 'Agno + Bright Data (Híbrido)',
+        type: 'Google Maps (API Oficial)',
         success: data.success,
-        leads: data.data?.leads || [],
-        message: data.message || `${data.data?.leads_collected || 0} leads enriquecidos coletados`,
+        leads: data.leads || [],
+        message: data.message || `${data.leads?.length || 0} leads coletados do Google Maps`,
         error: data.error
       };
 
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "🤖 Agno Agent",
+        title: "🗺️ Google Maps",
         description: result.message,
         variant: result.success ? "default" : "destructive"
       });
 
     } catch (error: any) {
       const result: CollectorResult = {
-        type: 'Agno + Bright Data (Híbrido)',
+        type: 'Google Maps (API Oficial)',
         success: false,
         leads: [],
         message: 'Erro na coleta',
@@ -87,7 +92,7 @@ export const ProspectCollector: React.FC = () => {
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "Erro - Agno + Bright Data",
+        title: "Erro - Google Maps",
         description: error.message,
         variant: "destructive"
       });
@@ -234,8 +239,17 @@ export const ProspectCollector: React.FC = () => {
     setResults([]);
     
     try {
-      // Executar Agno Agent como método principal
-      await collectFromAgnoAgent();
+      // Executar Google Maps como método principal
+      if (mapsQuery.trim() && mapsLocation.trim()) {
+        await collectFromGoogleMaps();
+      } else {
+        toast({
+          title: "Configuração Necessária",
+          description: "Configure o termo de busca e localização para Google Maps",
+          variant: "destructive"
+        });
+        return;
+      }
       
       setProgress(60);
       
@@ -248,7 +262,7 @@ export const ProspectCollector: React.FC = () => {
       
       toast({
         title: "Coleta Finalizada",
-        description: "Agno Agent executado com sucesso",
+        description: "Google Maps executado com sucesso",
         variant: "default"
       });
 
@@ -269,9 +283,9 @@ export const ProspectCollector: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">🤖 Agno + Bright Data Collector</h1>
+          <h1 className="text-3xl font-bold">🗺️ Google Maps + Sites Collector</h1>
           <p className="text-muted-foreground">
-            Coleta oficial da Receita Federal + enriquecimento inteligente com Bright Data
+            Coleta oficial do Google Maps + scraping de sites institucionais
           </p>
         </div>
         
@@ -282,13 +296,13 @@ export const ProspectCollector: React.FC = () => {
         >
           {isCollecting ? (
             <>
-              <Zap className="w-4 h-4 mr-2 animate-spin" />
-              Agno Coletando...
+              <MapPin className="w-4 h-4 mr-2 animate-spin" />
+              Coletando...
             </>
           ) : (
             <>
-              <Zap className="w-4 h-4 mr-2" />
-              Iniciar Agno Agent
+              <MapPin className="w-4 h-4 mr-2" />
+              Iniciar Coleta
             </>
           )}
         </Button>
@@ -311,8 +325,8 @@ export const ProspectCollector: React.FC = () => {
       <Tabs defaultValue="agno-agent" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agno-agent" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            🤖 Agno + Bright Data
+            <MapPin className="w-4 h-4" />
+            🗺️ Google Maps
           </TabsTrigger>
           <TabsTrigger value="websites" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
@@ -332,66 +346,74 @@ export const ProspectCollector: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                🤖 Agno + Bright Data - Coleta Inteligente
+                <MapPin className="w-5 h-5" />
+                🗺️ Google Maps - Coleta Oficial
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Estado</Label>
-                  <Input value="GO - Goiás" disabled />
+                  <Label>Termo de Busca</Label>
+                  <Input 
+                    value={mapsQuery}
+                    onChange={(e) => setMapsQuery(e.target.value)}
+                    placeholder="Ex: restaurante, advogado, clínica"
+                  />
                 </div>
                 <div>
-                  <Label>Município</Label>
-                  <Input value="GOIÂNIA" disabled />
+                  <Label>Localização</Label>
+                  <Input 
+                    value={mapsLocation}
+                    onChange={(e) => setMapsLocation(e.target.value)}
+                    placeholder="Ex: Goiânia, GO"
+                  />
                 </div>
               </div>
               
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold mb-2 text-blue-900">🔥 Recursos Avançados Agno + Bright Data:</h4>
+                <h4 className="font-semibold mb-2 text-blue-900">🔥 Recursos Google Maps API Oficial:</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Dados oficiais Receita Federal
+                    Dados oficiais Google Maps
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Enriquecimento Bright Data
+                    Telefones e websites reais
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Websites e redes sociais
+                    Avaliações e endereços
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Estimativa de funcionários
+                    WhatsApp identificado
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Score BANT avançado (A+)
+                    Leads qualificados automaticamente
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Canais de contato verificados
+                    Dados de contato verificados
                   </div>
                 </div>
               </div>
               
               <Button 
-                onClick={collectFromAgnoAgent}
+                onClick={collectFromGoogleMaps}
                 disabled={isCollecting}
                 className="w-full bg-gradient-primary hover:opacity-90"
               >
-                <Zap className="w-4 h-4 mr-2" />
-                Iniciar Coleta Inteligente
+                <MapPin className="w-4 h-4 mr-2" />
+                Iniciar Coleta Google Maps
               </Button>
               
               <div className="text-sm text-muted-foreground">
-                <p>• <strong>Fase 1:</strong> Coleta dados oficiais da Receita Federal</p>
-                <p>• <strong>Fase 2:</strong> Enriquece com Bright Data (websites, funcionários, redes sociais)</p>
-                <p>• <strong>Fase 3:</strong> Qualificação BANT avançada com score A+</p>
-                <p>• <strong>Resultado:</strong> Leads premium com múltiplos canais de contato</p>
+                <p>• <strong>Fase 1:</strong> Busca no Google Maps usando API oficial</p>
+                <p>• <strong>Fase 2:</strong> Coleta telefones, websites e avaliações</p>
+                <p>• <strong>Fase 3:</strong> Identifica WhatsApp e dados de contato</p>
+                <p>• <strong>Resultado:</strong> Leads reais com dados verificados</p>
               </div>
             </CardContent>
           </Card>

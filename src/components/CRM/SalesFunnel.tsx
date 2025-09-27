@@ -101,12 +101,27 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     console.log('🔵 createAutoLeadCampaign called');
     if (!user) return;
 
+    // Solicitar parâmetros do usuário
+    const searchQuery = prompt('Digite o termo de busca (ex: restaurante, advogado, clínica):');
+    if (!searchQuery) return;
+
+    const location = prompt('Digite a localização (ex: Goiânia, GO):', 'Goiânia, GO');
+    if (!location) return;
+
+    const maxResults = prompt('Quantos leads deseja coletar? (máximo 50):', '20');
+    if (!maxResults) return;
+
     try {
       setLoading(true);
       
-      // Usar função de geração de prospects da IA
-      const { data, error } = await supabase.functions.invoke('generate-prospects', {
-        body: { userId: user.id }
+      // Usar busca oficial do Google Maps
+      const { data, error } = await supabase.functions.invoke('google-maps-scraper', {
+        body: { 
+          searchQuery,
+          location,
+          userId: user.id,
+          maxResults: Math.min(parseInt(maxResults) || 20, 50)
+        }
       });
 
       if (error) throw error;
@@ -119,8 +134,8 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
         throw new Error(data.error);
       }
     } catch (error) {
-      console.error('Erro ao criar leads:', error);
-      toast.error('Erro ao criar leads');
+      console.error('Erro ao criar leads via Google Maps:', error);
+      toast.error('Erro ao coletar leads do Google Maps');
     } finally {
       setLoading(false);
     }
@@ -215,7 +230,7 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
               type="button"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Criar Leads
+              Coletar do Google Maps
             </Button>
           </div>
         </div>
