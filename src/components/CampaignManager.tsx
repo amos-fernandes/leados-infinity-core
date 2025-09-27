@@ -136,20 +136,20 @@ const CampaignManager = () => {
             <Target className="h-5 w-5 text-primary" />
             Gerenciar Campanhas
           </CardTitle>
-          <div className="flex gap-2">
-            <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
-              <Plus className="h-4 w-4 mr-2" />
-              {isCreating ? 'Criando...' : 'Campanha Completa (4 Fases)'}
-            </Button>
-            <Button 
-              onClick={handleLaunchCampaign} 
-              disabled={isCreating || loading}
-              variant="outline"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Lançar p/ Leads Qualificados
-            </Button>
-          </div>
+      <div className="flex gap-2">
+        <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
+          <Plus className="h-4 w-4 mr-2" />
+          {isCreating ? 'Criando...' : 'Campanha Completa (4 Fases)'}
+        </Button>
+        <Button 
+          onClick={handleLaunchCampaign} 
+          disabled={isCreating || loading}
+          variant="outline"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          Lançar p/ Leads Qualificados
+        </Button>
+      </div>
         </div>
       </CardHeader>
       <CardContent>
