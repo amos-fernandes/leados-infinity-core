@@ -240,16 +240,7 @@ export const ProspectCollector: React.FC = () => {
     
     try {
       // Executar Google Maps como método principal
-      if (mapsQuery.trim() && mapsLocation.trim()) {
-        await collectFromGoogleMaps();
-      } else {
-        toast({
-          title: "Configuração Necessária",
-          description: "Configure o termo de busca e localização para Google Maps",
-          variant: "destructive"
-        });
-        return;
-      }
+      await collectFromGoogleMaps();
       
       setProgress(60);
       
