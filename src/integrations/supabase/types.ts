@@ -237,8 +237,10 @@ export type Database = {
       }
       leads: {
         Row: {
+          address_validated: string | null
           approach_strategy: string | null
           bright_data_enriched: boolean | null
+          business_type_confirmed: string | null
           cnae: string | null
           contato_decisor: string | null
           created_at: string
@@ -246,6 +248,9 @@ export type Database = {
           empresa: string
           estimated_employees: number | null
           gancho_prospeccao: string | null
+          google_maps_rating: number | null
+          google_maps_reviews: number | null
+          google_maps_verified: boolean | null
           id: string
           linkedin: string | null
           qualification_score: string | null
@@ -257,13 +262,17 @@ export type Database = {
           telefone: string | null
           updated_at: string
           user_id: string
+          validation_completed_at: string | null
           website: string | null
+          website_validated: boolean | null
           whatsapp: string | null
           whatsapp_business: string | null
         }
         Insert: {
+          address_validated?: string | null
           approach_strategy?: string | null
           bright_data_enriched?: boolean | null
+          business_type_confirmed?: string | null
           cnae?: string | null
           contato_decisor?: string | null
           created_at?: string
@@ -271,6 +280,9 @@ export type Database = {
           empresa: string
           estimated_employees?: number | null
           gancho_prospeccao?: string | null
+          google_maps_rating?: number | null
+          google_maps_reviews?: number | null
+          google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
           qualification_score?: string | null
@@ -282,13 +294,17 @@ export type Database = {
           telefone?: string | null
           updated_at?: string
           user_id: string
+          validation_completed_at?: string | null
           website?: string | null
+          website_validated?: boolean | null
           whatsapp?: string | null
           whatsapp_business?: string | null
         }
         Update: {
+          address_validated?: string | null
           approach_strategy?: string | null
           bright_data_enriched?: boolean | null
+          business_type_confirmed?: string | null
           cnae?: string | null
           contato_decisor?: string | null
           created_at?: string
@@ -296,6 +312,9 @@ export type Database = {
           empresa?: string
           estimated_employees?: number | null
           gancho_prospeccao?: string | null
+          google_maps_rating?: number | null
+          google_maps_reviews?: number | null
+          google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
           qualification_score?: string | null
@@ -307,7 +326,9 @@ export type Database = {
           telefone?: string | null
           updated_at?: string
           user_id?: string
+          validation_completed_at?: string | null
           website?: string | null
+          website_validated?: boolean | null
           whatsapp?: string | null
           whatsapp_business?: string | null
         }
