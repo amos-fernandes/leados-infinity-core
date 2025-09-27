@@ -22,7 +22,9 @@ import {
   Zap,
   Eye,
   Brain,
-  MessageSquare
+  MessageSquare,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
@@ -82,6 +84,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const [scrapingContacts, setScrapingContacts] = useState<string | null>(null);
   const [scrapingEvents, setScrapingEvents] = useState<string | null>(null);
   const [qualifyingLead, setQualifyingLead] = useState<string | null>(null);
+  const [validatingMapsLead, setValidatingMapsLead] = useState<string | null>(null);
   
   const LEADS_PER_PAGE = 10;
 
@@ -742,6 +745,26 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleQualifyWithAI(lead)}
+                        disabled={qualifyingLead === lead.id}
+                        className="text-purple-600 hover:text-purple-800"
+                        title="Qualificar com IA"
+                      >
+                        {qualifyingLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleValidateWithGoogleMaps(lead)}
+                        disabled={validatingMapsLead === lead.id}
+                        className="text-green-600 hover:text-green-800"
+                        title="Validar com Google Maps"
+                      >
+                        {validatingMapsLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
