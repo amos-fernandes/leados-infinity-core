@@ -21,7 +21,8 @@ import {
   Upload,
   Zap,
   Eye,
-  Brain
+  Brain,
+  MessageSquare
 } from "lucide-react";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
@@ -720,6 +721,12 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Phone className="h-3 w-3" />
                           {lead.telefone}
+                        </div>
+                      )}
+                      {lead.whatsapp && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MessageSquare className="h-3 w-3" />
+                          {lead.whatsapp}
                         </div>
                       )}
                     </div>
