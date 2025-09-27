@@ -405,6 +405,38 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     }
   };
 
+  const handleValidateWithGoogleMaps = async (lead: Lead) => {
+    setValidatingMapsLead(lead.id);
+    
+    try {
+      console.log('Iniciando validação Google Maps para:', lead.empresa);
+      
+      const { data: result, error } = await supabase.functions.invoke('google-maps-validation', {
+        body: {
+          leadId: lead.id,
+          companyName: lead.empresa,
+          userId: user?.id
+        }
+      });
+      
+      if (!error && result?.success) {
+        const whatsappFound = result.data?.whatsapp ? '📱 WhatsApp encontrado!' : '';
+        const websiteValid = result.data?.websiteValid ? '🌐 Website validado!' : '';
+        
+        toast.success(`✅ Validação Google Maps concluída! ${whatsappFound} ${websiteValid}`);
+        loadLeads(); // Recarregar para mostrar dados atualizados
+        onStatsUpdate();
+      } else {
+        toast.error(result?.error || 'Erro na validação Google Maps');
+      }
+    } catch (error) {
+      console.error('Erro na validação Google Maps:', error);
+      toast.error('Erro ao conectar com o Google Maps');
+    } finally {
+      setValidatingMapsLead(null);
+    }
+  };
+
   const filteredLeads = leads.filter(lead =>
     lead.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lead.setor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
