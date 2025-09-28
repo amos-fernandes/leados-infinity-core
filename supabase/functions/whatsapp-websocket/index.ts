@@ -157,18 +157,26 @@ serve(async (req) => {
             
             // Fallback - simular conexão para desenvolvimento
             sendLog('Iniciando modo de desenvolvimento...', 'info');
+            sendLog('WppConnect não disponível. Usando modo simulado.', 'info');
+            
+            // Gerar QR code válido para teste (texto simples que pode ser escaneado)
+            const testQR = `https://wa.me/qr/TEST_${Date.now()}`;
+            
             setTimeout(() => {
-              sendLog('QR Code simulado gerado (desenvolvimento)', 'info');
-              sendQRCode('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+              sendLog('QR Code de teste gerado', 'info');
+              sendLog('ATENÇÃO: Este é um QR code simulado para desenvolvimento', 'info');
+              sendLog('Para uso em produção, configure o WppConnect adequadamente', 'info');
+              sendQRCode(testQR);
               sendStatus('PENDING_QR');
               
+              // Simular conexão após 10 segundos
               setTimeout(() => {
-                sendLog('Conexão simulada estabelecida!', 'success');
+                sendLog('Simulação: Conexão estabelecida (modo desenvolvimento)', 'success');
                 sendStatus('CONNECTED', { 
                   sessionName: sessionName || 'dev_session',
-                  phoneNumber: '+55 62 99999-9999'
+                  phoneNumber: '+55 62 99999-9999 (SIMULADO)'
                 });
-              }, 3000);
+              }, 10000);
             }, 1000);
           }
           break;
