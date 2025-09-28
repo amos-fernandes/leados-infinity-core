@@ -284,17 +284,44 @@ const WhatsAppConnector = () => {
             ) : connectionStatus.status === 'PENDING_QR' && qrCode ? (
               <div className="py-4">
                 <div className="bg-white p-4 rounded-lg border inline-block">
-                  <img 
-                    src={qrCode} 
-                    alt="QR Code WhatsApp" 
-                    className="max-w-64 max-h-64 mx-auto"
-                  />
+                  {qrCode.startsWith('data:image') ? (
+                    <img 
+                      src={qrCode} 
+                      alt="QR Code WhatsApp" 
+                      className="max-w-64 max-h-64 mx-auto"
+                    />
+                  ) : qrCode.startsWith('https://wa.me/qr/TEST_') ? (
+                    <div className="w-64 h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded">
+                      <div className="text-center">
+                        <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">QR Code de Teste</p>
+                        <p className="text-xs text-gray-400 mt-1">Modo Desenvolvimento</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-64 h-64 flex items-center justify-center border border-gray-300 rounded bg-white">
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 mb-2">QR Code Recebido</p>
+                        <code className="text-xs bg-gray-100 p-2 rounded break-all">
+                          {qrCode.substring(0, 50)}...
+                        </code>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 space-y-2">
                   <p className="font-medium">Escaneie o QR Code</p>
                   <p className="text-sm text-muted-foreground">
                     WhatsApp → Menu (⋮) → Dispositivos conectados → Conectar dispositivo
                   </p>
+                  {qrCode.startsWith('https://wa.me/qr/TEST_') && (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        ⚠️ Este é um QR Code de teste para desenvolvimento. 
+                        Para uso real, configure o WppConnect.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : connectionStatus.status === 'CONNECTING' ? (
