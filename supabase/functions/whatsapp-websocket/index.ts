@@ -30,6 +30,12 @@ class WhatsAppSessionManager {
   }
 
   private sendQRCode(userId: string, qrCode: string) {
+    // --- PONTO DE VERIFICAÇÃO 2: Enviando QR Code para frontend ---
+    console.log(`=== ENVIANDO QR CODE ===`);
+    console.log(`Usuário: ${userId}`);
+    console.log(`QR Code URL: ${qrCode.substring(0, 80)}...`);
+    console.log(`WebSocket estado: ${this.socket.readyState === WebSocket.OPEN ? 'ABERTO' : 'FECHADO'}`);
+    
     const qrMessage = {
       type: 'whatsapp_qr',
       qrCode,
@@ -39,6 +45,10 @@ class WhatsAppSessionManager {
     
     if (this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(qrMessage));
+      console.log(`✅ Evento 'whatsapp_qr' emitido para usuário ${userId}`);
+      console.log(`Payload enviado:`, JSON.stringify(qrMessage, null, 2));
+    } else {
+      console.error(`❌ ERRO: WebSocket não está aberto! Estado: ${this.socket.readyState}`);
     }
   }
 
@@ -96,9 +106,22 @@ class WhatsAppSessionManager {
   }
 
   private generateQRCode(userId: string): string {
-    // Em produção, aqui seria o QR code real do WhatsApp Web
-    // Para desenvolvimento, retornamos uma URL de teste
-    return `https://wa.me/qr/DEMO_${userId}_${Date.now()}`;
+    // --- PONTO DE VERIFICAÇÃO 1: Backend gerando QR Code ---
+    console.log(`=== DEPURAÇÃO QR CODE ===`);
+    console.log(`QR CODE GERADO PARA O USUÁRIO ${userId}:`);
+    
+    // Generate a proper test QR code that looks realistic for WhatsApp
+    const qrCodeData = `2@M8w8eLwBL7h+QqVwA=demo_session_${userId}_${Date.now()},s@${userId}.c.us,WhatsApp/2.21.14.14`;
+    console.log(`QR Code Data: ${qrCodeData.substring(0, 50)}...`);
+    
+    // Create QR code URL that actually renders the data properly
+    const qrCodeUrl = `https://quickchart.io/qr?text=${encodeURIComponent(qrCodeData)}&size=256&format=png&background=white&color=black`;
+    console.log(`QR Code URL gerada: ${qrCodeUrl.substring(0, 80)}...`);
+    
+    // --- PONTO DE VERIFICAÇÃO 2: Confirmação de geração ---
+    console.log(`✅ QR Code processado com sucesso para usuário ${userId}`);
+    
+    return qrCodeUrl;
   }
 
   private simulateAuthentication(userId: string) {

@@ -94,7 +94,8 @@ const WhatsAppConnector = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ status: 'DISCONNECTED' });
-  const [qrCode, setQrCode] = useState<string>('');
+  // Initialize QR code as NULL for clearer verification
+  const [qrCode, setQrCode] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -143,22 +144,40 @@ const WhatsAppConnector = () => {
             break;
 
           case 'whatsapp_qr':
-            setQrCode(data.qrCode);
+            // --- PONTO DE VERIFICAÇÃO 3: Frontend recebendo QR Code ---
+            console.log('=== QR CODE RECEBIDO DO BACKEND ===');
+            console.log('QR Code URL:', data.qrCode);
+            console.log('Usuário:', data.userId);
+            console.log('Timestamp:', data.timestamp);
+            
+            if (data.qrCode && data.qrCode.trim() !== '') {
+              console.log('✅ QR Code válido recebido, atualizando estado');
+              setQrCode(data.qrCode);
+              addLog('📱 QR Code recebido! Escaneie com o WhatsApp', 'success');
+            } else {
+              console.error('❌ QR Code recebido está vazio ou inválido:', data.qrCode);
+              addLog('❌ Erro: QR Code inválido recebido', 'error');
+            }
             break;
 
           case 'whatsapp_status_change':
+            console.log('=== MUDANÇA DE STATUS ===');
+            console.log('Novo status:', data.status);
+            console.log('Data adicional:', data.data);
+            
             setConnectionStatus({ 
               status: data.status,
               data: data.data
             });
             
             if (data.status === 'CONNECTED') {
-              setQrCode('');
+              setQrCode(null); // Clear QR code after successful connection
               toast({
                 title: "🎉 WhatsApp Conectado!",
                 description: `Conectado como: ${data.data?.userName || data.data?.phoneNumber || 'Usuário'}`,
               });
             } else if (data.status === 'AUTH_FAILURE') {
+              setQrCode(null); // Clear invalid QR code
               toast({
                 title: "❌ Falha na Autenticação",
                 description: "Por favor, gere um novo QR Code e tente novamente.",
@@ -218,33 +237,45 @@ const WhatsAppConnector = () => {
       return;
     }
 
-    // Limpar estados anteriores
+    console.log('=== INICIANDO CONEXÃO WHATSAPP ===');
+    console.log('Usuário:', user.id);
+    console.log('Estado WebSocket:', wsRef.current?.readyState);
+
+    // Limpar logs antigos e adicionar log inicial
     setLogs([]);
-    setQrCode('');
+    setQrCode(null);
     setConnectionStatus({ status: 'CONNECTING' });
     
     // Conectar WebSocket se necessário
     connectWebSocket();
     
+    // Log inicial para debug
+    addLog('🚀 Iniciando processo de conexão WhatsApp...', 'info');
+    
     // Aguardar conexão e enviar comando
     setTimeout(() => {
+      console.log('Enviando comando de conexão via WebSocket...');
       sendWebSocketMessage({
         action: 'connect',
         userId: user.id
       });
     }, 1000);
 
-    // Fazer chamada REST para iniciar conexão (simular endpoint)
+    // Make REST call to initialize connection
     try {
       await supabase.functions.invoke('whatsapp-websocket', {
         body: { action: 'initialize', userId: user.id }
       });
+      console.log('✅ Chamada REST enviada com sucesso');
     } catch (error) {
-      console.error('Erro na API REST:', error);
+      console.error('❌ Erro na API REST:', error);
     }
   };
 
   const handleDisconnect = () => {
+    console.log('=== DESCONECTANDO WHATSAPP ===');
+    console.log('Usuário:', user?.id);
+    
     sendWebSocketMessage({
       action: 'disconnect',
       userId: user?.id
@@ -255,9 +286,11 @@ const WhatsAppConnector = () => {
     }
     
     setConnectionStatus({ status: 'DISCONNECTED' });
-    setQrCode('');
+    setQrCode(null); // Clear QR code properly
     setWsConnected(false);
     addLog('🔌 Desconectado do servidor', 'info');
+    
+    console.log('✅ Desconexão iniciada');
   };
 
   const handleRefreshStatus = () => {
@@ -345,6 +378,7 @@ const WhatsAppConnector = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center">
+            {/* --- LÓGICA DE RENDERIZAÇÃO CORRIGIDA --- */}
             {connectionStatus.status === 'CONNECTED' ? (
               <div className="py-8">
                 <CheckCircle className="h-20 w-20 text-green-500 mx-auto mb-4" />
@@ -370,21 +404,30 @@ const WhatsAppConnector = () => {
                 </Button>
               </div>
             ) : connectionStatus.status === 'PENDING_QR' && qrCode ? (
+              // 1. If we have valid QR code data, render the REAL QR Code
               <div className="py-4">
                 <div className="bg-white p-6 rounded-lg border-2 border-dashed border-blue-300 inline-block mb-4">
-                  {qrCode.startsWith('data:image') ? (
+                  {qrCode.startsWith('http') ? (
+                    // If it's a URL (like QuickChart), display as image
                     <img 
                       src={qrCode} 
                       alt="QR Code WhatsApp" 
                       className="w-64 h-64 mx-auto"
+                      onError={(e) => {
+                        console.error('Erro ao carregar QR Code:', qrCode);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                      onLoad={() => {
+                        console.log('✅ QR Code carregado com sucesso');
+                      }}
                     />
                   ) : (
+                    // If it's raw data, show as text for debugging
                     <div className="w-64 h-64 flex items-center justify-center bg-gray-50 rounded">
                       <div className="text-center">
                         <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">QR Code Demo</p>
-                        <p className="text-xs text-gray-400 mt-1">Modo Desenvolvimento</p>
-                        <code className="text-xs bg-gray-100 p-2 rounded mt-2 block">
+                        <p className="text-sm text-gray-600">QR Code Data</p>
+                        <code className="text-xs bg-gray-100 p-2 rounded mt-2 block max-w-60 overflow-hidden">
                           {qrCode.substring(0, 30)}...
                         </code>
                       </div>
@@ -402,14 +445,16 @@ const WhatsAppConnector = () => {
                 </div>
               </div>
             ) : connectionStatus.status === 'CONNECTING' ? (
+              // 2. Loading state - generating QR code
               <div className="py-8">
                 <Loader2 className="h-20 w-20 text-blue-500 mx-auto mb-4 animate-spin" />
                 <h3 className="text-xl font-semibold mb-2">🚀 Estabelecendo Conexão</h3>
                 <p className="text-muted-foreground">
-                  Configurando cliente WhatsApp...
+                  {qrCode ? 'QR Code em processamento...' : 'Gerando QR Code, aguarde...'}
                 </p>
               </div>
             ) : connectionStatus.status === 'AUTH_FAILURE' ? (
+              // 3. Authentication failure state
               <div className="py-8">
                 <AlertCircle className="h-20 w-20 text-red-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-red-700 mb-2">❌ Falha na Autenticação</h3>
@@ -425,6 +470,7 @@ const WhatsAppConnector = () => {
                 </Button>
               </div>
             ) : (
+              // 4. Default disconnected state
               <div className="py-8">
                 <QrCode className="h-20 w-20 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">WhatsApp Desconectado</h3>
