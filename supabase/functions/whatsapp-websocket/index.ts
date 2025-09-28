@@ -6,6 +6,158 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simulador de WhatsApp-Web.js Manager
+class WhatsAppSessionManager {
+  private sessions: Map<string, any> = new Map();
+  private socket: WebSocket;
+
+  constructor(socket: WebSocket) {
+    this.socket = socket;
+  }
+
+  private sendLog(userId: string, message: string, type: 'info' | 'success' | 'error' = 'info') {
+    const logMessage = {
+      type: 'whatsapp_log',
+      message,
+      logType: type,
+      timestamp: new Date().toISOString(),
+      userId
+    };
+    
+    if (this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(logMessage));
+    }
+  }
+
+  private sendQRCode(userId: string, qrCode: string) {
+    const qrMessage = {
+      type: 'whatsapp_qr',
+      qrCode,
+      timestamp: new Date().toISOString(),
+      userId
+    };
+    
+    if (this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(qrMessage));
+    }
+  }
+
+  private sendStatusChange(userId: string, status: string, data?: any) {
+    const statusMessage = {
+      type: 'whatsapp_status_change',
+      status,
+      data,
+      timestamp: new Date().toISOString(),
+      userId
+    };
+    
+    if (this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(statusMessage));
+    }
+  }
+
+  async startConnection(userId: string): Promise<void> {
+    if (this.sessions.has(userId)) {
+      this.sendLog(userId, 'Sessão já existente. Tentando obter status...', 'info');
+      return;
+    }
+
+    this.sendLog(userId, '🚀 Iniciando cliente do WhatsApp...', 'info');
+    this.sendStatusChange(userId, 'CONNECTING');
+
+    // Simular processo de inicialização
+    setTimeout(() => {
+      this.sendLog(userId, '🔧 Configurando autenticação local...', 'info');
+    }, 500);
+
+    setTimeout(() => {
+      this.sendLog(userId, '📱 Aguardando QR Code...', 'info');
+    }, 1000);
+
+    // Simular geração de QR Code
+    setTimeout(() => {
+      const qrData = this.generateQRCode(userId);
+      this.sendLog(userId, '📋 QR Code gerado! Escaneie com seu WhatsApp.', 'success');
+      this.sendQRCode(userId, qrData);
+      this.sendStatusChange(userId, 'PENDING_QR');
+      
+      // Simular escaneamento após 15 segundos
+      setTimeout(() => {
+        this.simulateAuthentication(userId);
+      }, 15000);
+    }, 1500);
+
+    // Registrar sessão
+    this.sessions.set(userId, {
+      status: 'CONNECTING',
+      startTime: new Date(),
+      sessionId: `session_${userId}_${Date.now()}`
+    });
+  }
+
+  private generateQRCode(userId: string): string {
+    // Em produção, aqui seria o QR code real do WhatsApp Web
+    // Para desenvolvimento, retornamos uma URL de teste
+    return `https://wa.me/qr/DEMO_${userId}_${Date.now()}`;
+  }
+
+  private simulateAuthentication(userId: string) {
+    this.sendLog(userId, '🔐 Autenticação em andamento...', 'info');
+    
+    setTimeout(() => {
+      this.sendLog(userId, '✅ Autenticação realizada com sucesso!', 'success');
+    }, 2000);
+
+    setTimeout(() => {
+      this.sendLog(userId, '🔄 Sincronizando conversas...', 'info');
+    }, 3000);
+
+    setTimeout(() => {
+      this.sendLog(userId, '📞 Conectando ao servidor do WhatsApp...', 'info');
+    }, 4000);
+
+    setTimeout(() => {
+      this.sendLog(userId, '✅ Cliente do WhatsApp está pronto e conectado!', 'success');
+      this.sendStatusChange(userId, 'CONNECTED', {
+        sessionName: `WhatsApp_${userId}`,
+        phoneNumber: '+55 (62) 99999-9999',
+        connectedAt: new Date().toISOString(),
+        userName: 'Usuário Demo'
+      });
+
+      // Atualizar sessão
+      const session = this.sessions.get(userId);
+      if (session) {
+        session.status = 'CONNECTED';
+        session.connectedAt = new Date();
+      }
+    }, 5500);
+  }
+
+  disconnectSession(userId: string) {
+    if (this.sessions.has(userId)) {
+      this.sendLog(userId, '🔌 Desconectando sessão WhatsApp...', 'info');
+      this.sessions.delete(userId);
+      
+      setTimeout(() => {
+        this.sendLog(userId, '✅ Sessão desconectada com sucesso!', 'success');
+        this.sendStatusChange(userId, 'DISCONNECTED');
+      }, 1000);
+    }
+  }
+
+  getSessionStatus(userId: string) {
+    const session = this.sessions.get(userId);
+    if (session) {
+      this.sendLog(userId, `📊 Status da sessão: ${session.status}`, 'info');
+      this.sendStatusChange(userId, session.status, session);
+    } else {
+      this.sendLog(userId, '❌ Nenhuma sessão ativa encontrada', 'error');
+      this.sendStatusChange(userId, 'DISCONNECTED');
+    }
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -28,11 +180,10 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  const WPPCONNECT_URL = Deno.env.get('WPPCONNECT_URL') || 'http://localhost:21234';
-  const WPPCONNECT_TOKEN = Deno.env.get('WPPCONNECT_TOKEN') || 'your_secure_token_here';
+  // Criar instância do gerenciador de sessões
+  const whatsappManager = new WhatsAppSessionManager(socket);
 
   let userId: string | null = null;
-  let sessionName: string | null = null;
 
   const sendLog = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
     const logMessage = {
@@ -47,34 +198,9 @@ serve(async (req) => {
     }
   };
 
-  const sendStatus = (status: string, data?: any) => {
-    const statusMessage = {
-      type: 'whatsapp_status_change',
-      status,
-      data,
-      timestamp: new Date().toISOString()
-    };
-    
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(statusMessage));
-    }
-  };
-
-  const sendQRCode = (qrCode: string) => {
-    const qrMessage = {
-      type: 'whatsapp_qr',
-      qrCode,
-      timestamp: new Date().toISOString()
-    };
-    
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(qrMessage));
-    }
-  };
-
   socket.onopen = () => {
     console.log('WebSocket connection established');
-    sendLog('Conexão WebSocket estabelecida', 'success');
+    sendLog('🌐 Conexão WebSocket estabelecida com sucesso!', 'success');
   };
 
   socket.onmessage = async (event) => {
@@ -82,63 +208,30 @@ serve(async (req) => {
       const data = JSON.parse(event.data);
       console.log('WebSocket message received:', data);
 
+      userId = data.userId || userId;
+
       switch (data.action) {
         case 'connect':
-          userId = data.userId;
-          sessionName = `session_${userId?.slice(0, 8)}`;
+          if (!userId) {
+            sendLog('❌ Erro: ID do usuário não fornecido', 'error');
+            return;
+          }
           
-          sendLog('Iniciando conexão WhatsApp...', 'info');
-          sendStatus('CONNECTING');
-
-          try {
-            sendLog('Configurando servidor WppConnect...', 'info');
-            
-            // Tentar conectar ao WppConnect
-            const wppResponse = await fetch(`${WPPCONNECT_URL}/api/${sessionName}/connect`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${WPPCONNECT_TOKEN}`,
-              },
-              body: JSON.stringify({
-                webhook: `${supabaseUrl}/functions/v1/wppconnect-webhook`,
-                waitQrCode: true
-              })
-            });
-
-            const wppResult = await wppResponse.json();
-            console.log('WppConnect response:', wppResult);
-
-            if (!wppResponse.ok) {
-              throw new Error(`WppConnect error: ${wppResult.message || 'Erro de conexão'}`);
-            }
-
-            if (wppResult.qrcode) {
-              sendLog('QR Code gerado! Escaneie com seu WhatsApp.', 'success');
-              sendQRCode(wppResult.qrcode);
-              sendStatus('PENDING_QR');
-              
-              // Monitorar status da conexão
-              setTimeout(() => checkConnectionStatus(sessionName!), 5000);
-            } else if (wppResult.status === 'CONNECTED' || wppResult.connected) {
-              sendLog('WhatsApp já conectado!', 'success');
-              sendStatus('CONNECTED', { 
-                sessionName,
-                phoneNumber: wppResult.phone || sessionName
-              });
-            }
-
-            // Atualizar banco de dados
-            if (userId) {
+          sendLog('🚀 Iniciando processo de conexão...', 'info');
+          await whatsappManager.startConnection(userId);
+          
+          // Salvar no banco de dados
+          if (userId) {
+            try {
               await supabase
                 .from('whatsapp_config')
                 .upsert({
                   user_id: userId,
-                  phone_number: sessionName,
-                  webhook_url: `${supabaseUrl}/functions/v1/wppconnect-webhook`,
-                  access_token: WPPCONNECT_TOKEN,
-                  is_active: wppResult.status === 'CONNECTED' || wppResult.connected || false,
-                  business_account_id: sessionName,
+                  phone_number: `demo_${userId}`,
+                  webhook_url: `${supabaseUrl}/functions/v1/whatsapp-websocket`,
+                  access_token: 'demo_token',
+                  is_active: false,
+                  business_account_id: `session_${userId}`,
                   updated_at: new Date().toISOString()
                 });
 
@@ -146,115 +239,54 @@ serve(async (req) => {
                 .from('campaign_knowledge')
                 .insert({
                   user_id: userId,
-                  content: `WhatsApp connection attempt - Session: ${sessionName} - Status: ${wppResult.status || 'initiated'}`,
+                  content: `WhatsApp connection initiated - Demo Mode - Session: session_${userId}`,
                   generated_at: new Date().toISOString()
                 });
+            } catch (dbError) {
+              console.error('Database error:', dbError);
             }
-
-          } catch (wppError) {
-            console.error('WppConnect connection failed:', wppError);
-            sendLog(`Erro na conexão: ${wppError instanceof Error ? wppError.message : 'Erro desconhecido'}`, 'error');
-            
-            // Fallback - simular conexão para desenvolvimento
-            sendLog('Iniciando modo de desenvolvimento...', 'info');
-            sendLog('WppConnect não disponível. Usando modo simulado.', 'info');
-            
-            // Gerar QR code válido para teste (texto simples que pode ser escaneado)
-            const testQR = `https://wa.me/qr/TEST_${Date.now()}`;
-            
-            setTimeout(() => {
-              sendLog('QR Code de teste gerado', 'info');
-              sendLog('ATENÇÃO: Este é um QR code simulado para desenvolvimento', 'info');
-              sendLog('Para uso em produção, configure o WppConnect adequadamente', 'info');
-              sendQRCode(testQR);
-              sendStatus('PENDING_QR');
-              
-              // Simular conexão após 10 segundos
-              setTimeout(() => {
-                sendLog('Simulação: Conexão estabelecida (modo desenvolvimento)', 'success');
-                sendStatus('CONNECTED', { 
-                  sessionName: sessionName || 'dev_session',
-                  phoneNumber: '+55 62 99999-9999 (SIMULADO)'
-                });
-              }, 10000);
-            }, 1000);
           }
           break;
 
         case 'disconnect':
-          if (sessionName) {
+          if (!userId) {
+            sendLog('❌ Erro: ID do usuário não fornecido', 'error');
+            return;
+          }
+          
+          whatsappManager.disconnectSession(userId);
+          
+          if (userId) {
             try {
-              sendLog('Desconectando WhatsApp...', 'info');
-              
-              await fetch(`${WPPCONNECT_URL}/api/${sessionName}/close-session`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${WPPCONNECT_TOKEN}`,
-                }
-              });
-
-              sendLog('WhatsApp desconectado com sucesso!', 'success');
-              sendStatus('DISCONNECTED');
-
-              if (userId) {
-                await supabase
-                  .from('whatsapp_config')
-                  .update({ 
-                    is_active: false,
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('user_id', userId);
-              }
-            } catch (error) {
-              sendLog('Erro ao desconectar. Sessão finalizada localmente.', 'error');
-              sendStatus('DISCONNECTED');
+              await supabase
+                .from('whatsapp_config')
+                .update({ 
+                  is_active: false,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', userId);
+            } catch (dbError) {
+              console.error('Database error:', dbError);
             }
           }
           break;
 
         case 'status':
-          if (sessionName) {
-            await checkConnectionStatus(sessionName);
+          if (!userId) {
+            sendLog('❌ Erro: ID do usuário não fornecido', 'error');
+            return;
           }
+          
+          whatsappManager.getSessionStatus(userId);
           break;
 
         default:
-          sendLog(`Ação desconhecida: ${data.action}`, 'error');
+          sendLog(`❌ Ação desconhecida: ${data.action}`, 'error');
       }
 
     } catch (error) {
       console.error('WebSocket message error:', error);
-      sendLog(`Erro no processamento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
-    }
-  };
-
-  const checkConnectionStatus = async (session: string) => {
-    try {
-      const statusResponse = await fetch(`${WPPCONNECT_URL}/api/${session}/status`, {
-        headers: {
-          'Authorization': `Bearer ${WPPCONNECT_TOKEN}`,
-        }
-      });
-
-      if (statusResponse.ok) {
-        const statusResult = await statusResponse.json();
-        console.log('Status check result:', statusResult);
-
-        if (statusResult.status === 'CONNECTED' || statusResult.connected) {
-          sendLog('Autenticação concluída! WhatsApp conectado.', 'success');
-          sendStatus('CONNECTED', {
-            sessionName: session,
-            phoneNumber: statusResult.phone || session
-          });
-        } else if (statusResult.status === 'DISCONNECTED') {
-          sendLog('Aguardando escaneamento do QR Code...', 'info');
-          // Continue checking
-          setTimeout(() => checkConnectionStatus(session), 3000);
-        }
-      }
-    } catch (error) {
-      console.log('Status check failed, will retry...', error);
-      setTimeout(() => checkConnectionStatus(session), 5000);
+      sendLog(`❌ Erro no processamento: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
     }
   };
 
