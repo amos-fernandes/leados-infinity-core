@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const googleGeminiApiKey = Deno.env.get('GEMINI_API_KEY');
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -43,13 +43,15 @@ interface LeadQualification {
 }
 
 async function qualifyWithAI(leadData: any): Promise<LeadQualification | null> {
-  if (!googleGeminiApiKey) {
-    console.error('Google Gemini API key não configurada');
+  if (!lovableApiKey) {
+    console.error('--- ERRO DETALHADO DA API DE IA ---');
+    console.error('Timestamp:', new Date().toISOString());
+    console.error('LOVABLE_API_KEY não configurada - esta chave é fornecida automaticamente pelo Lovable');
+    console.error('--- FIM DO ERRO DETALHADO ---');
     return null;
   }
 
-  const prompt = `
-Você é um especialista em qualificação de leads B2B para consultoria tributária.
+  const prompt = `Você é um especialista em qualificação de leads B2B para consultoria tributária.
 
 Analise o seguinte lead e forneça uma qualificação BANT completa:
 
@@ -118,44 +120,69 @@ IMPORTANTE: Retorne APENAS um JSON válido no seguinte formato:
 }`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${googleGeminiApiKey}`, {
+    console.log('Iniciando qualificação com Lovable AI...');
+    
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [
+        model: 'google/gemini-2.5-flash',
+        messages: [
           {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
+            role: 'system',
+            content: 'Você é um especialista em qualificação de leads B2B. Retorne sempre JSON válido.'
+          },
+          {
+            role: 'user',
+            content: prompt
           }
         ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 2048
-        }
+        temperature: 0.3,
+        max_tokens: 2048
       }),
     });
 
+    console.log('Response status:', response.status);
+
     if (!response.ok) {
-      if (response.status === 429) {
-        console.error('Limite de requisições do Google Gemini atingido');
-        return null;
+      console.error('--- ERRO DETALHADO DA API DE IA ---');
+      console.error('Timestamp:', new Date().toISOString());
+      console.error('Status Code:', response.status);
+      
+      if (response.status === 401) {
+        console.error('Erro de autorização - LOVABLE_API_KEY inválida ou não configurada');
+      } else if (response.status === 429) {
+        console.error('Limite de requisições atingido - muitas chamadas em pouco tempo');
+      } else if (response.status === 402) {
+        console.error('Créditos insuficientes - adicione créditos na sua conta Lovable');
+      } else {
+        console.error('Response status text:', response.statusText);
+        try {
+          const errorData = await response.text();
+          console.error('Response body:', errorData);
+        } catch (e) {
+          console.error('Não foi possível ler o corpo da resposta de erro');
+        }
       }
-      console.error(`Google Gemini API error: ${response.statusText}`);
+      console.error('--- FIM DO ERRO DETALHADO ---');
       return null;
     }
 
     const data = await response.json();
+    console.log('AI response received');
     
     let content = '';
-    if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0]) {
-      content = data.candidates[0].content.parts[0].text;
+    if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+      content = data.choices[0].message.content;
     } else {
-      console.error('Resposta inválida da IA');
+      console.error('--- ERRO DETALHADO DA API DE IA ---');
+      console.error('Timestamp:', new Date().toISOString());
+      console.error('Estrutura de resposta inválida da IA');
+      console.error('Response data:', JSON.stringify(data, null, 2));
+      console.error('--- FIM DO ERRO DETALHADO ---');
       return null;
     }
     
@@ -175,10 +202,28 @@ IMPORTANTE: Retorne APENAS um JSON válido no seguinte formato:
       cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
     }
     
+    console.log('Attempting to parse AI response JSON...');
     return JSON.parse(cleanedContent);
     
   } catch (error) {
-    console.error('Erro na qualificação com IA:', error);
+    console.error('--- ERRO DETALHADO DA API DE IA ---');
+    console.error('Timestamp:', new Date().toISOString());
+    
+    if (error instanceof Error) {
+      console.error('Erro:', error.message);
+      console.error('Stack:', error.stack);
+      
+      if (error.message.includes('fetch')) {
+        console.error('Problema de rede ao conectar com o serviço de IA');
+        console.error('Verifique a conectividade de rede do servidor');
+      } else if (error.message.includes('JSON')) {
+        console.error('Erro ao fazer parsing do JSON retornado pela IA');
+        console.error('A resposta da IA pode não estar no formato esperado');
+      }
+    } else {
+      console.error('Erro desconhecido:', error);
+    }
+    console.error('--- FIM DO ERRO DETALHADO ---');
     return null;
   }
 }
