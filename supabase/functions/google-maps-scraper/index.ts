@@ -66,47 +66,68 @@ serve(async (req) => {
 
     console.log(`Found ${scrapedBusinesses.length} businesses to process`);
 
-    // Processar e salvar leads
+    // Processar e salvar apenas leads de alta qualidade
     const savedLeads = [];
     const errors = [];
+    let lowQualityCount = 0;
 
     for (const business of scrapedBusinesses) {
       try {
-        // Verificar se lead já existe
-        const { data: existingLead } = await supabase
+        // CRITÉRIO DE QUALIDADE: Só prosseguir se tiver telefone ou website
+        if (!business.phone && !business.website) {
+          console.log(`Lead de baixa qualidade descartado (sem telefone/website): ${business.name}`);
+          lowQualityCount++;
+          continue;
+        }
+
+        // Verificar duplicatas pelo telefone se existir
+        if (business.phone) {
+          const { data: existingByPhone } = await supabase
+            .from('leads')
+            .select('id')
+            .eq('telefone', business.phone)
+            .eq('user_id', userId)
+            .limit(1);
+
+          if (existingByPhone && existingByPhone.length > 0) {
+            console.log(`Lead duplicado encontrado (telefone), pulando: ${business.name}`);
+            continue;
+          }
+        }
+
+        // Verificar duplicatas pelo nome da empresa
+        const { data: existingByName } = await supabase
           .from('leads')
           .select('id')
           .eq('empresa', business.name)
           .eq('user_id', userId)
           .limit(1);
 
-        if (existingLead && existingLead.length > 0) {
-          console.log(`Lead already exists: ${business.name}`);
+        if (existingByName && existingByName.length > 0) {
+          console.log(`Lead duplicado encontrado (nome), pulando: ${business.name}`);
           continue;
         }
 
-        // Enriquecer dados da empresa
-        const enrichedBusiness = await enrichBusinessData(business);
-
-        // Criar lead
+        // Criar lead apenas com dados verificados
         const leadData = {
           user_id: userId,
           empresa: business.name,
-          telefone: business.phone || enrichedBusiness.phone || null,
-          email: business.email || enrichedBusiness.email || null,
-          website: business.website || enrichedBusiness.website || null,
-          whatsapp: business.whatsapp || enrichedBusiness.whatsapp || business.phone || null,
+          telefone: business.phone || null, // Sem dados fictícios
+          email: null, // Deixar NULO. Evitar emails fictícios
+          website: business.website || null,
+          whatsapp: business.phone || null, // Usar telefone real se existir
           setor: business.category || 'Não especificado',
-          contato_decisor: business.contact || enrichedBusiness.contact || null,
-          gancho_prospeccao: `Encontrado via Google Maps: ${searchQuery}`,
-          linkedin: enrichedBusiness.linkedin || null,
+          contato_decisor: null, // Será obtido via scraping posterior
+          gancho_prospeccao: `Lead de alta qualidade via Google Maps: ${searchQuery}`,
+          linkedin: null, // Será enriquecido posteriormente
           social_media: {
             google_maps_rating: business.rating,
             google_maps_reviews: business.reviews,
-            address: business.address
+            address: business.address,
+            google_maps_verified: true
           },
           status: 'novo',
-          bright_data_enriched: true
+          google_maps_verified: true
         };
 
         const { data: savedLead, error: leadError } = await supabase
@@ -122,15 +143,15 @@ serve(async (req) => {
         }
 
         savedLeads.push(savedLead);
-        console.log(`✅ Lead saved: ${business.name}`);
+        console.log(`✅ Lead de alta qualidade capturado: ${business.name}`);
 
         // Registrar na base de conhecimento
         await supabase
           .from('campaign_knowledge')
           .insert({
             user_id: userId,
-            content: `Google Maps Lead: ${business.name} - ${business.category} - Telefone: ${business.phone || 'N/A'} - Email: ${business.email || 'N/A'}`,
-            generated_at: new Date().toISOString()
+            content: `Lead Qualificado Google Maps: ${business.name} - ${business.category || 'N/A'} - Tel: ${business.phone || 'N/A'} - Site: ${business.website || 'N/A'}`,
+            knowledge_type: 'qualified_lead'
           });
 
       } catch (error) {
@@ -142,16 +163,19 @@ serve(async (req) => {
       }
     }
 
-    console.log(`✅ ${savedLeads.length} leads saved successfully`);
+    console.log(`✅ ${savedLeads.length} leads de qualidade salvos de ${scrapedBusinesses.length} encontrados`);
+    console.log(`⚠️ ${lowQualityCount} leads descartados por não atenderem critérios de qualidade`);
 
     return new Response(JSON.stringify({ 
       success: true,
-      message: `${savedLeads.length} leads coletados do Google Maps`,
+      message: `${savedLeads.length} leads qualificados coletados (${lowQualityCount} descartados por baixa qualidade)`,
       totalFound: scrapedBusinesses.length,
-      savedLeads: savedLeads.length,
+      qualityLeads: savedLeads.length,
+      lowQualityDiscarded: lowQualityCount,
       searchQuery,
       location,
       leads: savedLeads,
+      qualityCriteria: 'Apenas leads com telefone OU website',
       errors: errors.length > 0 ? errors : undefined
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -192,15 +216,18 @@ async function scrapeWithGooglePlacesAPI(query: string, location: string, apiKey
       if (detailsResponse.ok && detailsData.status === 'OK') {
         const details = detailsData.result;
         
-        businesses.push({
-          name: details.name,
-          phone: details.formatted_phone_number,
-          website: details.website,
-          address: details.formatted_address,
-          rating: details.rating,
-          reviews: details.user_ratings_total,
-          category: place.types?.[0] || 'business'
-        });
+        // Só adicionar se tiver telefone OU website (critério de qualidade)
+        if (details.formatted_phone_number || details.website) {
+          businesses.push({
+            name: details.name,
+            phone: details.formatted_phone_number,
+            website: details.website,
+            address: details.formatted_address,
+            rating: details.rating,
+            reviews: details.user_ratings_total,
+            category: place.types?.[0] || 'business'
+          });
+        }
       }
     } catch (detailError) {
       console.error('Error fetching place details:', detailError);
