@@ -7,11 +7,19 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   const { headers } = req;
   const upgradeHeader = headers.get("upgrade") || "";
 
   if (upgradeHeader.toLowerCase() !== "websocket") {
-    return new Response("Expected WebSocket connection", { status: 400 });
+    return new Response("Request must be a WebSocket upgrade", { 
+      status: 400,
+      headers: corsHeaders 
+    });
   }
 
   const { socket, response } = Deno.upgradeWebSocket(req);
@@ -27,29 +35,41 @@ serve(async (req) => {
   let sessionName: string | null = null;
 
   const sendLog = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
-    socket.send(JSON.stringify({
+    const logMessage = {
       type: 'whatsapp_log',
       message,
       logType: type,
       timestamp: new Date().toISOString()
-    }));
+    };
+    
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(logMessage));
+    }
   };
 
   const sendStatus = (status: string, data?: any) => {
-    socket.send(JSON.stringify({
+    const statusMessage = {
       type: 'whatsapp_status_change',
       status,
       data,
       timestamp: new Date().toISOString()
-    }));
+    };
+    
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(statusMessage));
+    }
   };
 
   const sendQRCode = (qrCode: string) => {
-    socket.send(JSON.stringify({
+    const qrMessage = {
       type: 'whatsapp_qr',
       qrCode,
       timestamp: new Date().toISOString()
-    }));
+    };
+    
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(qrMessage));
+    }
   };
 
   socket.onopen = () => {
