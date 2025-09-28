@@ -207,10 +207,10 @@ const WhatsAppDashboard = ({ onGoBack }: WhatsAppDashboardProps) => {
                 <Button 
                   className="w-full" 
                   variant="outline"
-                  onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppBot'))}
+                  onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppConnector'))}
                 >
                   <Bot className="h-4 w-4 mr-2" />
-                  Gerenciar Bot WhatsApp
+                  Conectar WhatsApp
                 </Button>
               </div>
             </CardContent>

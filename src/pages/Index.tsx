@@ -10,11 +10,14 @@ import WhatsAppBot from "@/components/WhatsAppBot";
 import WhatsAppDashboard from "@/components/WhatsAppDashboard";
 import WhatsAppConversations from "@/components/WhatsAppConversations";
 import RAGAttendanceMonitor from "@/components/RAGAttendanceMonitor";
+import WhatsAppConnector from "@/components/WhatsAppConnector";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [showWhatsAppDashboard, setShowWhatsAppDashboard] = useState(false);
+  const [showWhatsAppConnector, setShowWhatsAppConnector] = useState(false);
 
   useEffect(() => {
     const handleOpenWhatsApp = () => {
@@ -25,12 +28,18 @@ const Index = () => {
       setShowWhatsAppDashboard(true);
     };
 
+    const handleOpenWhatsAppConnector = () => {
+      setShowWhatsAppConnector(true);
+    };
+
     window.addEventListener('openWhatsAppBot', handleOpenWhatsApp);
     window.addEventListener('openWhatsAppDashboard', handleOpenWhatsAppDashboard);
+    window.addEventListener('openWhatsAppConnector', handleOpenWhatsAppConnector);
     
     return () => {
       window.removeEventListener('openWhatsAppBot', handleOpenWhatsApp);
       window.removeEventListener('openWhatsAppDashboard', handleOpenWhatsAppDashboard);
+      window.removeEventListener('openWhatsAppConnector', handleOpenWhatsAppConnector);
     };
   }, []);
 
@@ -57,16 +66,31 @@ const Index = () => {
 
   // Se há usuário, mostrar o dashboard da aplicação
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container mx-auto px-6 py-8 space-y-8">
-        <Dashboard />
-        <ProspectCollector />
-        <CRMDashboard />
-        <RAGAttendanceMonitor />
-        <WhatsAppConversations />
-        {showWhatsApp ? <WhatsAppBot /> : <RAGChat />}
-      </main>
-    </div>
+    <>
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-6 py-8 space-y-8">
+          <Dashboard />
+          <ProspectCollector />
+          <CRMDashboard />
+          <RAGAttendanceMonitor />
+          <WhatsAppConversations />
+          {showWhatsApp ? <WhatsAppBot /> : <RAGChat />}
+        </main>
+      </div>
+
+      {/* WhatsApp Connector Modal */}
+      <Dialog open={showWhatsAppConnector} onOpenChange={setShowWhatsAppConnector}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">📱</span>
+              Conector WhatsApp Business
+            </DialogTitle>
+          </DialogHeader>
+          <WhatsAppConnector />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

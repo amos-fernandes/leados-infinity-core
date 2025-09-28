@@ -15,7 +15,8 @@ import {
   MessageSquare,
   Bot,
   Settings,
-  LogOut
+  LogOut,
+  Smartphone
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -300,6 +301,14 @@ const Dashboard = () => {
                   LEADOS Consultor inteligente via WhatsApp.
                 </p>
               </div>
+              <Button 
+                className="w-full mb-2" 
+                variant="outline"
+                onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppConnector'))}
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                Conectar WhatsApp
+              </Button>
               <Button 
                 className="w-full" 
                 variant="outline"
