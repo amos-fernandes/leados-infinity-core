@@ -67,13 +67,15 @@ const WhatsAppConnector = () => {
     }
 
     const projectId = 'rcfmbjkolnzjhrlgrtda'; // From env
-    const wsUrl = `wss://${projectId}.functions.supabase.co/functions/v1/whatsapp-websocket`;
+    const wsUrl = `wss://${projectId}.supabase.co/functions/v1/whatsapp-websocket`;
     
+    console.log('Tentando conectar WebSocket:', wsUrl);
     addLog('Conectando ao servidor...', 'info');
     
     wsRef.current = new WebSocket(wsUrl);
 
     wsRef.current.onopen = () => {
+      console.log('WebSocket conectado com sucesso');
       setWsConnected(true);
       addLog('Conexão com servidor estabelecida', 'success');
     };
@@ -113,13 +115,15 @@ const WhatsAppConnector = () => {
       }
     };
 
-    wsRef.current.onclose = () => {
+    wsRef.current.onclose = (event) => {
+      console.log('WebSocket fechado:', event.code, event.reason);
       setWsConnected(false);
       addLog('Conexão com servidor perdida', 'error');
       
       // Auto reconnect after 5 seconds
       setTimeout(() => {
         if (connectionStatus.status !== 'DISCONNECTED') {
+          console.log('Tentando reconectar WebSocket...');
           connectWebSocket();
         }
       }, 5000);
@@ -133,8 +137,10 @@ const WhatsAppConnector = () => {
 
   const sendWebSocketMessage = (message: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('Enviando mensagem WebSocket:', message);
       wsRef.current.send(JSON.stringify(message));
     } else {
+      console.error('WebSocket não conectado. ReadyState:', wsRef.current?.readyState);
       addLog('Conexão WebSocket não disponível', 'error');
       toast({
         title: "Erro de Conexão",
