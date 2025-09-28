@@ -317,6 +317,46 @@ class CampaignScheduler {
       throw error;
     }
   }
+
+  // NEW METHOD: Executar motor de qualificação de leads
+  async runQualificationEngine(userId?: string) {
+    console.log('🚀 CampaignScheduler: Executando motor de qualificação de leads');
+    
+    try {
+      // Critérios padrão de qualificação
+      const defaultCriteria = {
+        requiredUfs: ['SP', 'RJ', 'SC', 'PR', 'MG', 'RS', 'ES'],
+        excludedSituacoes: ['BAIXADA', 'SUSPENSA', 'INAPTA'],
+        minCapitalSocial: 10000,
+        maxCapitalSocial: 10000000
+      };
+
+      // Chamar o motor de qualificação
+      const { data: result, error } = await this.supabase.functions.invoke('qualification-engine', {
+        body: {
+          criteria: defaultCriteria,
+          batchSize: 5, // Processar 5 leads por vez
+          userId: userId // Opcional: filtrar por usuário específico
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      console.log(`✅ Motor de qualificação executado: ${result.processed} processados, ${result.qualified} qualificados`);
+
+      return {
+        success: true,
+        ...result,
+        message: `Motor de qualificação executado: ${result.processed} leads processados`
+      };
+
+    } catch (error) {
+      console.error('❌ Erro ao executar motor de qualificação:', error);
+      throw error;
+    }
+  }
 }
 
 serve(async (req) => {
@@ -357,6 +397,9 @@ serve(async (req) => {
           throw new Error('userId é obrigatório para relatório');
         }
         result = await scheduler.generatePerformanceReport(userId);
+        break;
+      case 'qualifyLeads':
+        result = await scheduler.runQualificationEngine(userId);
         break;
       default:
         throw new Error('Ação não reconhecida');

@@ -276,10 +276,16 @@ export type Database = {
           approach_strategy: string | null
           bright_data_enriched: boolean | null
           business_type_confirmed: string | null
+          capital_social: number | null
+          cidade: string | null
           cnae: string | null
+          cnae_principal: string | null
+          cnpj: string | null
           contato_decisor: string | null
           created_at: string
+          data_qualificacao: string | null
           email: string | null
+          email_encontrado_automaticamente: boolean | null
           empresa: string
           estimated_employees: number | null
           gancho_prospeccao: string | null
@@ -288,6 +294,7 @@ export type Database = {
           google_maps_verified: boolean | null
           id: string
           linkedin: string | null
+          pontuacao_qualificacao: number | null
           qualification_score: string | null
           regime_tributario: string | null
           setor: string | null
@@ -295,6 +302,7 @@ export type Database = {
           status: string | null
           tech_stack: Json | null
           telefone: string | null
+          uf: string | null
           updated_at: string
           user_id: string
           validation_completed_at: string | null
@@ -308,10 +316,16 @@ export type Database = {
           approach_strategy?: string | null
           bright_data_enriched?: boolean | null
           business_type_confirmed?: string | null
+          capital_social?: number | null
+          cidade?: string | null
           cnae?: string | null
+          cnae_principal?: string | null
+          cnpj?: string | null
           contato_decisor?: string | null
           created_at?: string
+          data_qualificacao?: string | null
           email?: string | null
+          email_encontrado_automaticamente?: boolean | null
           empresa: string
           estimated_employees?: number | null
           gancho_prospeccao?: string | null
@@ -320,6 +334,7 @@ export type Database = {
           google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
+          pontuacao_qualificacao?: number | null
           qualification_score?: string | null
           regime_tributario?: string | null
           setor?: string | null
@@ -327,6 +342,7 @@ export type Database = {
           status?: string | null
           tech_stack?: Json | null
           telefone?: string | null
+          uf?: string | null
           updated_at?: string
           user_id: string
           validation_completed_at?: string | null
@@ -340,10 +356,16 @@ export type Database = {
           approach_strategy?: string | null
           bright_data_enriched?: boolean | null
           business_type_confirmed?: string | null
+          capital_social?: number | null
+          cidade?: string | null
           cnae?: string | null
+          cnae_principal?: string | null
+          cnpj?: string | null
           contato_decisor?: string | null
           created_at?: string
+          data_qualificacao?: string | null
           email?: string | null
+          email_encontrado_automaticamente?: boolean | null
           empresa?: string
           estimated_employees?: number | null
           gancho_prospeccao?: string | null
@@ -352,6 +374,7 @@ export type Database = {
           google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
+          pontuacao_qualificacao?: number | null
           qualification_score?: string | null
           regime_tributario?: string | null
           setor?: string | null
@@ -359,6 +382,7 @@ export type Database = {
           status?: string | null
           tech_stack?: Json | null
           telefone?: string | null
+          uf?: string | null
           updated_at?: string
           user_id?: string
           validation_completed_at?: string | null
