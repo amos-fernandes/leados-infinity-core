@@ -115,7 +115,7 @@ const WhatsAppConnector = () => {
     }
 
     const projectId = 'rcfmbjkolnzjhrlgrtda';
-    const wsUrl = `wss://${projectId}.supabase.co/functions/v1/whatsapp-websocket`;
+    const wsUrl = `wss://${projectId}.functions.supabase.co/whatsapp-websocket`;
     
     console.log('Conectando WebSocket:', wsUrl);
     addLog('🔌 Estabelecendo conexão com servidor...', 'info');
