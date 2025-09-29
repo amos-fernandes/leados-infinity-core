@@ -18,20 +18,35 @@ class CampaignService {
   // Criar campanha com configurações avançadas
   async createCampaign(campaignData: any) {
     console.log('🚀 CampaignService: Criando nova campanha');
+    console.log('Dados recebidos:', JSON.stringify(campaignData, null, 2));
+    
+    // Validação explícita do userId
+    if (!campaignData.userId) {
+      throw new Error('userId é obrigatório para criar campanha');
+    }
+    
+    const campaignPayload = {
+      user_id: campaignData.userId,
+      name: campaignData.name || `Campanha Automatizada - ${new Date().toLocaleDateString('pt-BR')}`,
+      description: campaignData.description || 'Campanha automatizada completa: Google Maps + Scripts IA + Multi-canal',
+      target_companies: campaignData.targetCompanies || [],
+      status: 'ativa'
+    };
+    
+    console.log('Payload da campanha:', JSON.stringify(campaignPayload, null, 2));
     
     const { data: campaign, error } = await this.supabase
       .from('campaigns')
-      .insert({
-        user_id: campaignData.userId,
-        name: campaignData.name || `Campanha Infinity - ${new Date().toLocaleDateString('pt-BR')}`,
-        description: campaignData.description || 'Campanha automatizada para conta PJ C6 Bank',
-        target_companies: campaignData.targetCompanies || [],
-        status: 'ativa'
-      })
+      .insert(campaignPayload)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao inserir campanha:', error);
+      throw error;
+    }
+    
+    console.log('Campanha criada com sucesso:', campaign);
     return campaign;
   }
 
