@@ -274,6 +274,7 @@ export type Database = {
         Row: {
           address_validated: string | null
           approach_strategy: string | null
+          bant_analysis: Json | null
           bright_data_enriched: boolean | null
           business_type_confirmed: string | null
           capital_social: number | null
@@ -314,6 +315,7 @@ export type Database = {
         Insert: {
           address_validated?: string | null
           approach_strategy?: string | null
+          bant_analysis?: Json | null
           bright_data_enriched?: boolean | null
           business_type_confirmed?: string | null
           capital_social?: number | null
@@ -354,6 +356,7 @@ export type Database = {
         Update: {
           address_validated?: string | null
           approach_strategy?: string | null
+          bant_analysis?: Json | null
           bright_data_enriched?: boolean | null
           business_type_confirmed?: string | null
           capital_social?: number | null
