@@ -35,20 +35,24 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Buscar roteiros da campanha
+    // Buscar roteiros da campanha - adicionar log detalhado
+    console.log('Buscando roteiros para campanha:', campaignId);
     const { data: scripts, error: scriptsError } = await supabase
       .from('campaign_scripts')
       .select('*')
       .eq('campaign_id', campaignId);
 
     if (scriptsError) {
+      console.error('Erro detalhado ao buscar roteiros:', scriptsError);
       throw new Error(`Erro ao buscar roteiros: ${scriptsError.message}`);
     }
 
     console.log(`Found ${scripts?.length || 0} scripts to process`);
+    console.log('Scripts encontrados:', scripts);
     
     // Buscar leads relacionados às empresas da campanha
     const empresas = scripts?.map(s => s.empresa) || [];
+    console.log('Empresas dos scripts:', empresas);
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -61,6 +65,7 @@ serve(async (req) => {
 
     const foundLeads = leads || [];
     console.log(`Found ${foundLeads.length} existing leads for WhatsApp outreach`);
+    console.log('Leads encontrados:', foundLeads.map(l => ({ empresa: l.empresa, telefone: l.telefone, whatsapp: l.whatsapp })));
 
     // Simular envio do WhatsApp (integração real seria feita aqui)
     const whatsappMessages = [];
@@ -72,12 +77,25 @@ serve(async (req) => {
         script.empresa.toLowerCase().includes(lead.empresa.toLowerCase())
       );
 
-      const phoneNumber = relatedLead?.telefone || '5562981959829'; // Número de atendimento Única Contábil
+      const phoneNumber = relatedLead?.telefone || relatedLead?.whatsapp || '5562991792303'; // Número configurado + campo whatsapp
       const contactName = relatedLead?.contato_decisor || '[Nome]';
       
-      // Usar template WhatsApp específico para C6 Bank
+      // Usar template WhatsApp exato da knowledge base C6 Bank
       const cnpj = relatedLead?.cnpj || '[CNPJ]';
-      const whatsappMessage = `🏢 Olá ${contactName}!\n\nConferimos o CNPJ ${cnpj} da ${script.empresa} e identificamos que você pode se beneficiar de uma conta PJ gratuita no C6 Bank.\n\n💡 Benefícios imediatos:\n✅ Pix ilimitado\n✅ 100 TEDs gratuitos\n✅ 100 boletos gratuitos\n✅ Crédito sujeito a análise\n✅ Atendimento humano via escritório autorizado\n\n🎯 Você tem interesse em aproveitar esses benefícios ou prefere receber uma proposta detalhada para sua empresa?`;
+      const gancho = relatedLead?.gancho_prospeccao || 'conta PJ gratuita';
+      
+      const whatsappMessage = `🏢 Olá ${contactName}!
+
+Conferimos o CNPJ ${cnpj} da ${script.empresa} e identificamos que você pode se beneficiar de uma conta PJ gratuita no C6 Bank.
+
+💡 Benefícios imediatos:
+✅ Pix ilimitado
+✅ 100 TEDs gratuitos
+✅ 100 boletos gratuitos
+✅ Crédito sujeito a análise
+✅ Atendimento humano via escritório autorizado
+
+🎯 Você tem interesse em aproveitar esses benefícios ou prefere receber uma proposta detalhada para sua empresa?`;
 
       whatsappMessages.push({
         to: phoneNumber,
@@ -89,9 +107,33 @@ serve(async (req) => {
       // Atualizar status do script
       await supabase
         .from('campaign_scripts')
-        .update({ whatsapp_sent: true })
+        .update({ whatsapp_enviado: true })
         .eq('id', script.id);
-    }
+
+          // Registrar interação no histórico completo
+          await supabase
+            .from('interactions')
+            .insert({
+              user_id: userId,
+              tipo: 'whatsapp',
+              assunto: `WhatsApp Campanha - ${script.empresa}`,
+              descricao: `Mensagem enviada:\n\n${whatsappMessage}\n\nTelefone: ${phoneNumber}\nGancho: Conta PJ gratuita C6 Bank com benefícios exclusivos`,
+              data_interacao: new Date().toISOString()
+            });
+
+          // Criar oportunidade relacionada à empresa
+          await supabase
+            .from('opportunities')
+            .insert({
+              user_id: userId,
+              empresa: script.empresa,
+              titulo: `Abertura Conta PJ - ${script.empresa}`,
+              estagio: 'contato_inicial',
+              valor: 5000, // Valor estimado da conta PJ
+              probabilidade: 30, // Probabilidade inicial 30%
+              status: 'aberta'
+            });
+     }
 
     console.log('WhatsApp messages prepared:', whatsappMessages.length);
 
@@ -143,7 +185,7 @@ serve(async (req) => {
     console.error('Error in whatsapp-campaign function:', error);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error instanceof Error ? error.message : 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

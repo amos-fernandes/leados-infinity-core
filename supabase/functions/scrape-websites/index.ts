@@ -110,7 +110,7 @@ serve(async (req) => {
         results.push({
           website,
           success: false,
-          error: siteError.message,
+          error: siteError instanceof Error ? siteError.message : 'Erro desconhecido',
           contacts: []
         });
       }
@@ -130,7 +130,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error scraping websites:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       success: false
     }), {
       status: 500,

@@ -35,20 +35,24 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Buscar roteiros da campanha
+    // Buscar roteiros da campanha - adicionar log detalhado
+    console.log('Buscando roteiros email para campanha:', campaignId);
     const { data: scripts, error: scriptsError } = await supabase
       .from('campaign_scripts')
       .select('*')
       .eq('campaign_id', campaignId);
 
     if (scriptsError) {
+      console.error('Erro detalhado ao buscar roteiros email:', scriptsError);
       throw new Error(`Erro ao buscar roteiros: ${scriptsError.message}`);
     }
 
     console.log(`Found ${scripts?.length || 0} email scripts to process`);
+    console.log('Scripts email encontrados:', scripts);
     
     // Buscar leads relacionados às empresas da campanha
     const empresas = scripts?.map(s => s.empresa) || [];
+    console.log('Empresas dos scripts email:', empresas);
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -75,10 +79,29 @@ serve(async (req) => {
       const email = relatedLead?.email || `contato@${script.empresa.toLowerCase().replace(/\s+/g, '')}.com.br`;
       const contactName = relatedLead?.contato_decisor || 'Prezado(a) Responsável Financeiro';
       
-      // Personalizar e-mail usando template C6 Bank
-      const personalizedEmail = script.modelo_email
-        .replace('[Nome]', contactName)
-        .replace('[Nome do Consultor]', 'Equipe C6 Bank - Escritório Autorizado');
+      // Template usando base de conhecimento C6 Bank
+      const personalizedEmail = `Prezado ${contactName},
+
+Identificamos oportunidades para a ${script.empresa} reduzir custos com a abertura de uma conta PJ digital no C6 Bank.
+
+Benefícios principais:
+
+Conta 100% gratuita
+
+Pix ilimitado
+
+100 TEDs sem custo
+
+100 boletos sem custo
+
+Crédito sujeito a análise
+
+Atendimento humano via escritório autorizado
+
+Podemos dar andamento imediato à abertura da conta para a sua empresa?
+
+Atenciosamente,
+Escritório Autorizado Infinity - C6 Bank PJ`;
 
       // Template HTML do e-mail C6 Bank
       const htmlTemplate = `
@@ -103,7 +126,7 @@ serve(async (req) => {
               <p>Escritório Autorizado - Abertura de Contas Empresariais</p>
             </div>
             <div class="content">
-              <h3>${script.assunto_email}</h3>
+              <h3>Conta PJ gratuita para a ${script.empresa}</h3>
               <p>${personalizedEmail.replace(/\n/g, '<br>')}</p>
               
               <div class="benefit-list">
@@ -123,7 +146,7 @@ serve(async (req) => {
               </a>
               
               <div class="footer">
-                <p>📞 <strong>Contato Direto:</strong> (62) 98195-9829 | WhatsApp disponível</p>
+                <p>📞 <strong>Contato Direto:</strong> (62) 99179-2303 | WhatsApp disponível</p>
                 <p>🏢 <strong>Escritório Autorizado C6 Bank:</strong> Goiânia/GO</p>
                 <p>🎯 <strong>Especialidade:</strong> Contas PJ para todos os tipos de empresa</p>
                 <p><small>C6 Bank S.A. - Banco múltiplo autorizado pelo Banco Central do Brasil</small></p>
@@ -145,8 +168,41 @@ serve(async (req) => {
       // Atualizar status do script
       await supabase
         .from('campaign_scripts')
-        .update({ email_sent: true })
+        .update({ email_enviado: true })
         .eq('id', script.id);
+
+      // Registrar interação no histórico completo
+      await supabase
+        .from('interactions')
+        .insert({
+          user_id: userId,
+          tipo: 'email',
+          assunto: `E-mail Campanha - ${script.empresa}`,
+          descricao: `Assunto: ${script.assunto_email}\n\nConteúdo:\n${personalizedEmail}\n\nGancho: ${script.empresa} - Conta PJ C6 Bank com benefícios exclusivos`,
+          data_interacao: new Date().toISOString()
+        });
+
+      // Criar oportunidade relacionada à empresa se ainda não existir
+      const { data: existingOpportunity } = await supabase
+        .from('opportunities')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('empresa', script.empresa)
+        .maybeSingle();
+
+      if (!existingOpportunity) {
+        await supabase
+          .from('opportunities')
+          .insert({
+            user_id: userId,
+            empresa: script.empresa,
+            titulo: `Abertura Conta PJ - ${script.empresa}`,
+            estagio: 'contato_inicial',
+            valor: 5000, // Valor estimado da conta PJ
+            probabilidade: 25, // Probabilidade inicial 25% para email
+            status: 'aberta'
+          });
+      }
     }
 
     console.log('Email templates prepared:', emails.length);
@@ -201,9 +257,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in email-campaign function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: errorMessage || 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

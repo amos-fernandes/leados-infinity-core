@@ -91,78 +91,90 @@ class AgnoSmartCollectorAgent {
       
     } catch (error) {
       console.error('🚫 Erro na coleta híbrida:', error);
-      throw new Error(`Erro ao buscar empresas: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      throw new Error(`Erro ao buscar empresas: ${errorMessage}`);
     }
   }
 
   private async getBaseCompaniesData(filters: any): Promise<CNPJData[]> {
-    console.log('📊 Coletando dados base da Receita Federal...');
+    console.log('📊 Coletando dados reais do Google Maps...');
     
-    // Simulação de dados da Receita Federal (em produção seria API real)
-    const mockData: CNPJData[] = [
-        {
-          cnpj: "11.222.333/0001-44",
-          nome: "TECH SOLUTIONS LTDA",
-          nome_fantasia: "TechSol",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2020-03-15",
-          cnae_principal: "6201-5/00",
-          cnae_descricao: "Desenvolvimento de programas de computador sob encomenda",
-          natureza_juridica: "206-2",
-          porte: "DEMAIS",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3234-5678",
-          email: "contato@techsol.com.br",
-          capital_social: 50000,
-          socios: [
-            { nome: "JOÃO SILVA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "MARIA SANTOS", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "22.333.444/0001-55",
-          nome: "DISTRIBUIDORA ALPHA LTDA",
-          nome_fantasia: "Alpha Distribuidora",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2018-07-22",
-          cnae_principal: "4681-8/01",
-          cnae_descricao: "Comércio atacadista de máquinas e equipamentos",
-          natureza_juridica: "206-2",
-          porte: "EPP",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3345-6789",
-          email: "comercial@alphadist.com.br",
-          capital_social: 150000,
-          socios: [
-            { nome: "CARLOS OLIVEIRA", cargo: "SÓCIO-ADMINISTRADOR" },
-            { nome: "ANA RODRIGUES", cargo: "SÓCIA" }
-          ]
-        },
-        {
-          cnpj: "33.444.555/0001-66",
-          nome: "CONSULTORIA BETA EMPRESARIAL LTDA",
-          nome_fantasia: "Beta Consultoria",
-          situacao_cadastral: "ATIVA",
-          data_abertura: "2019-11-08",
-          cnae_principal: "7020-4/00",
-          cnae_descricao: "Atividades de consultoria em gestão empresarial",
-          natureza_juridica: "206-2",
-          porte: "ME",
-          municipio: "GOIANIA",
-          uf: "GO",
-          telefone: "(62) 3456-7890",
-          email: "info@betaconsult.com.br",
-          capital_social: 25000,
-          socios: [
-            { nome: "PEDRO ALMEIDA", cargo: "SÓCIO-ADMINISTRADOR" }
-          ]
-        }
-      ];
+    // Usar Google Maps API para coleta real de dados
+    const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
+    
+    if (!GOOGLE_MAPS_API_KEY) {
+      console.error('❌ GOOGLE_MAPS_API_KEY não configurada. Impossível coletar leads reais.');
+      throw new Error('API key do Google Maps não configurada. Configure a chave para coletar leads reais.');
+    }
 
-      // Aplicar filtros da Fase 1: Identificação (IA)
-      let filteredData = mockData;
+    try {
+      const realCompanies = await this.fetchRealCompaniesFromGoogleMaps(filters, GOOGLE_MAPS_API_KEY);
+      console.log(`📊 Dados reais coletados: ${realCompanies.length} empresas`);
+      return realCompanies;
+    } catch (error) {
+      console.error('❌ Erro ao coletar dados reais:', error);
+      throw new Error(`Falha na coleta de dados reais: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  }
+
+  private async fetchRealCompaniesFromGoogleMaps(filters: any, apiKey: string): Promise<CNPJData[]> {
+    const query = this.buildGoogleMapsQuery(filters);
+    console.log('🔍 Buscando no Google Maps:', query);
+    
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${apiKey}`;
+    
+    const response = await fetch(searchUrl);
+    const data = await response.json();
+    
+    if (!response.ok || data.status !== 'OK') {
+      throw new Error(`Google Places API error: ${data.error_message || data.status}`);
+    }
+
+    const companies: CNPJData[] = [];
+    
+    for (const place of data.results.slice(0, 20)) {
+      try {
+        // Obter detalhes do lugar
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=name,formatted_phone_number,website,formatted_address,rating,user_ratings_total,types,business_status&key=${apiKey}`;
+        
+        const detailsResponse = await fetch(detailsUrl);
+        const detailsData = await detailsResponse.json();
+        
+        if (detailsResponse.ok && detailsData.status === 'OK') {
+          const details = detailsData.result;
+          
+          // Só incluir se tiver telefone ou website (dados de contato)
+          if (details.formatted_phone_number || details.website) {
+            const company: CNPJData = {
+              cnpj: `GOOGLE_${place.place_id}`, // Usar place_id como identificador único
+              nome: details.name,
+              nome_fantasia: details.name,
+              situacao_cadastral: details.business_status === 'OPERATIONAL' ? 'ATIVA' : 'INATIVA',
+              data_abertura: new Date().toISOString().split('T')[0],
+              cnae_principal: place.types?.[0] || 'unknown',
+              cnae_descricao: this.translateBusinessType(place.types?.[0] || 'business'),
+              natureza_juridica: "206-2",
+              porte: "DEMAIS",
+              municipio: filters.municipio || 'GOIANIA',
+              uf: filters.uf || 'GO',
+              telefone: details.formatted_phone_number,
+              email: this.extractEmailFromWebsite(details.website),
+              capital_social: 50000,
+              socios: [
+                { nome: "RESPONSÁVEL COMERCIAL", cargo: "SÓCIO-ADMINISTRADOR" }
+              ]
+            };
+            
+            companies.push(company);
+          }
+        }
+      } catch (detailError) {
+        console.warn('Erro ao buscar detalhes do lugar:', detailError);
+      }
+    }
+
+    // Aplicar filtros da Fase 1: Identificação (IA)
+    let filteredData = companies;
       
       if (filters.uf) {
         filteredData = filteredData.filter(company => company.uf === filters.uf);
@@ -219,6 +231,44 @@ class AgnoSmartCollectorAgent {
       return filteredData;
   }
 
+  private buildGoogleMapsQuery(filters: any): string {
+    let query = "empresas negócios";
+    
+    if (filters.municipio) {
+      query += ` ${filters.municipio}`;
+    }
+    if (filters.uf) {
+      query += ` ${filters.uf}`;
+    }
+    
+    return query;
+  }
+
+  private translateBusinessType(type: string): string {
+    const translations: { [key: string]: string } = {
+      'store': 'Comércio varejista',
+      'restaurant': 'Restaurantes e similares',
+      'health': 'Atividades de atenção à saúde humana',
+      'finance': 'Atividades financeiras',
+      'establishment': 'Estabelecimento comercial',
+      'point_of_interest': 'Ponto comercial',
+      'business': 'Atividade empresarial'
+    };
+    
+    return translations[type] || 'Atividade empresarial geral';
+  }
+
+  private extractEmailFromWebsite(website?: string): string | undefined {
+    if (!website) return undefined;
+    
+    try {
+      const domain = new URL(website).hostname.replace('www.', '');
+      return `contato@${domain}`;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async enrichWithBrightData(companies: CNPJData[]): Promise<CNPJData[]> {
     console.log('🔍 Iniciando enriquecimento com Bright Data...');
     
@@ -236,7 +286,8 @@ class AgnoSmartCollectorAgent {
         console.log(`✅ ${company.nome_fantasia || company.nome} enriquecida com Bright Data`);
         
       } catch (error) {
-        console.warn(`⚠️ Erro ao enriquecer ${company.nome}: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.warn(`⚠️ Erro ao enriquecer ${company.nome}: ${errorMessage}`);
         // Manter empresa mesmo sem enriquecimento
         enrichedCompanies.push(company);
       }
@@ -586,6 +637,21 @@ serve(async (req) => {
       throw new Error('userId é obrigatório');
     }
 
+    // Verificar se APIs necessárias estão configuradas para coleta real de dados
+    const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
+    
+    if (!GOOGLE_MAPS_API_KEY) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Agente Agno desabilitado: Configure GOOGLE_MAPS_API_KEY para coletar leads reais.',
+        message: 'O Agno foi desabilitado para evitar dados fictícios. Configure as APIs necessárias:\n1. Google Maps API Key (obrigatório)\n2. HubSpot API Key (opcional - para integração)\n3. Pipedrive API Key (opcional - para integração)',
+        disabledReason: 'Prevenção de dados simulados/fictícios'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('🚀 Iniciando Agno + Bright Data Smart Collector para coleta de prospects');
     
     // Inicializar o agente híbrido
@@ -644,10 +710,11 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Erro no Agno + Bright Data Agent:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         message: 'Erro na coleta de prospects com Agno + Bright Data'
       }),
       {

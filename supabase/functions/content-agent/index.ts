@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const googleGeminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+const googleGeminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const agenteVendasApiKey = Deno.env.get('AGENTE_VENDAS_API_KEY');
 const agenteVendasUrl = Deno.env.get('AGENTE_VENDAS_URL');
 
@@ -119,7 +119,8 @@ serve(async (req) => {
           customPrompt
         });
       } catch (error) {
-        console.log('Agente de vendas externo não disponível, usando IA local:', error.message);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.log('Agente de vendas externo não disponível, usando IA local:', errorMessage);
         generatedContent = null;
       }
     }
@@ -210,16 +211,17 @@ serve(async (req) => {
         generatedBy: generatedContent.generatedBy || 'ai-local',
         tone
       },
-      usage: generatedContent.usage || null
+      usage: (generatedContent as any)?.usage || null
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Error in content-agent function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

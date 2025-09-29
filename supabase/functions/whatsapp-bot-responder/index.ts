@@ -68,7 +68,7 @@ Olá ${clientName || 'Cliente'}!
 ${botResponse}
 
 📞 *Fale conosco:*
-*(62) 9 8195-9829*
+*(62) 9 9179-2303*
 
 📅 *Agende sua consultoria:*
 https://calendly.com/unica-contabil
@@ -121,7 +121,7 @@ contato@unicacontabil.com
     console.error('Error in whatsapp-bot-responder function:', error);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error instanceof Error ? error.message : 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

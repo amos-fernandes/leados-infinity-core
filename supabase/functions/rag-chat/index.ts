@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const googleGeminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+const googleGeminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -185,7 +185,7 @@ serve(async (req) => {
         }
       }
     } catch (error) {
-      console.log('Análise de sentimento falhou, continuando sem ela:', error.message);
+      console.log('Análise de sentimento falhou, continuando sem ela:', error instanceof Error ? error.message : 'Erro desconhecido');
     }
 
     console.log('Action detected:', actionDetected);
@@ -240,18 +240,19 @@ serve(async (req) => {
         console.error('Error calling generate-prospects:', error);
         
         let userFriendlyMessage = 'Erro ao criar prospects. ';
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
         
-        if (error.message.includes('500')) {
+        if (errorMessage.includes('500')) {
           userFriendlyMessage += 'Problema interno no servidor de IA. Tente novamente em alguns minutos.';
-        } else if (error.message.includes('Gemini')) {
+        } else if (errorMessage.includes('Gemini')) {
           userFriendlyMessage += 'Verifique se a API do Google Gemini está configurada corretamente.';
         } else {
-          userFriendlyMessage += error.message;
+          userFriendlyMessage += errorMessage;
         }
         
         return new Response(JSON.stringify({ 
           response: `❌ **Erro na Criação de Prospects**\n\n${userFriendlyMessage}\n\n🔧 **Soluções:**\n• Verifique sua conexão com a internet\n• Aguarde alguns minutos e tente novamente\n• Verifique se as chaves de API estão configuradas`,
-          error: error.message
+          error: errorMessage
         }), {
           status: 200, // Changed to 200 to avoid client-side error handling
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -323,8 +324,8 @@ serve(async (req) => {
         console.error('Error calling calendar-integration:', error);
         
         return new Response(JSON.stringify({ 
-          response: `❌ **Erro no Agendamento**\n\n${error.message}\n\n🔧 **Soluções:**\n• Verifique se você tem leads cadastrados\n• Tente especificar data e horário\n• Use: "Agendar ligação para amanhã às 14h"`,
-          error: error.message
+          response: `❌ **Erro no Agendamento**\n\n${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n🔧 **Soluções:**\n• Verifique se você tem leads cadastrados\n• Tente especificar data e horário\n• Use: "Agendar ligação para amanhã às 14h"`,
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -397,8 +398,8 @@ serve(async (req) => {
         console.error('Error calling proposal-generator:', error);
         
         return new Response(JSON.stringify({ 
-          response: `❌ **Erro na Geração de Proposta**\n\n${error.message}\n\n🔧 **Soluções:**\n• Verifique se você tem leads qualificados\n• Use "Qualificar Prospects" primeiro\n• Especifique o tipo de serviço desejado`,
-          error: error.message
+          response: `❌ **Erro na Geração de Proposta**\n\n${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n🔧 **Soluções:**\n• Verifique se você tem leads qualificados\n• Use "Qualificar Prospects" primeiro\n• Especifique o tipo de serviço desejado`,
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -469,8 +470,8 @@ serve(async (req) => {
         console.error('Error calling content-agent:', error);
         
         return new Response(JSON.stringify({ 
-          response: `❌ **Erro na Geração de Conteúdo**\n\n${error.message}\n\n🔧 **Tipos disponíveis:**\n• "Post LinkedIn sobre tributação"\n• "Reel Instagram para agroindústria"\n• "Mensagem WhatsApp personalizada"`,
-          error: error.message
+          response: `❌ **Erro na Geração de Conteúdo**\n\n${error instanceof Error ? error.message : 'Erro desconhecido'}\n\n🔧 **Tipos disponíveis:**\n• "Post LinkedIn sobre tributação"\n• "Reel Instagram para agroindústria"\n• "Mensagem WhatsApp personalizada"`,
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -626,8 +627,8 @@ Sempre responda de forma técnica, consultiva e com foco em gerar valor para gra
   } catch (error) {
     console.error('Error in rag-chat function:', error);
     return new Response(JSON.stringify({ 
-      response: `Desculpe, ocorreu um erro: ${error.message}. Tente novamente em alguns momentos.`,
-      error: error.message
+      response: `Desculpe, ocorreu um erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}. Tente novamente em alguns momentos.`,
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const googleGeminiApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+const googleGeminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -127,7 +127,7 @@ serve(async (req) => {
     console.error('Error in sentiment-analysis function:', error);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

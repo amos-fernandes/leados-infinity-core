@@ -21,7 +21,10 @@ import {
   Upload,
   Zap,
   Eye,
-  Brain
+  Brain,
+  MessageSquare,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
@@ -81,6 +84,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const [scrapingContacts, setScrapingContacts] = useState<string | null>(null);
   const [scrapingEvents, setScrapingEvents] = useState<string | null>(null);
   const [qualifyingLead, setQualifyingLead] = useState<string | null>(null);
+  const [validatingMapsLead, setValidatingMapsLead] = useState<string | null>(null);
   
   const LEADS_PER_PAGE = 10;
 
@@ -322,25 +326,20 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     setScrapingContacts(lead.id);
     
     try {
-      const response = await fetch('/supabase/functions/v1/scrape-contact-info', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: result, error } = await supabase.functions.invoke('scrape-contact-info', {
+        body: {
           website: lead.website,
           leadId: lead.id,
           userId: user?.id
-        })
+        }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
+      if (error) throw error;
+      if (result && result.success) {
         toast.success(result.message);
         loadLeads(); // Recarregar para mostrar dados atualizados
       } else {
-        toast.error(result.error || 'Erro ao fazer scraping de contatos');
+        toast.error(result?.error || 'Erro ao fazer scraping de contatos');
       }
     } catch (error) {
       console.error('Erro no scraping de contatos:', error);
@@ -354,26 +353,21 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     setScrapingEvents(lead.id);
     
     try {
-      const response = await fetch('/supabase/functions/v1/scrape-recent-events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: result, error } = await supabase.functions.invoke('scrape-recent-events', {
+        body: {
           companyName: lead.empresa,
           sector: lead.setor,
           leadId: lead.id,
           userId: user?.id
-        })
+        }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
+      if (error) throw error;
+      if (result && result.success) {
         toast.success(result.message);
         loadLeads(); // Recarregar para mostrar dados atualizados
       } else {
-        toast.error(result.error || 'Erro ao buscar eventos recentes');
+        toast.error(result?.error || 'Erro ao buscar eventos recentes');
       }
     } catch (error) {
       console.error('Erro na busca de eventos:', error);
@@ -387,32 +381,59 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     setQualifyingLead(lead.id);
     
     try {
-      const response = await fetch('/supabase/functions/v1/qualify-lead-with-ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: result, error } = await supabase.functions.invoke('qualify-lead-with-ai', {
+        body: {
           leadId: lead.id,
           userId: user?.id,
           leadData: lead
-        })
+        }
       });
 
-      const result = await response.json();
-      
-      if (result.success) {
+      if (error) throw error;
+      if (result && result.success) {
         toast.success(result.message);
         loadLeads(); // Recarregar para mostrar dados atualizados
         onStatsUpdate();
       } else {
-        toast.error(result.error || 'Erro na qualificação com IA');
+        toast.error(result?.error || 'Erro na qualificação com IA');
       }
     } catch (error) {
       console.error('Erro na qualificação com IA:', error);
       toast.error('Erro ao conectar com o serviço de IA');
     } finally {
       setQualifyingLead(null);
+    }
+  };
+
+  const handleValidateWithGoogleMaps = async (lead: Lead) => {
+    setValidatingMapsLead(lead.id);
+    
+    try {
+      console.log('Iniciando validação Google Maps para:', lead.empresa);
+      
+      const { data: result, error } = await supabase.functions.invoke('google-maps-validation', {
+        body: {
+          leadId: lead.id,
+          companyName: lead.empresa,
+          userId: user?.id
+        }
+      });
+      
+      if (!error && result?.success) {
+        const whatsappFound = result.data?.whatsapp ? '📱 WhatsApp encontrado!' : '';
+        const websiteValid = result.data?.websiteValid ? '🌐 Website validado!' : '';
+        
+        toast.success(`✅ Validação Google Maps concluída! ${whatsappFound} ${websiteValid}`);
+        loadLeads(); // Recarregar para mostrar dados atualizados
+        onStatsUpdate();
+      } else {
+        toast.error(result?.error || 'Erro na validação Google Maps');
+      }
+    } catch (error) {
+      console.error('Erro na validação Google Maps:', error);
+      toast.error('Erro ao conectar com o Google Maps');
+    } finally {
+      setValidatingMapsLead(null);
     }
   };
 
@@ -737,6 +758,12 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                           {lead.telefone}
                         </div>
                       )}
+                      {lead.whatsapp && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MessageSquare className="h-3 w-3" />
+                          {lead.whatsapp}
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -750,6 +777,26 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleQualifyWithAI(lead)}
+                        disabled={qualifyingLead === lead.id}
+                        className="text-purple-600 hover:text-purple-800"
+                        title="Qualificar com IA"
+                      >
+                        {qualifyingLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleValidateWithGoogleMaps(lead)}
+                        disabled={validatingMapsLead === lead.id}
+                        className="text-green-600 hover:text-green-800"
+                        title="Validar com Google Maps"
+                      >
+                        {validatingMapsLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
