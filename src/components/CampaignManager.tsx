@@ -78,7 +78,25 @@ const CampaignManager = () => {
           toast.success("✅ Campanha executada com sucesso! Verifique os resultados na aba Resultados das Campanhas.");
         }
       } else {
-        throw new Error(data.error || 'Erro desconhecido');
+        // Mostrar detalhes específicos dos erros
+        const errorMessage = data.error || data.message || 'Erro desconhecido';
+        
+        // Se tiver detalhes das fases, mostrar informação mais específica
+        if (data.phases) {
+          const failedPhases = data.phases.filter((phase: any) => phase.status === 'failed');
+          if (failedPhases.length > 0) {
+            const phaseErrors = failedPhases.map((phase: any) => 
+              `${phase.name}: ${phase.details?.error || 'Erro desconhecido'}`
+            ).join('\n');
+            console.error('Detalhes dos erros por fase:', phaseErrors);
+            toast.error(`Falhas na execução:\n${phaseErrors}`);
+          } else {
+            toast.error(errorMessage);
+          }
+        } else {
+          toast.error(errorMessage);
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Erro ao criar campanha automatizada:', error);
