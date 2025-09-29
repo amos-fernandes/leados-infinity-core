@@ -93,3 +93,57 @@ verify_jwt = false
 
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.whatsapp-websocket]
+verify_jwt = false
+
+[functions.wppconnect-init]
+verify_jwt = false
+
+[functions.wppconnect-send-message]
+verify_jwt = false
+
+[functions.wppconnect-webhook]
+verify_jwt = false
+
+[functions.whatsapp-connect]
+verify_jwt = false
+
+[functions.whatsapp-rag-responder]
+verify_jwt = false
+
+[functions.whatsapp-webhook-receiver]
+verify_jwt = false
+
+[functions.whatsapp-service]
+verify_jwt = false
+
+[functions.email-service]
+verify_jwt = false
+
+[functions.campaign-service]
+verify_jwt = false
+
+[functions.campaign-scheduler]
+verify_jwt = false
+
+[functions.email-finder]
+verify_jwt = false
+
+[functions.cnpj-enrichment]
+verify_jwt = false
+
+[functions.lead-validator]
+verify_jwt = false
+
+[functions.qualification-engine]
+verify_jwt = false
+
+[functions.google-maps-scraper]
+verify_jwt = false
+
+[functions.google-maps-validation]
+verify_jwt = false
+
+[functions.ai]
+verify_jwt = false
