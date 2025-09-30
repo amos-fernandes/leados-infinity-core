@@ -173,6 +173,37 @@ async function validateGoogleMapsPlace(companyName: string, apiKey?: string): Pr
   }
 }
 
+function extractCompanyNameFromWebsite(website: string): string | null {
+  if (!website) return null;
+  
+  try {
+    // Remover protocolo
+    let domain = website.replace(/^https?:\/\//, '');
+    
+    // Remover www
+    domain = domain.replace(/^www\./, '');
+    
+    // Remover path e query params
+    domain = domain.split('/')[0].split('?')[0];
+    
+    // Remover extensões comuns
+    domain = domain
+      .replace(/\.com\.br$/i, '')
+      .replace(/\.com$/i, '')
+      .replace(/\.br$/i, '')
+      .replace(/\.net$/i, '')
+      .replace(/\.org$/i, '')
+      .replace(/\.io$/i, '')
+      .replace(/\.co$/i, '');
+    
+    // Capitalizar primeira letra
+    return domain.charAt(0).toUpperCase() + domain.slice(1);
+  } catch (error) {
+    console.error('Erro ao extrair nome do website:', error);
+    return null;
+  }
+}
+
 async function validateWebsite(website: string): Promise<boolean> {
   if (!website) return false;
   
@@ -258,13 +289,16 @@ serve(async (req) => {
     
     // Validar website se encontrado
     let websiteValid = false;
+    let extractedCompanyName = null;
     if (mapsResult.website) {
       websiteValid = await validateWebsite(mapsResult.website);
+      extractedCompanyName = extractCompanyNameFromWebsite(mapsResult.website);
       console.log('Website validation result:', websiteValid);
+      console.log('Extracted company name from website:', extractedCompanyName);
     }
     
     // Atualizar lead com informações do Google Maps
-    const updateData = {
+    const updateData: any = {
       telefone: mapsResult.phone || null,
       whatsapp: mapsResult.whatsapp || null,
       website: mapsResult.website || null,
@@ -277,6 +311,12 @@ serve(async (req) => {
       business_type_confirmed: mapsResult.business_type || null,
       validation_completed_at: new Date().toISOString()
     };
+    
+    // Atualizar nome da empresa se extraído do website
+    if (extractedCompanyName) {
+      updateData.empresa = extractedCompanyName;
+      console.log(`📝 Nome da empresa atualizado para: ${extractedCompanyName}`);
+    }
     
     const { error: updateError } = await supabase
       .from('leads')
