@@ -289,14 +289,19 @@ export type Database = {
           email_encontrado_automaticamente: boolean | null
           empresa: string
           estimated_employees: number | null
+          estimated_revenue: string | null
           gancho_prospeccao: string | null
           google_maps_rating: number | null
           google_maps_reviews: number | null
           google_maps_verified: boolean | null
           id: string
           linkedin: string | null
+          next_steps: Json | null
           pontuacao_qualificacao: number | null
+          qualification_level: string | null
           qualification_score: string | null
+          qualified_at: string | null
+          recommended_channel: string | null
           regime_tributario: string | null
           setor: string | null
           social_media: Json | null
@@ -330,14 +335,19 @@ export type Database = {
           email_encontrado_automaticamente?: boolean | null
           empresa: string
           estimated_employees?: number | null
+          estimated_revenue?: string | null
           gancho_prospeccao?: string | null
           google_maps_rating?: number | null
           google_maps_reviews?: number | null
           google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
+          next_steps?: Json | null
           pontuacao_qualificacao?: number | null
+          qualification_level?: string | null
           qualification_score?: string | null
+          qualified_at?: string | null
+          recommended_channel?: string | null
           regime_tributario?: string | null
           setor?: string | null
           social_media?: Json | null
@@ -371,14 +381,19 @@ export type Database = {
           email_encontrado_automaticamente?: boolean | null
           empresa?: string
           estimated_employees?: number | null
+          estimated_revenue?: string | null
           gancho_prospeccao?: string | null
           google_maps_rating?: number | null
           google_maps_reviews?: number | null
           google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
+          next_steps?: Json | null
           pontuacao_qualificacao?: number | null
+          qualification_level?: string | null
           qualification_score?: string | null
+          qualified_at?: string | null
+          recommended_channel?: string | null
           regime_tributario?: string | null
           setor?: string | null
           social_media?: Json | null
