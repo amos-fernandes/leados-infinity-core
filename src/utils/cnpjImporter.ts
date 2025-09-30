@@ -133,7 +133,7 @@ export async function importCNPJToLeads(
         cidade: record.cidade,
         uf: record.estado,
         website: null,
-        status: 'qualified', // Importar como qualificado
+        status: 'qualificado', // Importar como qualificado
         qualification_level: 'high',
         capital_social: record.capital_social ? parseFloat(record.capital_social.replace(/[^\d,]/g, '').replace(',', '.')) : null,
         gancho_prospeccao: `Empresa ativa no setor de ${determineSetor(record.atividade_principal)}`,
