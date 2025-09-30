@@ -49,6 +49,33 @@ const CampaignManager = () => {
     }
   };
 
+  const handleSendTestMessage = async () => {
+    if (!user) return;
+
+    try {
+      toast.loading("Enviando mensagem de teste...");
+      
+      const { data, error } = await supabase.functions.invoke('whatsapp-service', {
+        body: { 
+          action: 'sendTest',
+          userId: user.id,
+          phoneNumber: '5562981647087'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`✅ Mensagem de teste enviada para 5562981647087!`);
+      } else {
+        throw new Error(data.error || 'Erro ao enviar mensagem');
+      }
+    } catch (error: any) {
+      console.error('Erro ao enviar teste:', error);
+      toast.error(`Erro: ${error.message || 'Falha ao enviar mensagem de teste'}`);
+    }
+  };
+
   const handleCreateCampaign = async () => {
     setIsCreating(true);
     try {
@@ -155,6 +182,15 @@ const CampaignManager = () => {
             Gerenciar Campanhas
           </CardTitle>
       <div className="flex gap-2">
+        <Button 
+          onClick={handleSendTestMessage} 
+          disabled={isCreating || loading}
+          variant="secondary"
+          size="sm"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          Teste WhatsApp
+        </Button>
         <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
           <Plus className="h-4 w-4 mr-2" />
           {isCreating ? 'Criando...' : 'Campanha Completa (4 Fases)'}

@@ -17,6 +17,63 @@ class WhatsAppService {
     this.maytapiApiKey = Deno.env.get('MAYTAPI_API_KEY');
   }
 
+  // Enviar mensagem de teste direta
+  async sendTestMessage(phoneNumber: string, userId: string) {
+    console.log(`📱 Enviando mensagem de teste para ${phoneNumber}`);
+    
+    if (!this.maytapiApiKey) {
+      throw new Error('MAYTAPI_API_KEY não configurada');
+    }
+
+    const testMessage = `🏦 *Teste de Contato - Infinity*
+
+Olá! Este é um teste de envio de WhatsApp.
+
+Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
+
+*✅ Benefícios da Conta PJ C6 Bank:*
+• Conta 100% gratuita
+• Pix ilimitado sem custo
+• 100 TEDs gratuitos/mês
+• 100 boletos gratuitos/mês
+• Acesso a crédito sujeito a análise
+
+---
+*Escritório Infinity - C6 Bank PJ*
+📞 (62) 99179-2303`;
+
+    try {
+      const success = await this.sendWhatsAppMessage({
+        to: phoneNumber,
+        message: testMessage,
+        leadName: 'Teste'
+      });
+
+      if (success) {
+        // Registrar mensagem de teste
+        await this.supabase
+          .from('whatsapp_messages')
+          .insert({
+            user_id: userId,
+            phone_number: phoneNumber,
+            sender_name: 'Teste Contato',
+            message_content: testMessage,
+            direction: 'outbound',
+            message_type: 'text'
+          });
+
+        return {
+          success: true,
+          message: `Mensagem de teste enviada com sucesso para ${phoneNumber}`,
+          phoneNumber
+        };
+      }
+    } catch (error) {
+      console.error('Erro ao enviar teste:', error);
+      throw error;
+    }
+  }
+
   // Enviar campanha de WhatsApp
   async sendCampaignMessages(campaignId: string, userId: string) {
     console.log('📱 WhatsAppService: Iniciando campanha de WhatsApp');
@@ -360,6 +417,13 @@ serve(async (req) => {
     let result;
 
     switch (action) {
+      case 'sendTest':
+        const { phoneNumber } = body;
+        if (!phoneNumber) {
+          throw new Error('phoneNumber é obrigatório para teste');
+        }
+        result = await whatsappService.sendTestMessage(phoneNumber, userId);
+        break;
       case 'processInbound':
         result = await whatsappService.processInboundMessages();
         break;
