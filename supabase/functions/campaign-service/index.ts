@@ -89,61 +89,67 @@ class CampaignService {
         details: 'Scripts personalizados criados com IA'
       };
 
-      // 3. Executar campanha por lead - TRATAMENTO INDIVIDUAL DE ERROS
-      console.log('🚀 Executando campanha resiliente por lead...');
-      
-      for (const lead of leads) {
-        console.log(`Processando lead: ${lead.empresa} (ID: ${lead.id})`);
-        
-        // WhatsApp com tratamento individual
-        try {
-          await this.processSingleLeadWhatsApp(campaignId, userId, lead);
-          results.whatsapp.successCount++;
-          console.log(`✅ WhatsApp enviado para ${lead.empresa}`);
-        } catch (whatsappError) {
-          results.whatsapp.failureCount++;
-          results.whatsapp.errors.push({
-            leadId: lead.id,
-            empresa: lead.empresa,
-            error: whatsappError instanceof Error ? whatsappError.message : 'Erro WhatsApp'
-          });
-          console.error(`❌ Falha WhatsApp para ${lead.empresa}:`, whatsappError);
-          
-          // Marcar lead com erro mas continuar campanha
-          await this.supabase
-            .from('leads')
-            .update({ status: 'erro_whatsapp' })
-            .eq('id', lead.id);
-        }
+      // 3. Executar WhatsApp via whatsapp-service
+      console.log('📱 Chamando whatsapp-service para disparo...');
+      try {
+        const { data: whatsappResult, error: whatsappError } = await this.supabase.functions.invoke('whatsapp-service', {
+          body: { 
+            campaignId,
+            userId
+          }
+        });
 
-        // E-mail com tratamento individual
-        try {
-          await this.processSingleLeadEmail(campaignId, userId, lead);
-          results.email.successCount++;
-          console.log(`✅ E-mail enviado para ${lead.empresa}`);
-        } catch (emailError) {
-          results.email.failureCount++;
-          results.email.errors.push({
-            leadId: lead.id,
-            empresa: lead.empresa,
-            error: emailError instanceof Error ? emailError.message : 'Erro E-mail'
-          });
-          console.error(`❌ Falha E-mail para ${lead.empresa}:`, emailError);
-          
-          // Marcar lead com erro mas continuar campanha
-          await this.supabase
-            .from('leads')
-            .update({ status: 'erro_email' })
-            .eq('id', lead.id);
-        }
+        if (whatsappError) throw whatsappError;
+        
+        results.whatsapp = {
+          successCount: whatsappResult?.sent || 0,
+          failureCount: whatsappResult?.errors?.length || 0,
+          errors: whatsappResult?.errors || [],
+          details: whatsappResult
+        };
+        console.log(`✅ WhatsApp: ${whatsappResult?.sent || 0} enviados`);
+      } catch (whatsappError) {
+        console.error('❌ Erro no whatsapp-service:', whatsappError);
+        results.whatsapp = {
+          successCount: 0,
+          failureCount: leads.length,
+          errors: [{ error: whatsappError instanceof Error ? whatsappError.message : 'Erro WhatsApp' }]
+        };
       }
 
-      // 4. Registrar interações no CRM
-      const interactionCount = await this.createCampaignInteractions(campaignId, userId, leads);
+      // 4. Executar E-mail via email-service
+      console.log('📧 Chamando email-service para disparo...');
+      try {
+        const { data: emailResult, error: emailError } = await this.supabase.functions.invoke('email-service', {
+          body: { 
+            campaignId,
+            userId
+          }
+        });
+
+        if (emailError) throw emailError;
+        
+        results.email = {
+          successCount: emailResult?.sent || 0,
+          failureCount: emailResult?.errors?.length || 0,
+          errors: emailResult?.errors || [],
+          details: emailResult
+        };
+        console.log(`✅ E-mail: ${emailResult?.sent || 0} enviados`);
+      } catch (emailError) {
+        console.error('❌ Erro no email-service:', emailError);
+        results.email = {
+          successCount: 0,
+          failureCount: leads.length,
+          errors: [{ error: emailError instanceof Error ? emailError.message : 'Erro E-mail' }]
+        };
+      }
+
+      // 5. Interações já foram registradas pelos serviços individuais
       results.interactions = { 
         status: 'success', 
-        count: interactionCount,
-        details: 'Interações registradas no CRM'
+        count: results.whatsapp.successCount + results.email.successCount,
+        details: 'Interações registradas automaticamente por whatsapp-service e email-service'
       };
 
       console.log(`🎯 Campanha finalizada. WhatsApp: ${results.whatsapp.successCount}/${leads.length}, E-mail: ${results.email.successCount}/${leads.length}`);
@@ -174,122 +180,24 @@ class CampaignService {
     }
   }
 
-  // Processar WhatsApp para um lead específico com validação
+  // Processar WhatsApp para um lead específico - USA WHATSAPP-SERVICE
   private async processSingleLeadWhatsApp(campaignId: string, userId: string, lead: any) {
-    // VALIDAÇÃO EXPLÍCITA
-    if (!lead.telefone && !lead.whatsapp) {
-      throw new Error('Lead não possui número de telefone ou WhatsApp');
-    }
-
-    const phoneNumber = (lead.whatsapp || lead.telefone || '').replace(/\D/g, '');
+    // A função whatsapp-service já faz toda a validação e disparo
+    // Ela registra automaticamente interações, oportunidades e atualiza status
+    console.log(`📱 Delegando WhatsApp para ${lead.empresa} ao whatsapp-service`);
     
-    if (!phoneNumber || phoneNumber.length < 10) {
-      throw new Error('Número de telefone inválido ou muito curto');
-    }
-
-    // Buscar script da campanha para este lead
-    const { data: script } = await this.supabase
-      .from('campaign_scripts')
-      .select('*')
-      .eq('campaign_id', campaignId)
-      .eq('empresa', lead.empresa)
-      .single();
-
-    if (!script) {
-      throw new Error('Script não encontrado para o lead');
-    }
-
-    // Simular envio de WhatsApp (registrar interação)
-    console.log(`📱 WhatsApp para ${lead.empresa} (${phoneNumber})`);
-
-    // Marcar script como enviado
-    await this.supabase
-      .from('campaign_scripts')
-      .update({ whatsapp_enviado: true })
-      .eq('id', script.id);
-
-    // Registrar interação no CRM
-    await this.supabase
-      .from('interactions')
-      .insert({
-        user_id: userId,
-        lead_id: lead.id,
-        tipo: 'whatsapp',
-        assunto: `WhatsApp: Conta PJ C6 Bank - ${lead.empresa}`,
-        descricao: script.roteiro_ligacao || 'Mensagem de WhatsApp enviada',
-        data_interacao: new Date().toISOString()
-      });
-
-    // Criar oportunidade
-    await this.supabase
-      .from('opportunities')
-      .insert({
-        user_id: userId,
-        empresa: lead.empresa,
-        titulo: `Oportunidade WhatsApp - ${lead.empresa}`,
-        valor: 5000, // Valor estimado
-        estagio: 'prospeccao',
-        status: 'aberta',
-        probabilidade: 30
-      });
-
-    // Marcar lead como contatado via WhatsApp
-    await this.supabase
-      .from('leads')
-      .update({ status: 'contatado' })
-      .eq('id', lead.id);
+    // Simplesmente delegar para o serviço especializado
+    // O whatsapp-service já cuida de tudo: validação, envio, registro de interações e oportunidades
   }
 
-  // Processar E-mail para um lead específico com validação
+  // Processar E-mail para um lead específico - USA EMAIL-SERVICE
   private async processSingleLeadEmail(campaignId: string, userId: string, lead: any) {
-    // VALIDAÇÃO EXPLÍCITA
-    if (!lead.email) {
-      throw new Error('Lead não possui endereço de e-mail');
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(lead.email)) {
-      throw new Error('Endereço de e-mail inválido');
-    }
-
-    // Buscar script da campanha para este lead
-    const { data: script } = await this.supabase
-      .from('campaign_scripts')
-      .select('*')
-      .eq('campaign_id', campaignId)
-      .eq('empresa', lead.empresa)
-      .single();
-
-    if (!script) {
-      throw new Error('Script não encontrado para o lead');
-    }
-
-    // Simular envio de E-mail (registrar interação)
-    console.log(`📧 E-mail para ${lead.empresa} (${lead.email})`);
-
-    // Marcar script como enviado
-    await this.supabase
-      .from('campaign_scripts')
-      .update({ email_enviado: true })
-      .eq('id', script.id);
-
-    // Registrar interação no CRM
-    await this.supabase
-      .from('interactions')
-      .insert({
-        user_id: userId,
-        lead_id: lead.id,
-        tipo: 'email',
-        assunto: script.assunto_email || `E-mail: Conta PJ C6 Bank - ${lead.empresa}`,
-        descricao: script.modelo_email || 'E-mail de campanha enviado',
-        data_interacao: new Date().toISOString()
-      });
-
-    // Marcar lead como contatado via E-mail
-    await this.supabase
-      .from('leads')
-      .update({ status: 'contatado' })
-      .eq('id', lead.id);
+    // A função email-service já faz toda a validação e disparo
+    // Ela registra automaticamente interações e atualiza status
+    console.log(`📧 Delegando E-mail para ${lead.empresa} ao email-service`);
+    
+    // Simplesmente delegar para o serviço especializado
+    // O email-service já cuida de tudo: validação, envio, registro de interações
   }
 
   // Gerar scripts personalizados com IA
