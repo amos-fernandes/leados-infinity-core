@@ -168,8 +168,7 @@ serve(async (req) => {
       try {
         const { data: followUpResult, error: followUpError } = await supabase.functions.invoke('campaign-scheduler', {
           body: {
-            action: 'scheduleFollowUps',
-            campaignId,
+            action: 'processFollowUps',
             userId
           }
         });
