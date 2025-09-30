@@ -186,12 +186,10 @@ class AgnoSmartCollectorAgent {
         );
       }
       
-      // FASE 1: Exclusão automática de MEI
-      if (filters.excludeMEI) {
-        const beforeMEI = filteredData.length;
-        filteredData = filteredData.filter(company => company.porte !== 'MEI');
-        console.log(`🚫 MEI excluídos: ${beforeMEI - filteredData.length}`);
-      }
+      // FASE 1: Exclusão automática de MEI (SEMPRE ATIVO)
+      const beforeMEI = filteredData.length;
+      filteredData = filteredData.filter(company => company.porte !== 'MEI');
+      console.log(`🚫 MEI excluídos: ${beforeMEI - filteredData.length}`);
       
       // FASE 1: Exclusão automática de terceiro setor
       if (filters.excludeThirdSector) {
@@ -273,26 +271,37 @@ class AgnoSmartCollectorAgent {
     console.log('🔍 Iniciando enriquecimento com Bright Data...');
     
     const enrichedCompanies: CNPJData[] = [];
+    const MAX_REVENUE = 1000000; // R$ 1.000.000,00
     
     for (const company of companies) {
       try {
         const brightData = await this.getBrightDataInfo(company);
         
-        enrichedCompanies.push({
+        const enrichedCompany = {
           ...company,
           bright_data: brightData
-        });
+        };
         
-        console.log(`✅ ${company.nome_fantasia || company.nome} enriquecida com Bright Data`);
+        // Filtrar por faturamento máximo de R$ 1.000.000,00
+        if (brightData.revenue_estimate && brightData.revenue_estimate <= MAX_REVENUE) {
+          enrichedCompanies.push(enrichedCompany);
+          console.log(`✅ ${company.nome_fantasia || company.nome} enriquecida (Faturamento: R$ ${brightData.revenue_estimate.toLocaleString('pt-BR')})`);
+        } else {
+          console.log(`🚫 ${company.nome_fantasia || company.nome} excluída por faturamento acima de R$ 1.000.000,00`);
+        }
         
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
         console.warn(`⚠️ Erro ao enriquecer ${company.nome}: ${errorMessage}`);
-        // Manter empresa mesmo sem enriquecimento
-        enrichedCompanies.push(company);
+        // Manter empresa mesmo sem enriquecimento se estiver dentro do limite estimado
+        const estimatedRevenue = this.estimateRevenue(company);
+        if (estimatedRevenue <= MAX_REVENUE) {
+          enrichedCompanies.push(company);
+        }
       }
     }
     
+    console.log(`💰 Filtradas ${enrichedCompanies.length} empresas com faturamento até R$ 1.000.000,00`);
     return enrichedCompanies;
   }
 
@@ -661,10 +670,11 @@ serve(async (req) => {
     const searchFilters = {
       uf: 'GO',
       municipio: 'GOIANIA',
-      excludeMEI: true,              // Exclusão automática de MEI
+      excludeMEI: true,              // SEMPRE EXCLUIR MEI
       excludeThirdSector: true,      // Exclusão automática de terceiro setor  
       requireActiveDecisionMaker: true, // Qualificação por decisor (dono/sócio)
       onlyActiveCNPJ: true,         // Prospecção web de empresas com CNPJ ativo
+      maxRevenue: 1000000,          // Faturamento máximo de R$ 1.000.000,00
       situacao: 'ATIVA',
       ...filters
     };
