@@ -32,7 +32,7 @@ const WhatsAppConfig = () => {
   const { user } = useAuth();
   const [config, setConfig] = useState<WhatsAppConfigData>({
     access_token: "",
-    phone_number: "",
+    phone_number: "5562991792303",
     webhook_url: "",
     welcome_message: "Olá! Obrigado por entrar em contato. Como posso ajudá-lo?",
     is_active: false

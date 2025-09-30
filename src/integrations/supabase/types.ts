@@ -174,6 +174,41 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_type: string
+          metadata: Json | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_type: string
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interactions: {
         Row: {
           assunto: string
@@ -237,76 +272,142 @@ export type Database = {
       }
       leads: {
         Row: {
+          address_validated: string | null
           approach_strategy: string | null
+          bant_analysis: Json | null
           bright_data_enriched: boolean | null
+          business_type_confirmed: string | null
+          capital_social: number | null
+          cidade: string | null
           cnae: string | null
+          cnae_principal: string | null
+          cnpj: string | null
           contato_decisor: string | null
           created_at: string
+          data_qualificacao: string | null
           email: string | null
+          email_encontrado_automaticamente: boolean | null
           empresa: string
           estimated_employees: number | null
+          estimated_revenue: string | null
           gancho_prospeccao: string | null
+          google_maps_rating: number | null
+          google_maps_reviews: number | null
+          google_maps_verified: boolean | null
           id: string
           linkedin: string | null
+          next_steps: Json | null
+          pontuacao_qualificacao: number | null
+          qualification_level: string | null
           qualification_score: string | null
+          qualified_at: string | null
+          recommended_channel: string | null
           regime_tributario: string | null
           setor: string | null
           social_media: Json | null
           status: string | null
           tech_stack: Json | null
           telefone: string | null
+          uf: string | null
           updated_at: string
           user_id: string
+          validation_completed_at: string | null
           website: string | null
+          website_validated: boolean | null
           whatsapp: string | null
+          whatsapp_business: string | null
         }
         Insert: {
+          address_validated?: string | null
           approach_strategy?: string | null
+          bant_analysis?: Json | null
           bright_data_enriched?: boolean | null
+          business_type_confirmed?: string | null
+          capital_social?: number | null
+          cidade?: string | null
           cnae?: string | null
+          cnae_principal?: string | null
+          cnpj?: string | null
           contato_decisor?: string | null
           created_at?: string
+          data_qualificacao?: string | null
           email?: string | null
+          email_encontrado_automaticamente?: boolean | null
           empresa: string
           estimated_employees?: number | null
+          estimated_revenue?: string | null
           gancho_prospeccao?: string | null
+          google_maps_rating?: number | null
+          google_maps_reviews?: number | null
+          google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
+          next_steps?: Json | null
+          pontuacao_qualificacao?: number | null
+          qualification_level?: string | null
           qualification_score?: string | null
+          qualified_at?: string | null
+          recommended_channel?: string | null
           regime_tributario?: string | null
           setor?: string | null
           social_media?: Json | null
           status?: string | null
           tech_stack?: Json | null
           telefone?: string | null
+          uf?: string | null
           updated_at?: string
           user_id: string
+          validation_completed_at?: string | null
           website?: string | null
+          website_validated?: boolean | null
           whatsapp?: string | null
+          whatsapp_business?: string | null
         }
         Update: {
+          address_validated?: string | null
           approach_strategy?: string | null
+          bant_analysis?: Json | null
           bright_data_enriched?: boolean | null
+          business_type_confirmed?: string | null
+          capital_social?: number | null
+          cidade?: string | null
           cnae?: string | null
+          cnae_principal?: string | null
+          cnpj?: string | null
           contato_decisor?: string | null
           created_at?: string
+          data_qualificacao?: string | null
           email?: string | null
+          email_encontrado_automaticamente?: boolean | null
           empresa?: string
           estimated_employees?: number | null
+          estimated_revenue?: string | null
           gancho_prospeccao?: string | null
+          google_maps_rating?: number | null
+          google_maps_reviews?: number | null
+          google_maps_verified?: boolean | null
           id?: string
           linkedin?: string | null
+          next_steps?: Json | null
+          pontuacao_qualificacao?: number | null
+          qualification_level?: string | null
           qualification_score?: string | null
+          qualified_at?: string | null
+          recommended_channel?: string | null
           regime_tributario?: string | null
           setor?: string | null
           social_media?: Json | null
           status?: string | null
           tech_stack?: Json | null
           telefone?: string | null
+          uf?: string | null
           updated_at?: string
           user_id?: string
+          validation_completed_at?: string | null
           website?: string | null
+          website_validated?: boolean | null
           whatsapp?: string | null
+          whatsapp_business?: string | null
         }
         Relationships: []
       }
@@ -412,6 +513,36 @@ export type Database = {
           user_id?: string
           verify_token?: string | null
           webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_conversations: {
+        Row: {
+          contact_name: string | null
+          contact_phone: string
+          created_at: string
+          id: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_name?: string | null
+          contact_phone: string
+          created_at?: string
+          id?: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_name?: string | null
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

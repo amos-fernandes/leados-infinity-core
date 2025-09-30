@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import StatsCard from "./StatsCard";
 import InAppCommunication from "./InAppCommunication";
 import UpgradeModal from "./UpgradeModal";
+import LeadQualificationEngine from "./LeadQualificationEngine";
 import { useUserPlan } from "./UserPlanProvider";
 import { 
   Users, 
@@ -15,7 +16,10 @@ import {
   MessageSquare,
   Bot,
   Settings,
-  LogOut
+  LogOut,
+  Smartphone,
+  Search,
+  Zap
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +42,7 @@ const Dashboard = () => {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showQualificationEngine, setShowQualificationEngine] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -301,6 +306,14 @@ const Dashboard = () => {
                 </p>
               </div>
               <Button 
+                className="w-full mb-2" 
+                variant="outline"
+                onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppConnector'))}
+              >
+                <Smartphone className="h-4 w-4 mr-2" />
+                Conectar WhatsApp
+              </Button>
+              <Button 
                 className="w-full" 
                 variant="outline"
                 onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppDashboard'))}
@@ -312,6 +325,66 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Lead Qualification Engine Section */}
+      {showQualificationEngine && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Motor de Qualificação de Leads</h2>
+            <Button variant="outline" onClick={() => setShowQualificationEngine(false)}>
+              Fechar
+            </Button>
+          </div>
+          <LeadQualificationEngine />
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <Card className="shadow-soft">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Ações Rápidas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button 
+              className="h-auto p-4 flex flex-col items-center gap-2" 
+              variant="outline"
+              onClick={() => setShowQualificationEngine(!showQualificationEngine)}
+            >
+              <Search className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-medium">Motor de Qualificação</div>
+                <div className="text-sm text-muted-foreground">Enriquecer e qualificar leads</div>
+              </div>
+            </Button>
+            <Button 
+              className="h-auto p-4 flex flex-col items-center gap-2" 
+              variant="outline"
+              onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppConnector'))}
+            >
+              <Smartphone className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-medium">WhatsApp</div>
+                <div className="text-sm text-muted-foreground">Conectar e configurar</div>
+              </div>
+            </Button>
+            <Button 
+              className="h-auto p-4 flex flex-col items-center gap-2" 
+              variant="outline"
+              onClick={() => window.dispatchEvent(new CustomEvent('openCampaignManager'))}
+            >
+              <Target className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-medium">Campanhas</div>
+                <div className="text-sm text-muted-foreground">Gerenciar e criar</div>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
 
       {/* Upgrade Modal */}

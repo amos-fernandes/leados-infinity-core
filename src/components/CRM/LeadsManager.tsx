@@ -21,7 +21,10 @@ import {
   Upload,
   Zap,
   Eye,
-  Brain
+  Brain,
+  MessageSquare,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
@@ -57,8 +60,8 @@ interface Lead extends LeadFormData {
   approach_strategy?: string;
   estimated_revenue?: string;
   recommended_channel?: string;
-  bant_analysis?: string;
-  next_steps?: string;
+  bant_analysis?: any;
+  next_steps?: any;
   recent_events?: string;
   last_event_date?: string;
   whatsapp?: string;
@@ -81,6 +84,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const [scrapingContacts, setScrapingContacts] = useState<string | null>(null);
   const [scrapingEvents, setScrapingEvents] = useState<string | null>(null);
   const [qualifyingLead, setQualifyingLead] = useState<string | null>(null);
+  const [validatingMapsLead, setValidatingMapsLead] = useState<string | null>(null);
   
   const LEADS_PER_PAGE = 10;
 
@@ -398,6 +402,38 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
       toast.error('Erro ao conectar com o serviço de IA');
     } finally {
       setQualifyingLead(null);
+    }
+  };
+
+  const handleValidateWithGoogleMaps = async (lead: Lead) => {
+    setValidatingMapsLead(lead.id);
+    
+    try {
+      console.log('Iniciando validação Google Maps para:', lead.empresa);
+      
+      const { data: result, error } = await supabase.functions.invoke('google-maps-validation', {
+        body: {
+          leadId: lead.id,
+          companyName: lead.empresa,
+          userId: user?.id
+        }
+      });
+      
+      if (!error && result?.success) {
+        const whatsappFound = result.data?.whatsapp ? '📱 WhatsApp encontrado!' : '';
+        const websiteValid = result.data?.websiteValid ? '🌐 Website validado!' : '';
+        
+        toast.success(`✅ Validação Google Maps concluída! ${whatsappFound} ${websiteValid}`);
+        loadLeads(); // Recarregar para mostrar dados atualizados
+        onStatsUpdate();
+      } else {
+        toast.error(result?.error || 'Erro na validação Google Maps');
+      }
+    } catch (error) {
+      console.error('Erro na validação Google Maps:', error);
+      toast.error('Erro ao conectar com o Google Maps');
+    } finally {
+      setValidatingMapsLead(null);
     }
   };
 
@@ -722,6 +758,12 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                           {lead.telefone}
                         </div>
                       )}
+                      {lead.whatsapp && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <MessageSquare className="h-3 w-3" />
+                          {lead.whatsapp}
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -735,6 +777,26 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleQualifyWithAI(lead)}
+                        disabled={qualifyingLead === lead.id}
+                        className="text-purple-600 hover:text-purple-800"
+                        title="Qualificar com IA"
+                      >
+                        {qualifyingLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleValidateWithGoogleMaps(lead)}
+                        disabled={validatingMapsLead === lead.id}
+                        className="text-green-600 hover:text-green-800"
+                        title="Validar com Google Maps"
+                      >
+                        {validatingMapsLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

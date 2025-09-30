@@ -35,20 +35,24 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Buscar roteiros da campanha
+    // Buscar roteiros da campanha - adicionar log detalhado
+    console.log('Buscando roteiros email para campanha:', campaignId);
     const { data: scripts, error: scriptsError } = await supabase
       .from('campaign_scripts')
       .select('*')
       .eq('campaign_id', campaignId);
 
     if (scriptsError) {
+      console.error('Erro detalhado ao buscar roteiros email:', scriptsError);
       throw new Error(`Erro ao buscar roteiros: ${scriptsError.message}`);
     }
 
     console.log(`Found ${scripts?.length || 0} email scripts to process`);
+    console.log('Scripts email encontrados:', scripts);
     
     // Buscar leads relacionados às empresas da campanha
     const empresas = scripts?.map(s => s.empresa) || [];
+    console.log('Empresas dos scripts email:', empresas);
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -177,6 +181,28 @@ Escritório Autorizado Infinity - C6 Bank PJ`;
           descricao: `Assunto: ${script.assunto_email}\n\nConteúdo:\n${personalizedEmail}\n\nGancho: ${script.empresa} - Conta PJ C6 Bank com benefícios exclusivos`,
           data_interacao: new Date().toISOString()
         });
+
+      // Criar oportunidade relacionada à empresa se ainda não existir
+      const { data: existingOpportunity } = await supabase
+        .from('opportunities')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('empresa', script.empresa)
+        .maybeSingle();
+
+      if (!existingOpportunity) {
+        await supabase
+          .from('opportunities')
+          .insert({
+            user_id: userId,
+            empresa: script.empresa,
+            titulo: `Abertura Conta PJ - ${script.empresa}`,
+            estagio: 'contato_inicial',
+            valor: 5000, // Valor estimado da conta PJ
+            probabilidade: 25, // Probabilidade inicial 25% para email
+            status: 'aberta'
+          });
+      }
     }
 
     console.log('Email templates prepared:', emails.length);

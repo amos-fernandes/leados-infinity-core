@@ -76,7 +76,12 @@ serve(async (req) => {
     const prompt = `
     Você é um especialista em inteligência de mercado focado em prospecção B2B para uma analise contábil e tributária especializada em medias empresas na cidade de goiania, estado de Goias.
 
-    Sua tarefa é identificar EXATAMENTE 50 prospects de alto potencial nas seguintes áreas:
+    REGRAS OBRIGATÓRIAS DE FILTRO:
+    1. NUNCA incluir empresas MEI (Microempreendedor Individual)
+    2. APENAS empresas com faturamento anual até R$ 1.000.000,00 (um milhão de reais)
+    3. Focar em empresas EPP (Empresa de Pequeno Porte) e DEMAIS
+    
+    Sua tarefa é identificar EXATAMENTE 50 prospects de alto potencial que atendam TODOS os critérios acima nas seguintes áreas:
 KNOWLEDGE BASE - CAMPANHAS DE PROSPECÇÃO
 Sistema Integrado CRM + WhatsApp + E-mail + IA
 
@@ -100,7 +105,15 @@ Setores de Atuação Prioritários
 
 Todo e qualquer setor com CNPJ ativo (nacional)
 
-Exclusões: MEI e terceiro setor
+EXCLUSÕES OBRIGATÓRIAS:
+- MEI (Microempreendedor Individual) - NUNCA INCLUIR
+- Terceiro setor
+- Empresas com faturamento acima de R$ 1.000.000,00/ano
+
+PERFIL IDEAL:
+- EPP (Empresa de Pequeno Porte) ou DEMAIS
+- Faturamento anual: R$ 100.000,00 até R$ 1.000.000,00
+- CNPJ ativo e regularizado
 
 ESTRATÉGIAS DE PROSPECÇÃO
 
@@ -108,13 +121,15 @@ ESTRATÉGIAS DE PROSPECÇÃO
 
 Metodologia BANT Adaptada
 
-Budget: Sem exigência de faturamento mínimo
+Budget: Faturamento entre R$ 100.000,00 e R$ 1.000.000,00/ano (OBRIGATÓRIO)
 
 Authority: Dono ou sócio da empresa (decisor obrigatório)
 
 Need: Necessidade de crédito (sujeito a análise) e redução de custos bancários
 
 Timing: Interesse imediato em abertura de conta, migração ou redução de custos
+
+IMPORTANTE: Cada prospect gerado DEVE ter faturamento estimado dentro do limite de R$ 1.000.000,00
 
 Ganchos de Prospecção (Fontes Auditáveis)
 
