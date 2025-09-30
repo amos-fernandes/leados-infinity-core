@@ -35,6 +35,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { exportLeadsToCSV } from "@/utils/csvExport";
 import LeadQualificationView from "./LeadQualificationView";
+import { CNPJImporter } from "./CNPJImporter";
 
 const leadSchema = z.object({
   empresa: z.string().min(1, "Nome da empresa é obrigatório"),
@@ -463,7 +464,10 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   };
 
   return (
-    <Card className="shadow-soft">
+    <div className="space-y-6">
+      <CNPJImporter />
+      
+      <Card className="shadow-soft">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -885,6 +889,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 };
 
