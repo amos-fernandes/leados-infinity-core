@@ -90,6 +90,7 @@ serve(async (req) => {
           action: 'create',
           userId,
           campaignData: {
+            userId, // Passar userId dentro de campaignData também
             name: `Campanha Automatizada - ${new Date().toLocaleDateString('pt-BR')}`,
             description: 'Campanha automatizada completa: Google Maps + Scripts IA + Multi-canal (WhatsApp + E-mail)'
           }
