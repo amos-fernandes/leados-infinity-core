@@ -60,8 +60,8 @@ interface Lead extends LeadFormData {
   approach_strategy?: string;
   estimated_revenue?: string;
   recommended_channel?: string;
-  bant_analysis?: string;
-  next_steps?: string;
+  bant_analysis?: any;
+  next_steps?: any;
   recent_events?: string;
   last_event_date?: string;
   whatsapp?: string;
