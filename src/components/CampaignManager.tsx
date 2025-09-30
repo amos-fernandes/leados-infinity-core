@@ -52,9 +52,9 @@ const CampaignManager = () => {
   const handleSendTestMessage = async () => {
     if (!user) return;
 
+    const toastId = toast.loading("Enviando mensagem de teste...");
+    
     try {
-      toast.loading("Enviando mensagem de teste...");
-      
       const { data, error } = await supabase.functions.invoke('whatsapp-service', {
         body: { 
           action: 'sendTest',
@@ -63,14 +63,20 @@ const CampaignManager = () => {
         }
       });
 
-      if (error) throw error;
+      toast.dismiss(toastId);
 
-      if (data.success) {
+      if (error) {
+        console.error('Erro na função:', error);
+        throw error;
+      }
+
+      if (data?.success) {
         toast.success(`✅ Mensagem de teste enviada para 5562981647087!`);
       } else {
-        throw new Error(data.error || 'Erro ao enviar mensagem');
+        throw new Error(data?.error || 'Erro ao enviar mensagem');
       }
     } catch (error: any) {
+      toast.dismiss(toastId);
       console.error('Erro ao enviar teste:', error);
       toast.error(`Erro: ${error.message || 'Falha ao enviar mensagem de teste'}`);
     }
