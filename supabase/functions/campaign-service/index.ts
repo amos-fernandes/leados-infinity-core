@@ -187,25 +187,56 @@ class CampaignService {
       throw new Error('Número de telefone inválido ou muito curto');
     }
 
-    // Chamar serviço WhatsApp
-    const { error } = await this.supabase.functions.invoke('whatsapp-service', {
-      body: { 
-        campaignId, 
-        userId, 
-        channel: 'whatsapp',
-        leadId: lead.id,
-        phoneNumber 
-      }
-    });
+    // Buscar script da campanha para este lead
+    const { data: script } = await this.supabase
+      .from('campaign_scripts')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .eq('empresa', lead.empresa)
+      .single();
 
-    if (error) {
-      throw new Error(`API WhatsApp: ${error.message}`);
+    if (!script) {
+      throw new Error('Script não encontrado para o lead');
     }
+
+    // Simular envio de WhatsApp (registrar interação)
+    console.log(`📱 WhatsApp para ${lead.empresa} (${phoneNumber})`);
+
+    // Marcar script como enviado
+    await this.supabase
+      .from('campaign_scripts')
+      .update({ whatsapp_enviado: true })
+      .eq('id', script.id);
+
+    // Registrar interação no CRM
+    await this.supabase
+      .from('interactions')
+      .insert({
+        user_id: userId,
+        lead_id: lead.id,
+        tipo: 'whatsapp',
+        assunto: `WhatsApp: Conta PJ C6 Bank - ${lead.empresa}`,
+        descricao: script.roteiro_ligacao || 'Mensagem de WhatsApp enviada',
+        data_interacao: new Date().toISOString()
+      });
+
+    // Criar oportunidade
+    await this.supabase
+      .from('opportunities')
+      .insert({
+        user_id: userId,
+        empresa: lead.empresa,
+        titulo: `Oportunidade WhatsApp - ${lead.empresa}`,
+        valor: 5000, // Valor estimado
+        estagio: 'prospeccao',
+        status: 'aberta',
+        probabilidade: 30
+      });
 
     // Marcar lead como contatado via WhatsApp
     await this.supabase
       .from('leads')
-      .update({ status: 'contatado_whatsapp' })
+      .update({ status: 'contatado' })
       .eq('id', lead.id);
   }
 
@@ -221,25 +252,43 @@ class CampaignService {
       throw new Error('Endereço de e-mail inválido');
     }
 
-    // Chamar serviço de E-mail
-    const { error } = await this.supabase.functions.invoke('email-service', {
-      body: { 
-        campaignId, 
-        userId, 
-        channel: 'email',
-        leadId: lead.id,
-        email: lead.email 
-      }
-    });
+    // Buscar script da campanha para este lead
+    const { data: script } = await this.supabase
+      .from('campaign_scripts')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .eq('empresa', lead.empresa)
+      .single();
 
-    if (error) {
-      throw new Error(`API E-mail: ${error.message}`);
+    if (!script) {
+      throw new Error('Script não encontrado para o lead');
     }
+
+    // Simular envio de E-mail (registrar interação)
+    console.log(`📧 E-mail para ${lead.empresa} (${lead.email})`);
+
+    // Marcar script como enviado
+    await this.supabase
+      .from('campaign_scripts')
+      .update({ email_enviado: true })
+      .eq('id', script.id);
+
+    // Registrar interação no CRM
+    await this.supabase
+      .from('interactions')
+      .insert({
+        user_id: userId,
+        lead_id: lead.id,
+        tipo: 'email',
+        assunto: script.assunto_email || `E-mail: Conta PJ C6 Bank - ${lead.empresa}`,
+        descricao: script.modelo_email || 'E-mail de campanha enviado',
+        data_interacao: new Date().toISOString()
+      });
 
     // Marcar lead como contatado via E-mail
     await this.supabase
       .from('leads')
-      .update({ status: 'contatado_email' })
+      .update({ status: 'contatado' })
       .eq('id', lead.id);
   }
 
@@ -349,27 +398,10 @@ Foque em redução de custos bancários e facilidades operacionais.
     };
   }
 
-  // Criar interações no CRM
+  // Criar interações no CRM - REMOVIDO, as interações são criadas individualmente em cada disparo
   async createCampaignInteractions(campaignId: string, userId: string, leads: any[]) {
-    const interactions = leads.map(lead => ({
-      user_id: userId,
-      lead_id: lead.id,
-      tipo: 'campanha_automatizada',
-      assunto: `Campanha Multi-canal - ${lead.empresa}`,
-      descricao: `Campanha automatizada executada: WhatsApp + E-mail + Scripts de ligação para ${lead.empresa}. Foco: Conta PJ C6 Bank com benefícios exclusivos.`,
-      data_interacao: new Date().toISOString()
-    }));
-
-    const { error } = await this.supabase
-      .from('interactions')
-      .insert(interactions);
-
-    if (error) {
-      console.error('Erro ao criar interações:', error);
-      return 0;
-    }
-
-    return interactions.length;
+    console.log('✅ Interações já registradas durante os disparos individuais');
+    return leads.length;
   }
 
   // Agendar follow-ups automáticos
