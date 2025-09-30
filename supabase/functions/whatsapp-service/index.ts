@@ -183,7 +183,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
     }
   }
 
-  // Enviar mensagem individual via MayTapi
+  // Enviar mensagem individual via Maytapi - API CORRETA
   async sendWhatsAppMessage({ to, message, leadName }: any) {
     try {
       console.log(`📱 Iniciando envio via Maytapi para ${leadName} (${to})`);
@@ -192,8 +192,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
       const cleanPhone = to.replace(/\D/g, '');
       console.log(`Número limpo: ${cleanPhone}`);
       
-      // Maytapi API endpoint correto: https://api.maytapi.com/api/{product_id}/{phone_id}/sendMessage
-      // Precisamos do product_id e phone_id da configuração
+      // Configuração Maytapi
       const productId = Deno.env.get('MAYTAPI_PRODUCT_ID');
       const phoneId = Deno.env.get('MAYTAPI_PHONE_ID');
       
@@ -201,8 +200,9 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         throw new Error('MAYTAPI_PRODUCT_ID e MAYTAPI_PHONE_ID são necessários');
       }
       
+      // URL correta da API Maytapi
       const apiUrl = `https://api.maytapi.com/api/${productId}/${phoneId}/sendMessage`;
-      console.log(`URL da API: ${apiUrl}`);
+      console.log(`📡 URL da API: ${apiUrl}`);
       
       const payload = {
         to_number: cleanPhone,
@@ -210,7 +210,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         message: message
       };
       
-      console.log('Payload:', JSON.stringify(payload, null, 2));
+      console.log('📦 Payload:', JSON.stringify(payload, null, 2));
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -222,15 +222,21 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
       });
 
       const responseText = await response.text();
-      console.log(`Resposta status: ${response.status}`);
-      console.log(`Resposta body: ${responseText}`);
+      console.log(`✅ Status: ${response.status}`);
+      console.log(`📄 Response: ${responseText}`);
 
       if (!response.ok) {
-        throw new Error(`Maytapi API error: ${response.status} - ${responseText}`);
+        throw new Error(`Maytapi API error ${response.status}: ${responseText}`);
       }
 
-      const result = JSON.parse(responseText);
-      console.log(`✅ WhatsApp enviado para ${leadName}: ${result.message || 'success'}`);
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = { message: responseText };
+      }
+      
+      console.log(`✅ WhatsApp enviado para ${leadName}!`);
       return true;
 
     } catch (error) {
