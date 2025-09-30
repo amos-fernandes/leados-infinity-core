@@ -73,7 +73,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
             phone_number: phoneNumber,
             sender_name: 'Teste Contato',
             message_content: testMessage,
-            direction: 'outbound',
+            direction: 'outgoing',  // CORRIGIDO: era 'outbound', agora é 'outgoing'
             message_type: 'text'
           });
 
@@ -174,7 +174,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
                 phone_number: lead.whatsapp,
                 sender_name: lead.empresa,
                 message_content: message,
-                direction: 'outbound',
+                direction: 'outgoing',  // CORRIGIDO: era 'outbound'
                 message_type: 'text'
               });
           }
@@ -326,7 +326,7 @@ Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
       phone_number: '62999999999',
       sender_name: script.empresa,
       message_content: `[SIMULADO] Mensagem para ${script.empresa}`,
-      direction: 'outbound',
+      direction: 'outgoing',  // CORRIGIDO: era 'outbound'
       message_type: 'text'
     }));
 
@@ -348,7 +348,7 @@ Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
     const { data: messages } = await this.supabase
       .from('whatsapp_messages')
       .select('*')
-      .eq('direction', 'inbound')
+      .eq('direction', 'incoming')  // CORRIGIDO: era 'inbound'
       .eq('response_sent', false)
       .order('created_at', { ascending: true });
 
