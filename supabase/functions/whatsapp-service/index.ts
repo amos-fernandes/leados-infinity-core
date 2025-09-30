@@ -19,10 +19,22 @@ class WhatsAppService {
 
   // Enviar mensagem de teste direta
   async sendTestMessage(phoneNumber: string, userId: string) {
-    console.log(`📱 Enviando mensagem de teste para ${phoneNumber}`);
+    console.log('=== INÍCIO TESTE WHATSAPP ===');
+    console.log(`📱 phoneNumber: ${phoneNumber}`);
+    console.log(`👤 userId: ${userId}`);
+    console.log(`🔑 MAYTAPI_API_KEY configurado: ${this.maytapiApiKey ? 'SIM' : 'NÃO'}`);
+    console.log(`🔑 MAYTAPI_PRODUCT_ID: ${Deno.env.get('MAYTAPI_PRODUCT_ID') || 'NÃO CONFIGURADO'}`);
+    console.log(`🔑 MAYTAPI_PHONE_ID: ${Deno.env.get('MAYTAPI_PHONE_ID') || 'NÃO CONFIGURADO'}`);
     
     if (!this.maytapiApiKey) {
-      throw new Error('MAYTAPI_API_KEY não configurada');
+      throw new Error('❌ MAYTAPI_API_KEY não está configurada');
+    }
+
+    const productId = Deno.env.get('MAYTAPI_PRODUCT_ID');
+    const phoneId = Deno.env.get('MAYTAPI_PHONE_ID');
+
+    if (!productId || !phoneId) {
+      throw new Error('❌ MAYTAPI_PRODUCT_ID ou MAYTAPI_PHONE_ID não estão configurados');
     }
 
     const testMessage = `🏦 *Teste de Contato - Infinity*
@@ -43,6 +55,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
 📞 (62) 99179-2303`;
 
     try {
+      console.log('🚀 Iniciando envio...');
       const success = await this.sendWhatsAppMessage({
         to: phoneNumber,
         message: testMessage,
@@ -50,6 +63,8 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
       });
 
       if (success) {
+        console.log('✅ Mensagem enviada com sucesso!');
+        
         // Registrar mensagem de teste
         await this.supabase
           .from('whatsapp_messages')
@@ -62,6 +77,8 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
             message_type: 'text'
           });
 
+        console.log('✅ Mensagem registrada no banco');
+
         return {
           success: true,
           message: `Mensagem de teste enviada com sucesso para ${phoneNumber}`,
@@ -69,7 +86,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         };
       }
     } catch (error) {
-      console.error('Erro ao enviar teste:', error);
+      console.error('❌ Erro ao enviar teste:', error);
       throw error;
     }
   }
@@ -418,13 +435,21 @@ Aguarde só um momento! 😊`;
 }
 
 serve(async (req) => {
+  console.log('=== WHATSAPP SERVICE CHAMADO ===');
+  console.log('Method:', req.method);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const { action, campaignId, userId, channel } = body;
+    const bodyText = await req.text();
+    console.log('Body recebido:', bodyText);
+    
+    const body = JSON.parse(bodyText);
+    const { action, campaignId, userId, phoneNumber } = body;
+    
+    console.log('Parâmetros:', { action, campaignId, userId, phoneNumber });
 
     if (!userId) {
       return new Response(JSON.stringify({ 
@@ -444,24 +469,30 @@ serve(async (req) => {
     
     let result;
 
+    console.log('Action recebida:', action);
+
     switch (action) {
       case 'sendTest':
-        const { phoneNumber } = body;
         if (!phoneNumber) {
           throw new Error('phoneNumber é obrigatório para teste');
         }
+        console.log('Executando sendTest...');
         result = await whatsappService.sendTestMessage(phoneNumber, userId);
         break;
       case 'processInbound':
+        console.log('Executando processInbound...');
         result = await whatsappService.processInboundMessages();
         break;
       default:
         if (campaignId) {
+          console.log('Executando sendCampaignMessages...');
           result = await whatsappService.sendCampaignMessages(campaignId, userId);
         } else {
           throw new Error('campaignId é obrigatório para campanhas');
         }
     }
+
+    console.log('Resultado:', JSON.stringify(result));
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -471,10 +502,11 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erro no WhatsAppService:', error);
+    console.error('❌ Erro no WhatsAppService:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error instanceof Error ? error.message : 'Erro interno do servidor'
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
