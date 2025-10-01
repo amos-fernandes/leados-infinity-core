@@ -119,33 +119,50 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
       }
 
       // Buscar leads correspondentes com telefone/WhatsApp
-      const empresas = scripts.map((s: any) => s.empresa);
-      console.log(`🏢 Empresas nos scripts: ${empresas.join(', ')}`);
+      // Filtrar empresas válidas (remover "-" e strings vazias)
+      const empresas = scripts
+        .map((s: any) => s.empresa)
+        .filter((e: string) => e && e.trim() !== '' && e !== '-');
       
+      console.log(`🏢 Total de empresas nos scripts: ${scripts.length}`);
+      console.log(`✅ Empresas válidas (primeiras 10): ${empresas.slice(0, 10).join(', ')}`);
+      console.log(`📊 Total de empresas válidas: ${empresas.length}`);
+      
+      if (empresas.length === 0) {
+        console.warn('⚠️ Nenhuma empresa válida encontrada nos scripts');
+        return { sent: 0, errors: [], message: 'Nenhuma empresa válida encontrada' };
+      }
+
+      // Buscar todos os leads do usuário primeiro, depois filtrar
       const { data: allLeads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
-        .eq('user_id', userId)
-        .in('empresa', empresas);
+        .eq('user_id', userId);
 
       console.log(`👥 Total de leads encontrados: ${allLeads?.length || 0}`);
       if (leadsError) {
         console.error('❌ Erro ao buscar leads:', leadsError);
+        throw new Error(`Erro ao buscar leads: ${leadsError.message}`);
       }
 
-      if (allLeads && allLeads.length > 0) {
-        console.log('📊 Primeiros 3 leads:');
-        allLeads.slice(0, 3).forEach((lead: any) => {
-          console.log(`  - ${lead.empresa}: whatsapp=${lead.whatsapp || 'vazio'}, telefone=${lead.telefone || 'vazio'}`);
-        });
-      }
-
-      // Filtrar leads que tenham telefone ou whatsapp preenchido
+      // Filtrar leads que pertençam às empresas da campanha E tenham telefone/whatsapp
       const leads = allLeads?.filter((lead: any) => {
+        // Verificar se a empresa do lead está na lista de empresas da campanha
+        const isInCampaign = empresas.includes(lead.empresa);
+        if (!isInCampaign) return false;
+
+        // Verificar se tem telefone ou whatsapp válido
         const hasWhatsApp = lead.whatsapp && lead.whatsapp.trim() !== '';
         const hasTelefone = lead.telefone && lead.telefone.trim() !== '';
         return hasWhatsApp || hasTelefone;
       }) || [];
+
+      if (leads.length > 0) {
+        console.log('📊 Primeiros 3 leads válidos:');
+        leads.slice(0, 3).forEach((lead: any) => {
+          console.log(`  - ${lead.empresa}: whatsapp=${lead.whatsapp || 'vazio'}, telefone=${lead.telefone || 'vazio'}`);
+        });
+      }
 
       console.log(`✅ Leads com telefone/WhatsApp: ${leads.length}`);
 
