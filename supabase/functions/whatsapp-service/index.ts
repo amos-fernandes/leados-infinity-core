@@ -316,11 +316,13 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
   // Formatar mensagem de WhatsApp
   formatWhatsAppMessage(template: string, lead: any) {
     const empresa = lead.empresa || '[EMPRESA]';
-    const contato = lead.contato_decisor || 'responsável';
     
-    const message = `🏦 *Olá, ${contato}!*
+    // Substituir [Responsável] pelo nome da empresa no template
+    const templateFormatted = template.replace(/\[Responsável\]/gi, empresa);
+    
+    const message = `🏦 *Olá, ${empresa}!*
 
-${template}
+${templateFormatted}
 
 *✅ Benefícios Exclusivos para ${empresa}:*
 • Conta 100% gratuita
