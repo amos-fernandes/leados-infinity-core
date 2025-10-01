@@ -92,14 +92,30 @@ class CampaignService {
       // 3. Executar WhatsApp via whatsapp-service
       console.log('📱 Chamando whatsapp-service para disparo...');
       try {
-        const { data: whatsappResult, error: whatsappError } = await this.supabase.functions.invoke('whatsapp-service', {
-          body: { 
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const functionUrl = `${supabaseUrl}/functions/v1/whatsapp-service`;
+        
+        console.log(`Invocando WhatsApp Service: ${functionUrl}`);
+        console.log(`Payload: campaignId=${campaignId}, userId=${userId}`);
+        
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({ 
             campaignId,
             userId
-          }
+          })
         });
 
-        if (whatsappError) throw whatsappError;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`WhatsApp Service error (${response.status}): ${errorText}`);
+        }
+
+        const whatsappResult = await response.json();
         
         results.whatsapp = {
           successCount: whatsappResult?.sent || 0,
@@ -120,14 +136,30 @@ class CampaignService {
       // 4. Executar E-mail via email-service
       console.log('📧 Chamando email-service para disparo...');
       try {
-        const { data: emailResult, error: emailError } = await this.supabase.functions.invoke('email-service', {
-          body: { 
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const functionUrl = `${supabaseUrl}/functions/v1/email-service`;
+        
+        console.log(`Invocando Email Service: ${functionUrl}`);
+        console.log(`Payload: campaignId=${campaignId}, userId=${userId}`);
+        
+        const response = await fetch(functionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+          },
+          body: JSON.stringify({ 
             campaignId,
             userId
-          }
+          })
         });
 
-        if (emailError) throw emailError;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Email Service error (${response.status}): ${errorText}`);
+        }
+
+        const emailResult = await response.json();
         
         results.email = {
           successCount: emailResult?.sent || 0,
