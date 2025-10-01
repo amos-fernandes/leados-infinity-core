@@ -449,6 +449,43 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const endIndex = startIndex + LEADS_PER_PAGE;
   const paginatedLeads = filteredLeads.slice(startIndex, endIndex);
   
+  // Gera números de página limitados para exibição
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7; // Número máximo de botões visíveis
+    
+    if (totalPages <= maxVisible) {
+      // Se tiver poucas páginas, mostra todas
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    // Sempre mostra primeira página
+    pages.push(1);
+    
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+    
+    // Páginas ao redor da atual
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    
+    // Sempre mostra última página
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+  
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -847,15 +884,19 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                   />
                 </PaginationItem>
                 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(page)}
-                      isActive={currentPage === page}
-                      className="cursor-pointer"
-                    >
-                      {page}
-                    </PaginationLink>
+                {getPageNumbers().map((page, idx) => (
+                  <PaginationItem key={`page-${idx}`}>
+                    {page === '...' ? (
+                      <span className="px-4 py-2">...</span>
+                    ) : (
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page as number)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    )}
                   </PaginationItem>
                 ))}
                 
