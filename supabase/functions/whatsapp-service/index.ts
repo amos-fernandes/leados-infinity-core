@@ -145,15 +145,15 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         throw new Error(`Erro ao buscar leads: ${leadsError.message}`);
       }
 
-      // Filtrar leads que pertençam às empresas da campanha E tenham telefone/whatsapp
+      // Filtrar leads que pertençam às empresas da campanha E tenham telefone/whatsapp válido
       const leads = allLeads?.filter((lead: any) => {
         // Verificar se a empresa do lead está na lista de empresas da campanha
         const isInCampaign = empresas.includes(lead.empresa);
         if (!isInCampaign) return false;
 
-        // Verificar se tem telefone ou whatsapp válido
-        const hasWhatsApp = lead.whatsapp && lead.whatsapp.trim() !== '';
-        const hasTelefone = lead.telefone && lead.telefone.trim() !== '';
+        // Verificar se tem telefone ou whatsapp válido (mínimo 10 dígitos)
+        const hasWhatsApp = lead.whatsapp && lead.whatsapp.replace(/\D/g, '').length >= 10;
+        const hasTelefone = lead.telefone && lead.telefone.replace(/\D/g, '').length >= 10;
         return hasWhatsApp || hasTelefone;
       }) || [];
 
@@ -164,15 +164,19 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         });
       }
 
-      console.log(`✅ Leads com telefone/WhatsApp: ${leads.length}`);
+      console.log(`✅ Leads com telefone/WhatsApp válido: ${leads.length}`);
 
       if (leads.length === 0) {
         console.warn('⚠️ Nenhum lead com telefone/WhatsApp encontrado');
-        console.warn(`Total de leads: ${allLeads?.length || 0}, mas nenhum tem telefone/whatsapp preenchido`);
+        console.warn(`Total de leads: ${allLeads?.length || 0}, mas nenhum tem telefone/whatsapp válido (mínimo 10 dígitos)`);
         return { sent: 0, errors: [], message: 'Nenhum lead com telefone/WhatsApp válido' };
       }
 
       console.log(`📲 Enviando WhatsApp para ${leads.length} leads`);
+      console.log('📝 Primeiros 5 leads que receberão mensagens:');
+      leads.slice(0, 5).forEach((lead: any, index: any) => {
+        console.log(`  ${index + 1}. ${lead.empresa} - Contato: ${lead.contato_decisor || 'Não informado'} - Tel: ${lead.whatsapp || lead.telefone}`);
+      });
 
       const sent = [];
       const errors = [];
@@ -314,11 +318,11 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
     const empresa = lead.empresa || '[EMPRESA]';
     const contato = lead.contato_decisor || 'responsável';
     
-    const message = `🏦 *Conta PJ C6 Bank - Infinity*
+    const message = `🏦 *Olá, ${contato}!*
 
 ${template}
 
-*✅ Benefícios Exclusivos:*
+*✅ Benefícios Exclusivos para ${empresa}:*
 • Conta 100% gratuita
 • Pix ilimitado sem custo
 • 100 TEDs gratuitos/mês
@@ -328,7 +332,7 @@ ${template}
 
 *🚀 Abertura 100% digital*
 
-Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
+Posso enviar mais detalhes sobre os benefícios para sua empresa?
 
 ---
 *Escritório Infinity - C6 Bank PJ*
