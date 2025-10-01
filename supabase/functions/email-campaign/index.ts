@@ -1,6 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import sgMail from "npm:@sendgrid/mail";
+
+sgMail.setApiKey(Deno.env.get("SENDGRID_API_KEY") as string);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -207,37 +210,25 @@ Escritório Autorizado Infinity - C6 Bank PJ`;
 
     console.log('Email templates prepared:', emails.length);
 
-    // Envio real de e-mails usando Resend
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    // Envio real de e-mails usando SendGrid
+    const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
     
-    if (resendApiKey) {
+    if (sendgridApiKey) {
       for (const emailData of emails) {
         try {
-          const emailResponse = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${resendApiKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              from: 'C6 Bank Escritório Autorizado <contato@c6bank-autorizado.com>',
-              to: [emailData.to],
-              subject: emailData.subject,
-              html: emailData.html
-            })
+          await sgMail.send({
+            to: emailData.to,
+            from: 'C6 Bank Escritório Autorizado <contato@isf.net.br>',
+            subject: emailData.subject,
+            html: emailData.html
           });
-          
-          if (emailResponse.ok) {
-            console.log(`Email sent to ${emailData.empresa}`);
-          } else {
-            console.error(`Failed to send email to ${emailData.empresa}: ${await emailResponse.text()}`);
-          }
+          console.log(`Email sent to ${emailData.empresa}`);
         } catch (error) {
           console.error(`Failed to send email to ${emailData.empresa}:`, error);
         }
       }
     } else {
-      console.warn('RESEND_API_KEY not configured - emails not sent');
+      console.warn('SENDGRID_API_KEY not configured - emails not sent');
     }
 
     // Log da atividade para demonstração
