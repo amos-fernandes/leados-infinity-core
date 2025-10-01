@@ -94,6 +94,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
   // Enviar campanha de WhatsApp
   async sendCampaignMessages(campaignId: string, userId: string) {
     console.log('📱 WhatsAppService: Iniciando campanha de WhatsApp');
+    console.log(`📋 CampaignId: ${campaignId}, UserId: ${userId}`);
     
     if (!this.maytapiApiKey) {
       console.warn('⚠️ MAYTAPI_API_KEY não configurada, simulando envios');
@@ -108,24 +109,49 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         .eq('campaign_id', campaignId)
         .eq('campaigns.user_id', userId);
 
-      if (scriptsError) throw scriptsError;
+      console.log(`📝 Scripts encontrados: ${scripts?.length || 0}`);
+      if (scriptsError) {
+        console.error('❌ Erro ao buscar scripts:', scriptsError);
+        throw scriptsError;
+      }
       if (!scripts || scripts.length === 0) {
         throw new Error('Nenhum script encontrado para a campanha');
       }
 
       // Buscar leads correspondentes com telefone/WhatsApp
       const empresas = scripts.map((s: any) => s.empresa);
-      const { data: allLeads } = await this.supabase
+      console.log(`🏢 Empresas nos scripts: ${empresas.join(', ')}`);
+      
+      const { data: allLeads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
         .in('empresa', empresas);
 
+      console.log(`👥 Total de leads encontrados: ${allLeads?.length || 0}`);
+      if (leadsError) {
+        console.error('❌ Erro ao buscar leads:', leadsError);
+      }
+
+      if (allLeads && allLeads.length > 0) {
+        console.log('📊 Primeiros 3 leads:');
+        allLeads.slice(0, 3).forEach((lead: any) => {
+          console.log(`  - ${lead.empresa}: whatsapp=${lead.whatsapp || 'vazio'}, telefone=${lead.telefone || 'vazio'}`);
+        });
+      }
+
       // Filtrar leads que tenham telefone ou whatsapp preenchido
-      const leads = allLeads?.filter((lead: any) => lead.whatsapp || lead.telefone) || [];
+      const leads = allLeads?.filter((lead: any) => {
+        const hasWhatsApp = lead.whatsapp && lead.whatsapp.trim() !== '';
+        const hasTelefone = lead.telefone && lead.telefone.trim() !== '';
+        return hasWhatsApp || hasTelefone;
+      }) || [];
+
+      console.log(`✅ Leads com telefone/WhatsApp: ${leads.length}`);
 
       if (leads.length === 0) {
-        console.warn('Nenhum lead com telefone/WhatsApp encontrado');
+        console.warn('⚠️ Nenhum lead com telefone/WhatsApp encontrado');
+        console.warn(`Total de leads: ${allLeads?.length || 0}, mas nenhum tem telefone/whatsapp preenchido`);
         return { sent: 0, errors: [], message: 'Nenhum lead com telefone/WhatsApp válido' };
       }
 
