@@ -113,18 +113,20 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
         throw new Error('Nenhum script encontrado para a campanha');
       }
 
-      // Buscar leads correspondentes com WhatsApp
+      // Buscar leads correspondentes com telefone/WhatsApp
       const empresas = scripts.map((s: any) => s.empresa);
-      const { data: leads } = await this.supabase
+      const { data: allLeads } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
-        .in('empresa', empresas)
-        .not('whatsapp', 'is', null);
+        .in('empresa', empresas);
 
-      if (!leads || leads.length === 0) {
-        console.warn('Nenhum lead com WhatsApp encontrado');
-        return { sent: 0, errors: [], message: 'Nenhum lead com WhatsApp válido' };
+      // Filtrar leads que tenham telefone ou whatsapp preenchido
+      const leads = allLeads?.filter((lead: any) => lead.whatsapp || lead.telefone) || [];
+
+      if (leads.length === 0) {
+        console.warn('Nenhum lead com telefone/WhatsApp encontrado');
+        return { sent: 0, errors: [], message: 'Nenhum lead com telefone/WhatsApp válido' };
       }
 
       console.log(`📲 Enviando WhatsApp para ${leads.length} leads`);
@@ -135,12 +137,14 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
       // Enviar mensagens individualizadas
       for (const lead of leads) {
         const script = scripts.find((s: any) => s.empresa === lead.empresa);
-        if (!script || !lead.whatsapp) continue;
+        const phoneNumber = lead.whatsapp || lead.telefone;
+        
+        if (!script || !phoneNumber) continue;
 
         try {
           const message = this.formatWhatsAppMessage(script.roteiro_ligacao, lead);
           const success = await this.sendWhatsAppMessage({
-            to: lead.whatsapp,
+            to: phoneNumber,
             message: message,
             leadName: lead.empresa
           });
@@ -171,7 +175,7 @@ Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
               .from('whatsapp_messages')
               .insert({
                 user_id: userId,
-                phone_number: lead.whatsapp,
+                phone_number: phoneNumber,
                 sender_name: lead.empresa,
                 message_content: message,
                 direction: 'outgoing',  // CORRIGIDO: era 'outbound'
