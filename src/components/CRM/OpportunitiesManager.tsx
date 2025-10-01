@@ -19,6 +19,7 @@ import {
   Calendar,
   TrendingUp
 } from "lucide-react";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -72,6 +73,9 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const OPPORTUNITIES_PER_PAGE = 10;
 
   const form = useForm<OpportunityFormData>({
     resolver: zodResolver(opportunitySchema),
@@ -228,6 +232,48 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
     opportunity.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
     opportunity.estagio.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const totalPages = Math.ceil(filteredOpportunities.length / OPPORTUNITIES_PER_PAGE);
+  const startIndex = (currentPage - 1) * OPPORTUNITIES_PER_PAGE;
+  const endIndex = startIndex + OPPORTUNITIES_PER_PAGE;
+  const paginatedOpportunities = filteredOpportunities.slice(startIndex, endIndex);
+  
+  // Gera números de página limitados
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7;
+    
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    pages.push(1);
+    
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+    
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const getEstagioColor = (estagio: string) => {
     switch (estagio) {
@@ -487,7 +533,7 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOpportunities.map((opportunity) => (
+              {paginatedOpportunities.map((opportunity) => (
                 <TableRow key={opportunity.id}>
                   <TableCell className="font-medium">
                     {opportunity.titulo}
@@ -544,11 +590,60 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
             </TableBody>
           </Table>
           
+          {paginatedOpportunities.length === 0 && filteredOpportunities.length > 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma oportunidade nesta página
+            </div>
+          )}
+          
           {filteredOpportunities.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               {searchTerm ? 'Nenhuma oportunidade encontrada com esse termo' : 'Nenhuma oportunidade cadastrada'}
             </div>
           )}
+        </div>
+        
+        {totalPages > 1 && (
+          <div className="mt-4 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {getPageNumbers().map((page, idx) => (
+                  <PaginationItem key={`page-${idx}`}>
+                    {page === '...' ? (
+                      <span className="px-4 py-2">...</span>
+                    ) : (
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page as number)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+        
+        <div className="mt-4 text-sm text-muted-foreground text-center">
+          Mostrando {startIndex + 1}-{Math.min(endIndex, filteredOpportunities.length)} de {filteredOpportunities.length} oportunidades
+          {filteredOpportunities.length !== opportunities.length && ` (${opportunities.length} no total)`}
         </div>
       </CardContent>
     </Card>
