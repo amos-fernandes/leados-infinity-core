@@ -22,13 +22,107 @@ class EmailService {
     this.sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
   }
 
-  // Enviar campanha de e-mail
+  // Normalizar nome de empresa para correspondência
+  private normalizeCompanyName(name: string): string {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/\s+(ltda|me|eireli|epp|sa|s\.a\.|s\/a|e cia|do brasil|brasil)(\s|$)/gi, ' ')
+      .replace(/[^\\w\\s]/g, '') // Remove pontuação
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Fuzzy match entre dois nomes de empresa
+  private fuzzyMatch(str1: string, str2: string): number {
+    const normalized1 = this.normalizeCompanyName(str1);
+    const normalized2 = this.normalizeCompanyName(str2);
+    return compareTwoStrings(normalized1, normalized2);
+  }
+
+  // Encontrar lead correspondente usando múltiplos critérios
+  private findMatchingLead(script: any, leads: any[]): { lead: any; matchReason: string; similarity: number } | null {
+    // Prioridade 1: Match exato por empresa + telefone
+    for (const lead of leads) {
+      const empresaNormalizada = this.normalizeCompanyName(lead.empresa || '');
+      const scriptEmpresaNormalizada = this.normalizeCompanyName(script.empresa || '');
+      
+      if (empresaNormalizada && scriptEmpresaNormalizada === empresaNormalizada && 
+          lead.telefone && script.empresa && lead.telefone.includes(lead.telefone?.slice(-8))) {
+        return { lead, matchReason: 'Empresa + Telefone (exato)', similarity: 1.0 };
+      }
+    }
+
+    // Prioridade 2: Match exato por empresa + email domain
+    for (const lead of leads) {
+      const empresaNormalizada = this.normalizeCompanyName(lead.empresa || '');
+      const scriptEmpresaNormalizada = this.normalizeCompanyName(script.empresa || '');
+      
+      if (empresaNormalizada && scriptEmpresaNormalizada === empresaNormalizada && 
+          lead.email && lead.site_url) {
+        const emailDomain = lead.email.split('@')[1];
+        const siteDomain = lead.site_url?.replace(/^https?:\/\/i, '').split('/')[0];
+        if (emailDomain === siteDomain) {
+          return { lead, matchReason: 'Empresa + Email Domain (exato)', similarity: 1.0 };
+        }
+      }
+    }
+
+    // Prioridade 3: Fuzzy match por empresa (similaridade >= 0.8)
+    let bestMatch: { lead: any; matchReason: string; similarity: number } | null = null;
+    let bestSimilarity = 0;
+
+    for (const lead of leads) {
+      const similarity = this.fuzzyMatch(lead.empresa || '', script.empresa || '');
+      if (similarity >= 0.8 && similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestMatch = { 
+          lead, 
+          matchReason: `Empresa (fuzzy ${(similarity * 100).toFixed(0)}%)`, 
+          similarity 
+        };
+      }
+    }
+
+    if (bestMatch) return bestMatch;
+
+    // Prioridade 4: Match por telefone apenas (se disponível)
+    if (script.telefone) {
+      for (const lead of leads) {
+        if (lead.telefone && lead.telefone.includes(script.telefone.slice(-8))) {
+          return { lead, matchReason: 'Telefone (fallback)', similarity: 0.7 };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // Registrar erro de campanha no banco
+  private async logCampaignError(campaignId: string, leadId: string | null, errorType: string, errorMessage: string, metadata: any = {}) {
+    try {
+      await this.supabase.from('campaign_errors').insert({
+        campaign_id: campaignId,
+        lead_id: leadId,
+        error_type: errorType,
+        error_message: errorMessage,
+        metadata,
+        created_at: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('⚠️ Erro ao registrar erro de campanha:', err);
+    }
+  }
+
+  // Enviar campanha de e-mails
   async sendCampaignEmails(campaignId: string, userId: string) {
-    console.log('📧 === EMAIL SERVICE INICIADO ===');
-    console.log(`📧 EmailService: Iniciando campanha de e-mail via SendGrid`);
-    console.log(`📧 Campaign ID: ${campaignId}`);
-    console.log(`📧 User ID: ${userId}`);
+    console.log(`📧 === INICIANDO ENVIO DE E-MAILS PARA CAMPANHA ${campaignId} ===`);
+    console.log(`📊 userId: ${userId}`);
     
+    const sent = [];
+    const errors = [];
+
     if (!this.sendgridApiKey) {
       console.warn('⚠️ SENDGRID_API_KEY não configurada, simulando envios');
       return this.simulateEmailCampaign(campaignId, userId);
@@ -39,58 +133,108 @@ class EmailService {
       console.log('📧 Buscando scripts da campanha...');
       const { data: scripts, error: scriptsError } = await this.supabase
         .from('campaign_scripts')
-        .select('*, campaigns!inner(*)')
-        .eq('campaign_id', campaignId)
-        .eq('campaigns.user_id', userId);
+        .select('*')
+        .eq('campaign_id', campaignId);
 
-      if (scriptsError) {
-        console.error('❌ Erro ao buscar scripts:', scriptsError);
-        throw scriptsError;
-      }
-      
-      console.log(`📧 Scripts encontrados: ${scripts?.length || 0}`);
-      
-      if (!scripts || scripts.length === 0) {
-        throw new Error('Nenhum script encontrado para a campanha');
-      }
+      if (scriptsError) throw scriptsError;
 
-      // Buscar leads correspondentes
-      console.log('📧 Buscando leads correspondentes...');
-      const empresas = scripts.map((s: any) => s.empresa);
-      console.log(`📧 Buscando leads para ${empresas.length} empresas`);
-      
+      // Buscar todos os leads do usuário
       const { data: leads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
-        .in('empresa', empresas)
         .not('email', 'is', null);
 
-      if (leadsError) {
-        console.error('❌ Erro ao buscar leads:', leadsError);
+      if (leadsError) throw leadsError;
+
+      console.log(`📧 Scripts encontrados: ${scripts.length}`);
+      console.log(`📧 Leads encontrados: ${leads.length}`);
+
+      if (scripts.length === 0) {
+        console.log('⚠️ Nenhum script encontrado para esta campanha');
+        await this.logCampaignError(campaignId, null, 'NO_SCRIPTS', 'Nenhum script encontrado para esta campanha');
+        return { sent, errors: [{ error: 'Nenhum script encontrado' }] };
       }
+
+      if (leads.length === 0) {
+        console.log('⚠️ Nenhum lead encontrado para enviar e-mails');
+        await this.logCampaignError(campaignId, null, 'NO_LEADS', 'Nenhum lead encontrado para enviar e-mails');
+        return { sent, errors: [{ error: 'Nenhum lead encontrado' }] };
+      }
+
+      // Estatísticas de correspondência
+      const matchStats = {
+        exactMatch: 0,
+        fuzzyMatch: 0,
+        phoneMatch: 0,
+        noMatch: 0
+      };
+
+      // Para cada script, encontrar o lead correspondente e enviar
+      console.log('📧 Iniciando correspondência de scripts com leads...');
       
-      console.log(`📧 Leads com email encontrados: ${leads?.length || 0}`);
-
-      if (!leads || leads.length === 0) {
-        console.warn('⚠️ Nenhum lead com e-mail encontrado');
-        return { sent: 0, errors: [], message: 'Nenhum lead com e-mail válido' };
-      }
-
-      console.log(`📨 === INICIANDO ENVIO DE ${leads.length} E-MAILS ===`);
-
-      const sent = [];
-      const errors = [];
-
-      // Enviar e-mails individualizados
-      for (const lead of leads) {
-        const script = scripts.find((s: any) => s.empresa === lead.empresa);
-        if (!script || !lead.email) {
-          console.warn(`⚠️ Script ou email não encontrado para: ${lead.empresa}`);
-          continue;
-        }
-
+      for (const script of scripts) {
         try {
+          console.log(`\n📧 Processando script para: ${script.empresa}`);
+          
+          // Encontrar lead correspondente usando fuzzy matching
+          const matchResult = this.findMatchingLead(script, leads);
+          
+          if (!matchResult) {
+            console.log(`❌ Nenhum lead correspondente encontrado para: ${script.empresa}`);
+            matchStats.noMatch++;
+            await this.logCampaignError(
+              campaignId, 
+              null, 
+              'NO_MATCH', 
+              `Nenhum lead correspondente encontrado`,
+              { scriptEmpresa: script.empresa }
+            );
+            errors.push({ 
+              script: script.empresa, 
+              error: 'Nenhum lead correspondente encontrado' 
+            });
+            continue;
+          }
+
+          const { lead, matchReason, similarity } = matchResult;
+          console.log(`✅ Match encontrado: Lead "${lead.empresa}" <-> Script "${script.empresa}" (${matchReason}, similaridade: ${(similarity * 100).toFixed(0)}%)`);
+          
+          // Atualizar estatísticas
+          if (similarity === 1.0) {
+            matchStats.exactMatch++;
+          } else if (similarity >= 0.8) {
+            matchStats.fuzzyMatch++;
+          } else {
+            matchStats.phoneMatch++;
+          }
+
+          if (!lead.email) {
+            console.log(`⚠️ Lead ${lead.empresa} não possui e-mail cadastrado`);
+            await this.logCampaignError(
+              campaignId, 
+              lead.id, 
+              'NO_EMAIL', 
+              'Lead não possui e-mail cadastrado',
+              { leadEmpresa: lead.empresa, matchReason }
+            );
+            errors.push({ lead: lead.empresa, error: 'E-mail não cadastrado' });
+            continue;
+          }
+
+          if (!script.assunto_email || !script.modelo_email) {
+            console.log(`⚠️ Script para ${lead.empresa} está incompleto (falta assunto ou modelo)`);
+            await this.logCampaignError(
+              campaignId, 
+              lead.id, 
+              'INCOMPLETE_SCRIPT', 
+              'Script não possui assunto ou modelo de e-mail',
+              { leadEmpresa: lead.empresa, scriptId: script.id }
+            );
+            errors.push({ lead: lead.empresa, error: 'Script incompleto' });
+            continue;
+          }
+
           console.log(`📧 Enviando e-mail para: ${lead.empresa} (${lead.email})`);
           
           const success = await this.sendEmail({
@@ -104,12 +248,6 @@ class EmailService {
             sent.push(lead.empresa);
             console.log(`✅ E-mail enviado com sucesso para ${lead.empresa}`);
             
-            // Marcar como enviado
-            await this.supabase
-              .from('campaign_scripts')
-              .update({ email_enviado: true })
-              .eq('id', script.id);
-
             // Registrar interação
             await this.supabase
               .from('interactions')
@@ -123,28 +261,32 @@ class EmailService {
               });
           }
         } catch (error) {
-          console.error(`❌ Erro ao enviar e-mail para ${lead.empresa}:`, error);
-          errors.push({ 
-            empresa: lead.empresa, 
-            email: lead.email,
-            error: error instanceof Error ? error.message : 'Erro desconhecido' 
-          });
+          console.error(`❌ Erro ao processar script para ${script.empresa}:`, error);
+          await this.logCampaignError(
+            campaignId, 
+            null, 
+            'PROCESSING_ERROR', 
+            error instanceof Error ? error.message : 'Erro desconhecido',
+            { scriptEmpresa: script.empresa }
+          );
+          errors.push({ script: script.empresa, error: error instanceof Error ? error.message : 'Erro desconhecido' });
         }
 
-        // Delay entre envios para evitar rate limiting
+        // Delay entre envios
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      console.log(`📊 === RESULTADO FINAL ===`);
-      console.log(`✅ Enviados: ${sent.length}`);
+      console.log(`\n📧 === RESUMO DO ENVIO DE E-MAILS ===`);
+      console.log(`✅ Enviados com sucesso: ${sent.length}`);
       console.log(`❌ Erros: ${errors.length}`);
+      console.log(`📊 Estatísticas de Correspondência:`);
+      console.log(`   - Match Exato: ${matchStats.exactMatch}`);
+      console.log(`   - Fuzzy Match: ${matchStats.fuzzyMatch}`);
+      console.log(`   - Match por Telefone: ${matchStats.phoneMatch}`);
+      console.log(`   - Sem Correspondência: ${matchStats.noMatch}`);
+      console.log(`📧 === FIM DO ENVIO DE E-MAILS ===\n`);
 
-      return {
-        sent: sent.length,
-        errors,
-        message: `${sent.length} e-mails enviados com sucesso`,
-        details: sent
-      };
+      return { sent: sent.length, errors, matchStats };
 
     } catch (error) {
       console.error('❌ Erro na campanha de e-mail:', error);
@@ -152,7 +294,6 @@ class EmailService {
     }
   }
 
-  // Enviar e-mail individual via SendGrid
   async sendEmail({ to, subject, html, leadName }: any) {
     try {
       const msg = {
@@ -179,7 +320,6 @@ class EmailService {
     }
   }
 
-  // Formatar e-mail em HTML
   formatEmailHTML(template: string, lead: any) {
     const html = `
     <!DOCTYPE html>
@@ -260,7 +400,6 @@ class EmailService {
     return html;
   }
 
-  // Converter HTML para texto
   htmlToText(html: string) {
     return html
       .replace(/<[^>]*>/g, '')
@@ -268,7 +407,6 @@ class EmailService {
       .trim();
   }
 
-  // Simular campanha de e-mail (quando Resend não está configurado)
   async simulateEmailCampaign(campaignId: string, userId: string) {
     console.log('🎭 Simulando campanha de e-mail');
     
@@ -313,7 +451,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { campaignId, userId, channel } = body;
+    const { campaignId, userId } = body;
 
     if (!campaignId || !userId) {
       return new Response(JSON.stringify({ 

@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaign_errors: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          error_message: string
+          error_type: string
+          id: string
+          lead_id: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          error_message: string
+          error_type: string
+          id?: string
+          lead_id?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          error_message?: string
+          error_type?: string
+          id?: string
+          lead_id?: string | null
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_errors_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_errors_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_knowledge: {
         Row: {
           campaign_id: string | null
