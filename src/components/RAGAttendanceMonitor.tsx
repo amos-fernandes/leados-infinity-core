@@ -189,7 +189,7 @@ const RAGAttendanceMonitor = () => {
               <StatCard
                 icon={<TrendingUp className="h-4 w-4 text-orange-500" />}
                 title="Média"
-                value={stats.averageMessagesPerConv.toFixed(1)}
+                value={(stats.averageMessagesPerConv || 0).toFixed(1)}
                 description="Msgs por conversa"
                 trend="stable"
               />
