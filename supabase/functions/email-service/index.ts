@@ -1,28 +1,32 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import sgMail from "npm:@sendgrid/mail";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Configurar SendGrid API Key
+sgMail.setApiKey(Deno.env.get('SENDGRID_API_KEY') as string);
+
 // Módulo de E-mail seguindo a arquitetura proposta
 class EmailService {
   private supabase: any;
-  private resendApiKey: string | undefined;
+  private sendgridApiKey: string | undefined;
 
   constructor(supabase: any) {
     this.supabase = supabase;
-    this.resendApiKey = Deno.env.get('RESEND_API_KEY');
+    this.sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
   }
 
   // Enviar campanha de e-mail
   async sendCampaignEmails(campaignId: string, userId: string) {
-    console.log('📧 EmailService: Iniciando campanha de e-mail');
+    console.log('📧 EmailService: Iniciando campanha de e-mail via SendGrid');
     
-    if (!this.resendApiKey) {
-      console.warn('⚠️ RESEND_API_KEY não configurada, simulando envios');
+    if (!this.sendgridApiKey) {
+      console.warn('⚠️ SENDGRID_API_KEY não configurada, simulando envios');
       return this.simulateEmailCampaign(campaignId, userId);
     }
 
@@ -114,35 +118,29 @@ class EmailService {
     }
   }
 
-  // Enviar e-mail individual via Resend
+  // Enviar e-mail individual via SendGrid
   async sendEmail({ to, subject, html, leadName }: any) {
     try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.resendApiKey}`,
-          'Content-Type': 'application/json',
+      const msg = {
+        to: to,
+        from: {
+          email: 'contato@infinity-leads.com',
+          name: 'Escritório Infinity'
         },
-        body: JSON.stringify({
-          from: 'Escritório Infinity <contato@infinity-leads.com>',
-          to: [to],
-          subject: subject,
-          html: html,
-          text: this.htmlToText(html)
-        }),
-      });
+        subject: subject,
+        html: html,
+        text: this.htmlToText(html)
+      };
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Resend API error: ${response.status} - ${error}`);
-      }
-
-      const result = await response.json();
-      console.log(`✅ E-mail enviado para ${leadName}: ${result.id}`);
+      const result = await sgMail.send(msg);
+      console.log(`✅ E-mail enviado via SendGrid para ${leadName}`);
       return true;
 
-    } catch (error) {
-      console.error(`❌ Falha ao enviar e-mail para ${leadName}:`, error);
+    } catch (error: any) {
+      console.error(`❌ Falha ao enviar e-mail via SendGrid para ${leadName}:`, error);
+      if (error.response) {
+        console.error('SendGrid Error Details:', error.response.body);
+      }
       throw error;
     }
   }
@@ -268,7 +266,7 @@ class EmailService {
 
     return {
       sent: scripts.length,
-      message: `${scripts.length} e-mails simulados (configure RESEND_API_KEY para envios reais)`,
+      message: `${scripts.length} e-mails simulados (configure SENDGRID_API_KEY para envios reais)`,
       simulated: true
     };
   }
