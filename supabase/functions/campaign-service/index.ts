@@ -134,19 +134,28 @@ class CampaignService {
       }
 
       // 4. Executar E-mail via email-service
-      console.log('📧 Chamando email-service para disparo...');
+      console.log('📧 === INICIANDO ENVIO DE E-MAILS ===');
+      console.log(`📊 Leads totais: ${leads.length}`);
+      console.log(`📊 Scripts criados: ${scripts.length}`);
+      
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        
+        if (!supabaseUrl || !serviceRoleKey) {
+          throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados');
+        }
+        
         const functionUrl = `${supabaseUrl}/functions/v1/email-service`;
         
-        console.log(`Invocando Email Service: ${functionUrl}`);
-        console.log(`Payload: campaignId=${campaignId}, userId=${userId}`);
+        console.log(`📧 Invocando Email Service: ${functionUrl}`);
+        console.log(`📧 Payload: campaignId=${campaignId}, userId=${userId}`);
         
         const response = await fetch(functionUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+            'Authorization': `Bearer ${serviceRoleKey}`
           },
           body: JSON.stringify({ 
             campaignId,
@@ -154,12 +163,16 @@ class CampaignService {
           })
         });
 
+        console.log(`📧 Email Service Response Status: ${response.status}`);
+        
         if (!response.ok) {
           const errorText = await response.text();
+          console.error(`❌ Email Service Error Response: ${errorText}`);
           throw new Error(`Email Service error (${response.status}): ${errorText}`);
         }
 
         const emailResult = await response.json();
+        console.log(`📧 Email Service Result:`, JSON.stringify(emailResult));
         
         results.email = {
           successCount: emailResult?.sent || 0,
@@ -167,15 +180,19 @@ class CampaignService {
           errors: emailResult?.errors || [],
           details: emailResult
         };
-        console.log(`✅ E-mail: ${emailResult?.sent || 0} enviados`);
+        console.log(`✅ E-mail: ${emailResult?.sent || 0} enviados com sucesso`);
       } catch (emailError) {
-        console.error('❌ Erro no email-service:', emailError);
+        console.error('❌ ERRO CRÍTICO no email-service:', emailError);
+        console.error('Stack trace:', emailError instanceof Error ? emailError.stack : 'N/A');
         results.email = {
           successCount: 0,
           failureCount: leads.length,
-          errors: [{ error: emailError instanceof Error ? emailError.message : 'Erro E-mail' }]
+          errors: [{ error: emailError instanceof Error ? emailError.message : 'Erro E-mail desconhecido' }],
+          criticalError: true
         };
       }
+      
+      console.log('📧 === ENVIO DE E-MAILS FINALIZADO ===');
 
       // 5. Interações já foram registradas pelos serviços individuais
       results.interactions = { 

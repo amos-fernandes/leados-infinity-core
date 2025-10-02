@@ -23,7 +23,10 @@ class EmailService {
 
   // Enviar campanha de e-mail
   async sendCampaignEmails(campaignId: string, userId: string) {
-    console.log('📧 EmailService: Iniciando campanha de e-mail via SendGrid');
+    console.log('📧 === EMAIL SERVICE INICIADO ===');
+    console.log(`📧 EmailService: Iniciando campanha de e-mail via SendGrid`);
+    console.log(`📧 Campaign ID: ${campaignId}`);
+    console.log(`📧 User ID: ${userId}`);
     
     if (!this.sendgridApiKey) {
       console.warn('⚠️ SENDGRID_API_KEY não configurada, simulando envios');
@@ -32,32 +35,48 @@ class EmailService {
 
     try {
       // Buscar scripts da campanha
+      console.log('📧 Buscando scripts da campanha...');
       const { data: scripts, error: scriptsError } = await this.supabase
         .from('campaign_scripts')
         .select('*, campaigns!inner(*)')
         .eq('campaign_id', campaignId)
         .eq('campaigns.user_id', userId);
 
-      if (scriptsError) throw scriptsError;
+      if (scriptsError) {
+        console.error('❌ Erro ao buscar scripts:', scriptsError);
+        throw scriptsError;
+      }
+      
+      console.log(`📧 Scripts encontrados: ${scripts?.length || 0}`);
+      
       if (!scripts || scripts.length === 0) {
         throw new Error('Nenhum script encontrado para a campanha');
       }
 
       // Buscar leads correspondentes
+      console.log('📧 Buscando leads correspondentes...');
       const empresas = scripts.map((s: any) => s.empresa);
-      const { data: leads } = await this.supabase
+      console.log(`📧 Buscando leads para ${empresas.length} empresas`);
+      
+      const { data: leads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
         .in('empresa', empresas)
         .not('email', 'is', null);
 
+      if (leadsError) {
+        console.error('❌ Erro ao buscar leads:', leadsError);
+      }
+      
+      console.log(`📧 Leads com email encontrados: ${leads?.length || 0}`);
+
       if (!leads || leads.length === 0) {
-        console.warn('Nenhum lead com e-mail encontrado');
+        console.warn('⚠️ Nenhum lead com e-mail encontrado');
         return { sent: 0, errors: [], message: 'Nenhum lead com e-mail válido' };
       }
 
-      console.log(`📨 Enviando e-mails para ${leads.length} leads`);
+      console.log(`📨 === INICIANDO ENVIO DE ${leads.length} E-MAILS ===`);
 
       const sent = [];
       const errors = [];
@@ -65,9 +84,14 @@ class EmailService {
       // Enviar e-mails individualizados
       for (const lead of leads) {
         const script = scripts.find((s: any) => s.empresa === lead.empresa);
-        if (!script || !lead.email) continue;
+        if (!script || !lead.email) {
+          console.warn(`⚠️ Script ou email não encontrado para: ${lead.empresa}`);
+          continue;
+        }
 
         try {
+          console.log(`📧 Enviando e-mail para: ${lead.empresa} (${lead.email})`);
+          
           const success = await this.sendEmail({
             to: lead.email,
             subject: script.assunto_email,
@@ -77,6 +101,7 @@ class EmailService {
 
           if (success) {
             sent.push(lead.empresa);
+            console.log(`✅ E-mail enviado com sucesso para ${lead.empresa}`);
             
             // Marcar como enviado
             await this.supabase
@@ -97,13 +122,21 @@ class EmailService {
               });
           }
         } catch (error) {
-          console.error(`Erro ao enviar e-mail para ${lead.empresa}:`, error);
-          errors.push({ empresa: lead.empresa, error: error instanceof Error ? error.message : 'Erro desconhecido' });
+          console.error(`❌ Erro ao enviar e-mail para ${lead.empresa}:`, error);
+          errors.push({ 
+            empresa: lead.empresa, 
+            email: lead.email,
+            error: error instanceof Error ? error.message : 'Erro desconhecido' 
+          });
         }
 
         // Delay entre envios para evitar rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
+
+      console.log(`📊 === RESULTADO FINAL ===`);
+      console.log(`✅ Enviados: ${sent.length}`);
+      console.log(`❌ Erros: ${errors.length}`);
 
       return {
         sent: sent.length,
