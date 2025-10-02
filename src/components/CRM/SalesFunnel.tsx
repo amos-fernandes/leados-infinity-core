@@ -13,7 +13,8 @@ import {
   Plus,
   Search,
   ArrowRight,
-  Send
+  Send,
+  MapPin
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -104,8 +105,8 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     try {
       setLoading(true);
       
-      // Usar função de geração de prospects da IA
-      const { data, error } = await supabase.functions.invoke('generate-prospects', {
+      // Usar fluxo completo automatizado de 4 fases
+      const { data, error } = await supabase.functions.invoke('automated-campaign-flow', {
         body: { userId: user.id }
       });
 
@@ -119,8 +120,54 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
         throw new Error(data.error);
       }
     } catch (error) {
-      console.error('Erro ao criar leads:', error);
-      toast.error('Erro ao criar leads');
+      console.error('Erro ao criar campanha completa:', error);
+      toast.error('Erro ao criar campanha automatizada');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const collectFromGoogleMaps = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    if (!user) return;
+
+    // Solicitar parâmetros do usuário
+    const searchQuery = prompt('Digite o termo de busca (ex: restaurante, advogado, clínica):');
+    if (!searchQuery) return;
+
+    const location = prompt('Digite a localização (ex: Goiânia, GO):', 'Goiânia, GO');
+    if (!location) return;
+
+    const maxResults = prompt('Quantos leads deseja coletar? (máximo 50):', '20');
+    if (!maxResults) return;
+
+    try {
+      setLoading(true);
+      
+      // Usar apenas coleta do Google Maps
+      const { data, error } = await supabase.functions.invoke('google-maps-scraper', {
+        body: { 
+          searchQuery,
+          location,
+          userId: user.id,
+          maxResults: Math.min(parseInt(maxResults) || 20, 50)
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(data.message);
+        loadFunnelStats();
+        onStatsUpdate();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Erro ao coletar do Google Maps:', error);
+      toast.error('Erro ao coletar leads do Google Maps');
     } finally {
       setLoading(false);
     }
@@ -215,7 +262,16 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
               type="button"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Criar Leads
+              Criar Campanha Completa
+            </Button>
+            <Button 
+              onClick={(e) => collectFromGoogleMaps(e)}
+              disabled={loading}
+              variant="outline"
+              type="button"
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Coletar Google Maps
             </Button>
           </div>
         </div>

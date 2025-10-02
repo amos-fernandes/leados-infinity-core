@@ -241,20 +241,20 @@ const CampaignResults = () => {
                         return (
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-primary">{stats.total}</div>
-                              <div className="text-sm text-muted-foreground">Total Roteiros</div>
+                              <div className="text-2xl font-bold text-primary">✅</div>
+                              <div className="text-sm text-muted-foreground">Templates Criados</div>
                             </div>
                             <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-success">{stats.whatsappSent}</div>
-                              <div className="text-sm text-muted-foreground">WhatsApp Enviados</div>
+                              <div className="text-2xl font-bold text-success">✅</div>
+                              <div className="text-sm text-muted-foreground">Oportunidades</div>
                             </div>
                             <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-info">{stats.emailsSent}</div>
-                              <div className="text-sm text-muted-foreground">E-mails Enviados</div>
+                              <div className="text-2xl font-bold text-info">3</div>
+                              <div className="text-sm text-muted-foreground">Canais Config.</div>
                             </div>
                             <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-warning">{stats.callsMade}</div>
-                              <div className="text-sm text-muted-foreground">Ligações Feitas</div>
+                              <div className="text-2xl font-bold text-warning">✅</div>
+                              <div className="text-sm text-muted-foreground">CRM Integrado</div>
                             </div>
                           </div>
                         );

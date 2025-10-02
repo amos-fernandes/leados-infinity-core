@@ -35,49 +35,58 @@ export const ProspectCollector: React.FC = () => {
   // Sites Institucionais
   const [websites, setWebsites] = useState('');
   
+  // Redes Sociais
+  const [socialProfiles, setSocialProfiles] = useState('');
+  const [socialPlatform, setSocialPlatform] = useState<'instagram' | 'facebook'>('instagram');
+  
   // Validação WhatsApp
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [numbersToValidate, setNumbersToValidate] = useState('');
   const [validatedNumbers, setValidatedNumbers] = useState<any[]>([]);
 
-  const collectFromAgnoAgent = async () => {
+  const collectFromGoogleMaps = async () => {
+    if (!mapsQuery.trim() || !mapsLocation.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite o termo de busca e localização para Google Maps",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setProgress(25);
       
-      const { data, error } = await supabase.functions.invoke('agno-prospect-collector', {
+      const { data, error } = await supabase.functions.invoke('google-maps-scraper', {
         body: {
+          searchQuery: mapsQuery,
+          location: mapsLocation,
           userId: user?.id,
-          filters: {
-            uf: 'GO',
-            municipio: 'GOIANIA',
-            excludeMEI: true,
-            situacao: 'ATIVA'
-          },
-          campaignId: 'agno-agent-' + Date.now()
+          maxResults: 20
         }
       });
 
       if (error) throw error;
 
       const result: CollectorResult = {
-        type: 'Agno + Bright Data (Híbrido)',
+        type: 'Google Maps (API Oficial)',
         success: data.success,
-        leads: data.data?.leads || [],
-        message: data.message || `${data.data?.leads_collected || 0} leads enriquecidos coletados`,
+        leads: data.leads || [],
+        message: data.message || `${data.leads?.length || 0} leads coletados do Google Maps`,
         error: data.error
       };
 
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "🤖 Agno Agent",
+        title: "🗺️ Google Maps",
         description: result.message,
         variant: result.success ? "default" : "destructive"
       });
 
     } catch (error: any) {
       const result: CollectorResult = {
-        type: 'Agno + Bright Data (Híbrido)',
+        type: 'Google Maps (API Oficial)',
         success: false,
         leads: [],
         message: 'Erro na coleta',
@@ -87,7 +96,7 @@ export const ProspectCollector: React.FC = () => {
       setResults(prev => [...prev, result]);
       
       toast({
-        title: "Erro - Agno + Bright Data",
+        title: "Erro - Google Maps",
         description: error.message,
         variant: "destructive"
       });
@@ -156,6 +165,55 @@ export const ProspectCollector: React.FC = () => {
       
       toast({
         title: "Erro - Sites",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const collectFromSocialMedia = async () => {
+    if (!socialProfiles.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite pelo menos um perfil de rede social",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setProgress(30);
+      
+      const profiles = socialProfiles.split('\n').map(p => p.trim()).filter(Boolean);
+      
+      const { data, error } = await supabase.functions.invoke('scrape-social-media', {
+        body: {
+          profiles: profiles,
+          platform: socialPlatform,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      const result: CollectorResult = {
+        type: `${socialPlatform === 'instagram' ? 'Instagram' : 'Facebook'} (Apify)`,
+        success: data.success,
+        leads: data.leads || [],
+        message: data.message || `${data.stats?.totalSaved || 0} perfis salvos`,
+      };
+
+      setResults(prev => [...prev, result]);
+      
+      toast({
+        title: `✅ ${socialPlatform === 'instagram' ? 'Instagram' : 'Facebook'}`,
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Erro - Redes Sociais",
         description: error.message,
         variant: "destructive"
       });
@@ -234,8 +292,8 @@ export const ProspectCollector: React.FC = () => {
     setResults([]);
     
     try {
-      // Executar Agno Agent como método principal
-      await collectFromAgnoAgent();
+      // Executar Google Maps como método principal
+      await collectFromGoogleMaps();
       
       setProgress(60);
       
@@ -248,7 +306,7 @@ export const ProspectCollector: React.FC = () => {
       
       toast({
         title: "Coleta Finalizada",
-        description: "Agno Agent executado com sucesso",
+        description: "Google Maps executado com sucesso",
         variant: "default"
       });
 
@@ -269,9 +327,9 @@ export const ProspectCollector: React.FC = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">🤖 Agno + Bright Data Collector</h1>
+          <h1 className="text-3xl font-bold">🗺️ Google Maps + Sites Collector</h1>
           <p className="text-muted-foreground">
-            Coleta oficial da Receita Federal + enriquecimento inteligente com Bright Data
+            Coleta oficial do Google Maps + scraping de sites institucionais
           </p>
         </div>
         
@@ -282,13 +340,13 @@ export const ProspectCollector: React.FC = () => {
         >
           {isCollecting ? (
             <>
-              <Zap className="w-4 h-4 mr-2 animate-spin" />
-              Agno Coletando...
+              <MapPin className="w-4 h-4 mr-2 animate-spin" />
+              Coletando...
             </>
           ) : (
             <>
-              <Zap className="w-4 h-4 mr-2" />
-              Iniciar Agno Agent
+              <MapPin className="w-4 h-4 mr-2" />
+              Iniciar Coleta
             </>
           )}
         </Button>
@@ -311,8 +369,8 @@ export const ProspectCollector: React.FC = () => {
       <Tabs defaultValue="agno-agent" className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agno-agent" className="flex items-center gap-2">
-            <Zap className="w-4 h-4" />
-            🤖 Agno + Bright Data
+            <MapPin className="w-4 h-4" />
+            🗺️ Google Maps
           </TabsTrigger>
           <TabsTrigger value="websites" className="flex items-center gap-2">
             <Globe className="w-4 h-4" />
@@ -332,66 +390,74 @@ export const ProspectCollector: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                🤖 Agno + Bright Data - Coleta Inteligente
+                <MapPin className="w-5 h-5" />
+                🗺️ Google Maps - Coleta Oficial
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Estado</Label>
-                  <Input value="GO - Goiás" disabled />
+                  <Label>Termo de Busca</Label>
+                  <Input 
+                    value={mapsQuery}
+                    onChange={(e) => setMapsQuery(e.target.value)}
+                    placeholder="Ex: restaurante, advogado, clínica"
+                  />
                 </div>
                 <div>
-                  <Label>Município</Label>
-                  <Input value="GOIÂNIA" disabled />
+                  <Label>Localização</Label>
+                  <Input 
+                    value={mapsLocation}
+                    onChange={(e) => setMapsLocation(e.target.value)}
+                    placeholder="Ex: Goiânia, GO"
+                  />
                 </div>
               </div>
               
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold mb-2 text-blue-900">🔥 Recursos Avançados Agno + Bright Data:</h4>
+                <h4 className="font-semibold mb-2 text-blue-900">🔥 Recursos Google Maps API Oficial:</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Dados oficiais Receita Federal
+                    Dados oficiais Google Maps
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Enriquecimento Bright Data
+                    Telefones e websites reais
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Websites e redes sociais
+                    Avaliações e endereços
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Estimativa de funcionários
+                    WhatsApp identificado
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Score BANT avançado (A+)
+                    Leads qualificados automaticamente
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
-                    Canais de contato verificados
+                    Dados de contato verificados
                   </div>
                 </div>
               </div>
               
               <Button 
-                onClick={collectFromAgnoAgent}
+                onClick={collectFromGoogleMaps}
                 disabled={isCollecting}
                 className="w-full bg-gradient-primary hover:opacity-90"
               >
-                <Zap className="w-4 h-4 mr-2" />
-                Iniciar Coleta Inteligente
+                <MapPin className="w-4 h-4 mr-2" />
+                Iniciar Coleta Google Maps
               </Button>
               
               <div className="text-sm text-muted-foreground">
-                <p>• <strong>Fase 1:</strong> Coleta dados oficiais da Receita Federal</p>
-                <p>• <strong>Fase 2:</strong> Enriquece com Bright Data (websites, funcionários, redes sociais)</p>
-                <p>• <strong>Fase 3:</strong> Qualificação BANT avançada com score A+</p>
-                <p>• <strong>Resultado:</strong> Leads premium com múltiplos canais de contato</p>
+                <p>• <strong>Fase 1:</strong> Busca no Google Maps usando API oficial</p>
+                <p>• <strong>Fase 2:</strong> Coleta telefones, websites e avaliações</p>
+                <p>• <strong>Fase 3:</strong> Identifica WhatsApp e dados de contato</p>
+                <p>• <strong>Resultado:</strong> Leads reais com dados verificados</p>
               </div>
             </CardContent>
           </Card>
@@ -440,11 +506,11 @@ export const ProspectCollector: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Instagram className="w-5 h-5" />
-                Instagram & Facebook
+                Instagram & Facebook - Coleta Avançada
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-2 text-purple-800 mb-3">
                   <Instagram className="w-5 h-5" />
                   <span className="font-semibold">🚀 Recursos Avançados de Redes Sociais</span>
@@ -467,15 +533,15 @@ export const ProspectCollector: React.FC = () => {
                   
                   <div className="space-y-2">
                     <h4 className="font-semibold text-purple-900 flex items-center gap-2">
-                      <Facebook className="w-4 h-4" />
-                      PhantomBuster Automation
+                      <Zap className="w-4 h-4" />
+                      APIs de Enriquecimento
                     </h4>
                     <ul className="text-sm text-purple-700 space-y-1">
-                      <li>• Automação inteligente de coleta</li>
-                      <li>• Bypass de limitações de API</li>
-                      <li>• Extração de dados de páginas comerciais</li>
+                      <li>• Hunter.io para busca de emails</li>
+                      <li>• Abstract API para validação</li>
+                      <li>• Extração de WhatsApp da bio</li>
                       <li>• Análise de engajamento</li>
-                      <li>• Coleta de informações de contato</li>
+                      <li>• Identificação automática de comerciais</li>
                     </ul>
                   </div>
                 </div>
@@ -485,7 +551,7 @@ export const ProspectCollector: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-3 h-3 text-green-600" />
-                      Perfis verificados
+                      Perfis verificados ✓
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-3 h-3 text-green-600" />
@@ -501,16 +567,73 @@ export const ProspectCollector: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
-                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-yellow-800 mb-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="font-semibold text-sm">Status: Em Desenvolvimento</span>
-                  </div>
-                  <p className="text-xs text-yellow-700">
-                    Funcionalidade em fase final de implementação. Disponível em breve.
-                  </p>
+              </div>
+
+              <div>
+                <Label>Selecione a Plataforma *</Label>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant={socialPlatform === 'instagram' ? 'default' : 'outline'}
+                    onClick={() => setSocialPlatform('instagram')}
+                    className="flex-1"
+                  >
+                    <Instagram className="w-4 h-4 mr-2" />
+                    Instagram
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={socialPlatform === 'facebook' ? 'default' : 'outline'}
+                    onClick={() => setSocialPlatform('facebook')}
+                    className="flex-1"
+                  >
+                    <Facebook className="w-4 h-4 mr-2" />
+                    Facebook
+                  </Button>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="social-profiles">
+                  URLs dos Perfis {socialPlatform === 'instagram' ? 'Instagram' : 'Facebook'} *
+                </Label>
+                <Textarea
+                  id="social-profiles"
+                  placeholder={socialPlatform === 'instagram' 
+                    ? "Digite uma URL por linha:\nhttps://www.instagram.com/empresa1/\nhttps://www.instagram.com/empresa2/"
+                    : "Digite uma URL por linha:\nhttps://www.facebook.com/empresa1\nhttps://www.facebook.com/empresa2"
+                  }
+                  value={socialProfiles}
+                  onChange={(e) => setSocialProfiles(e.target.value)}
+                  rows={6}
+                />
+              </div>
+              
+              <Button 
+                onClick={collectFromSocialMedia}
+                disabled={isCollecting || !socialProfiles.trim()}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {isCollecting ? (
+                  <>
+                    <Zap className="w-4 h-4 mr-2 animate-pulse" />
+                    Coletando Perfis...
+                  </>
+                ) : (
+                  <>
+                    {socialPlatform === 'instagram' ? <Instagram className="w-4 h-4 mr-2" /> : <Facebook className="w-4 h-4 mr-2" />}
+                    Iniciar Coleta Avançada
+                  </>
+                )}
+              </Button>
+              
+              <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+                <p className="font-semibold mb-2">🎯 Como funciona:</p>
+                <p>• <strong>Apify Scraper:</strong> Extrai dados completos do perfil</p>
+                <p>• <strong>Filtragem Inteligente:</strong> Identifica perfis comerciais e verificados</p>
+                <p>• <strong>Hunter.io:</strong> Busca emails profissionais por domínio</p>
+                <p>• <strong>Abstract API:</strong> Valida emails encontrados</p>
+                <p>• <strong>WhatsApp Detection:</strong> Extrai links wa.me e api.whatsapp.com</p>
               </div>
             </CardContent>
           </Card>

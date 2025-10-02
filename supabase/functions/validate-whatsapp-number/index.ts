@@ -87,7 +87,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error validating WhatsApp number:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       valid: false
     }), {
       status: 500,

@@ -76,7 +76,12 @@ serve(async (req) => {
     const prompt = `
     Você é um especialista em inteligência de mercado focado em prospecção B2B para uma analise contábil e tributária especializada em medias empresas na cidade de goiania, estado de Goias.
 
-    Sua tarefa é identificar EXATAMENTE 50 prospects de alto potencial nas seguintes áreas:
+    REGRAS OBRIGATÓRIAS DE FILTRO:
+    1. NUNCA incluir empresas MEI (Microempreendedor Individual)
+    2. APENAS empresas com faturamento anual até R$ 1.000.000,00 (um milhão de reais)
+    3. Focar em empresas EPP (Empresa de Pequeno Porte) e DEMAIS
+    
+    Sua tarefa é identificar EXATAMENTE 50 prospects de alto potencial que atendam TODOS os critérios acima nas seguintes áreas:
 KNOWLEDGE BASE - CAMPANHAS DE PROSPECÇÃO
 Sistema Integrado CRM + WhatsApp + E-mail + IA
 
@@ -100,7 +105,15 @@ Setores de Atuação Prioritários
 
 Todo e qualquer setor com CNPJ ativo (nacional)
 
-Exclusões: MEI e terceiro setor
+EXCLUSÕES OBRIGATÓRIAS:
+- MEI (Microempreendedor Individual) - NUNCA INCLUIR
+- Terceiro setor
+- Empresas com faturamento acima de R$ 1.000.000,00/ano
+
+PERFIL IDEAL:
+- EPP (Empresa de Pequeno Porte) ou DEMAIS
+- Faturamento anual: R$ 100.000,00 até R$ 1.000.000,00
+- CNPJ ativo e regularizado
 
 ESTRATÉGIAS DE PROSPECÇÃO
 
@@ -108,13 +121,15 @@ ESTRATÉGIAS DE PROSPECÇÃO
 
 Metodologia BANT Adaptada
 
-Budget: Sem exigência de faturamento mínimo
+Budget: Faturamento entre R$ 100.000,00 e R$ 1.000.000,00/ano (OBRIGATÓRIO)
 
 Authority: Dono ou sócio da empresa (decisor obrigatório)
 
 Need: Necessidade de crédito (sujeito a análise) e redução de custos bancários
 
 Timing: Interesse imediato em abertura de conta, migração ou redução de custos
+
+IMPORTANTE: Cada prospect gerado DEVE ter faturamento estimado dentro do limite de R$ 1.000.000,00
 
 Ganchos de Prospecção (Fontes Auditáveis)
 
@@ -420,7 +435,8 @@ Alterações em políticas do C6 Bank PJ
       console.log('Successfully parsed JSON, prospects count:', prospectsData?.prospects?.length || 0);
       
     } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
+      const errorMessage = parseError instanceof Error ? parseError.message : 'Erro de parsing desconhecido';
+      console.error('JSON parse error:', errorMessage);
       console.error('Content that failed to parse:', content.substring(0, 500) + '...');
       if (cleanedContent) {
         console.error('Cleaned content length:', cleanedContent.length);
@@ -498,7 +514,8 @@ Alterações em políticas do C6 Bank PJ
           throw new Error('Could not find prospects array in response');
         }
       } catch (altParseError) {
-        console.error('Alternative parsing also failed:', altParseError.message);
+        const altErrorMessage = altParseError instanceof Error ? altParseError.message : 'Erro de parsing alternativo desconhecido';
+        console.error('Alternative parsing also failed:', altErrorMessage);
         throw new Error('Resposta inválida da IA. A resposta não está em formato JSON válido.');
       }
     }
@@ -509,8 +526,15 @@ Alterações em políticas do C6 Bank PJ
 
     console.log('Saving to database...');
     
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Configuração do Supabase não encontrada');
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const leadsToInsert = prospectsData.prospects.map((prospect) => ({
+    const leadsToInsert = prospectsData.prospects.map((prospect: any) => ({
       user_id: userId,
       empresa: prospect.empresa,
       setor: prospect.setor,
@@ -532,7 +556,7 @@ Alterações em políticas do C6 Bank PJ
     }
     
     // Salvar nos contatos
-    const contactsToInsert = prospectsData.prospects.map((prospect) => ({
+    const contactsToInsert = prospectsData.prospects.map((prospect: any) => ({
       user_id: userId,
       nome: prospect.contato_decisor,
       empresa: prospect.empresa,
@@ -559,9 +583,10 @@ Alterações em políticas do C6 Bank PJ
     });
   } catch (error) {
     console.error('Error in generate-prospects function:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: errorMessage || 'Erro interno do servidor'
     }), {
       status: 500,
       headers: {
