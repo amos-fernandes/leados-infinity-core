@@ -62,7 +62,7 @@ class EmailService {
       if (empresaNormalizada && scriptEmpresaNormalizada === empresaNormalizada && 
           lead.email && lead.site_url) {
         const emailDomain = lead.email.split('@')[1];
-        const siteDomain = lead.site_url?.replace(/^https?:\/\/i, '').split('/')[0];
+        const siteDomain = lead.site_url?.replace(/^https?:\/\//i, '').split('/')[0];
         if (emailDomain === siteDomain) {
           return { lead, matchReason: 'Empresa + Email Domain (exato)', similarity: 1.0 };
         }
