@@ -183,44 +183,44 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     try {
       setLoading(true);
 
-      // Buscar leads novos
-      const { data: newLeads, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'novo');
-
-      if (error) throw error;
-
-      let qualifiedCount = 0;
-
-      for (const lead of newLeads || []) {
-        // Qualificar baseado no regime tributário e gancho de prospecção
-        const shouldQualify = (
-          lead.regime_tributario?.includes('Lucro Real') || 
-          lead.gancho_prospeccao?.includes('ICMS') ||
-          lead.gancho_prospeccao?.includes('créditos') ||
-          lead.gancho_prospeccao?.includes('tributário')
-        );
-
-        if (shouldQualify) {
-          const { error: updateError } = await supabase
-            .from('leads')
-            .update({ status: 'qualificado' })
-            .eq('id', lead.id);
-
-          if (!updateError) {
-            qualifiedCount++;
-          }
+      console.log('🚀 Iniciando motor de qualificação completo...');
+      
+      // Chamar o motor de qualificação otimizado
+      const { data, error } = await supabase.functions.invoke('qualification-engine', {
+        body: { 
+          criteria: {
+            requiredUfs: ['SP', 'RJ', 'SC', 'PR', 'MG', 'GO'],
+            excludedSituacoes: ['BAIXADA', 'SUSPENSA', 'INAPTA'],
+            minCapitalSocial: 10000
+          },
+          batchSize: 10,
+          userId: user.id
         }
+      });
+
+      if (error) {
+        console.error('Erro ao qualificar:', error);
+        throw error;
       }
 
-      toast.success(`${qualifiedCount} leads qualificados automaticamente!`);
+      console.log('✅ Qualificação concluída:', data);
+
+      if (data.processed > 0) {
+        toast.success(
+          `${data.qualified} leads qualificados de ${data.processed} processados!\n` +
+          `✅ WhatsApp validado\n` +
+          `🌐 Websites analisados\n` +
+          `🏢 Dados enriquecidos`
+        );
+      } else {
+        toast.info('Nenhum lead novo encontrado para processar.');
+      }
+
       loadFunnelStats();
       onStatsUpdate();
     } catch (error) {
       console.error('Erro na qualificação automática:', error);
-      toast.error('Erro na qualificação automática');
+      toast.error('Erro ao executar qualificação de leads');
     } finally {
       setLoading(false);
     }
