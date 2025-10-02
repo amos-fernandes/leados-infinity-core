@@ -120,7 +120,83 @@ serve(async (req) => {
           }
         }
 
-        // === ESTAÇÃO 2: ENRIQUECIMENTO CNPJ ===
+        // === ESTAÇÃO 2: VALIDAÇÃO DE WHATSAPP ===
+        if (currentLead.telefone || currentLead.whatsapp) {
+          console.log('📱 Iniciando validação de WhatsApp...');
+          
+          const phoneToValidate = currentLead.whatsapp || currentLead.telefone;
+          try {
+            const whatsappResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/validate-whatsapp-number`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                phone: phoneToValidate,
+                phoneNumberId: Deno.env.get('PHONE_NUMBER_ID') || '5562991792303'
+              }),
+            });
+
+            if (whatsappResponse.ok) {
+              const whatsappResult = await whatsappResponse.json();
+              if (whatsappResult.valid) {
+                await supabase
+                  .from('leads')
+                  .update({ 
+                    whatsapp_business: whatsappResult.phone,
+                    whatsapp: whatsappResult.phone 
+                  })
+                  .eq('id', lead.id);
+                console.log(`✅ WhatsApp validado: ${whatsappResult.phone}`);
+              } else {
+                console.log('⚠️ Número não possui WhatsApp ativo');
+              }
+            }
+          } catch (error) {
+            console.error('⚠️ Erro na validação de WhatsApp:', (error as Error).message);
+          }
+        }
+
+        // === ESTAÇÃO 3: ANÁLISE DE WEBSITE ===
+        if (currentLead.website && !currentLead.website_validated) {
+          console.log('🌐 Iniciando análise de website...');
+          
+          try {
+            const websiteResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/scrape-contact-info`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                website: currentLead.website,
+                leadId: lead.id,
+                userId: currentLead.user_id
+              }),
+            });
+
+            if (websiteResponse.ok) {
+              const websiteResult = await websiteResponse.json();
+              console.log('✅ Website analisado e dados atualizados');
+              
+              // Reload lead data
+              const { data: updatedLead } = await supabase
+                .from('leads')
+                .select('*')
+                .eq('id', lead.id)
+                .single();
+              
+              if (updatedLead) {
+                currentLead = updatedLead;
+              }
+            }
+          } catch (error) {
+            console.error('⚠️ Erro na análise de website:', (error as Error).message);
+          }
+        }
+
+        // === ESTAÇÃO 4: ENRIQUECIMENTO CNPJ ===
         // Check if we have CNPJ data or try to extract from company name
         if (!currentLead.cnpj && !currentLead.tech_stack?.codigo_cnae) {
           console.log('🏢 Dados de CNPJ não encontrados, tentando extrair...');
@@ -164,7 +240,7 @@ serve(async (req) => {
           }
         }
 
-        // === ESTAÇÃO 3: VALIDAÇÃO E QUALIFICAÇÃO ===
+        // === ESTAÇÃO 5: VALIDAÇÃO E QUALIFICAÇÃO ===
         console.log('🎯 Iniciando validação de critérios...');
         
         // Set default criteria if none provided
