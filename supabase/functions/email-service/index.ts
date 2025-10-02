@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import sgMail from "npm:@sendgrid/mail";
+import { compareTwoStrings } from "npm:string-similarity@4.0.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
