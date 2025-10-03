@@ -258,20 +258,59 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     reader.onload = async (e) => {
       const text = e.target?.result as string;
       
+      // Detectar separador: tab, ponto-e-vírgula ou vírgula
       const isTabSeparated = text.includes('\t');
-      const separator = isTabSeparated ? '\t' : ',';
+      const isSemicolonSeparated = text.includes(';');
+      const separator = isTabSeparated ? '\t' : (isSemicolonSeparated ? ';' : ',');
       
       const lines = text.split('\n').filter(line => line.trim());
       const newLeads = [];
       
-      for (const line of lines) {
-        const columns = line.split(separator);
+      // Detectar se primeira linha é cabeçalho
+      const firstLine = lines[0]?.toLowerCase() || '';
+      const hasHeader = firstLine.includes('cnpj') || 
+                        firstLine.includes('empresa') || 
+                        firstLine.includes('razão social') ||
+                        firstLine.includes('razao social');
+      
+      const dataLines = hasHeader ? lines.slice(1) : lines;
+      
+      for (const line of dataLines) {
+        const columns = line.split(separator).map(col => col.trim());
         
         if (columns.length < 2) continue;
         
         let leadData;
         
-        if (isTabSeparated) {
+        // Formato: CNPJ;Razão Social;socio;celular
+        if (isSemicolonSeparated && columns.length === 4) {
+          const cnpj = columns[0] || '';
+          const razaoSocial = columns[1] || '';
+          const socio = columns[2] || '';
+          const celular = columns[3] || '';
+          
+          // Formatar telefone brasileiro
+          const telefoneFormatado = celular.replace(/\D/g, '');
+          const telefoneCompleto = telefoneFormatado.startsWith('55') 
+            ? `+${telefoneFormatado}` 
+            : telefoneFormatado.length >= 10 
+              ? `+55${telefoneFormatado}` 
+              : telefoneFormatado;
+          
+          leadData = {
+            empresa: razaoSocial,
+            cnpj: cnpj,
+            contato_decisor: socio,
+            telefone: telefoneCompleto,
+            whatsapp: telefoneCompleto,
+            status: 'qualificado',
+            qualification_level: 'high',
+            qualification_score: '80',
+            gancho_prospeccao: `Lead qualificado - ${socio} - ${razaoSocial}`
+          };
+        }
+        // Formato separado por tabs
+        else if (isTabSeparated) {
           leadData = {
             empresa: columns[0]?.trim() || '',
             setor: columns[4]?.trim() || '',
@@ -282,7 +321,9 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
             status: columns[5]?.toLowerCase().includes('ativa') ? 'ativo' : 'inativo',
             gancho_prospeccao: generateProspectingHook(columns[0]?.trim() || '', columns[4]?.trim() || '', columns[2]?.trim() || '')
           };
-        } else {
+        }
+        // Formato separado por vírgulas (formato antigo)
+        else {
           leadData = {
             empresa: columns[1]?.trim() || '',
             setor: columns[2]?.trim() || '',
@@ -297,11 +338,12 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
           };
         }
         
+        // Verificar se empresa existe e tem nome válido
         const exists = leads.some(lead => 
           lead.empresa.toLowerCase() === leadData.empresa.toLowerCase()
         );
         
-        if (!exists && leadData.empresa) {
+        if (!exists && leadData.empresa && leadData.empresa.length > 2) {
           newLeads.push(leadData);
         }
       }
@@ -310,7 +352,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
         await importLeads(newLeads);
         toast.success(`${newLeads.length} leads importados com sucesso!`);
       } else {
-        toast.error('Nenhum lead novo encontrado para importar');
+        toast.error('Nenhum registro válido encontrado no arquivo');
       }
     };
     
