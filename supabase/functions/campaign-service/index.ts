@@ -67,18 +67,20 @@ class CampaignService {
     };
 
     try {
-      // 1. Buscar leads qualificados para a campanha
+      // 1. Buscar leads qualificados para a campanha (LIMITADO A 100 POR VEZ)
+      const MAX_LEADS_PER_RUN = 100;
       const { data: leads } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
-        .in('status', ['qualificado', 'contatado', 'novo']);
+        .in('status', ['qualificado', 'contatado', 'novo'])
+        .limit(MAX_LEADS_PER_RUN);
 
       if (!leads || leads.length === 0) {
         throw new Error('Nenhum lead disponível para campanha');
       }
 
-      console.log(`Encontrados ${leads.length} leads para processar`);
+      console.log(`Encontrados ${leads.length} leads para processar (máx ${MAX_LEADS_PER_RUN} por execução)`);
 
       // 2. Gerar scripts personalizados
       console.log('📝 Gerando scripts personalizados...');
@@ -249,46 +251,79 @@ class CampaignService {
     // O email-service já cuida de tudo: validação, envio, registro de interações
   }
 
-  // Gerar scripts personalizados com IA
+  // Gerar scripts personalizados com IA (OTIMIZADO PARA LOTES)
   async generateCampaignScripts(campaignId: string, leads: any[]) {
+    console.log(`📝 Iniciando geração de scripts para ${leads.length} leads`);
     const scripts = [];
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const BATCH_SIZE = 50; // Processar 50 leads por vez
+    const MAX_EXECUTION_TIME = 120000; // 120 segundos máximo
+    const startTime = Date.now();
 
-    for (const lead of leads) {
-      try {
-        let script;
-        
-        if (geminiApiKey) {
-          script = await this.generateAIScript(lead, geminiApiKey);
-        } else {
-          script = this.generateTemplateScript(lead);
+    // Processar em lotes
+    for (let i = 0; i < leads.length; i += BATCH_SIZE) {
+      // Verificar timeout
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        console.warn(`⚠️  Timeout atingido. Processados ${scripts.length}/${leads.length} scripts`);
+        break;
+      }
+
+      const batch = leads.slice(i, i + BATCH_SIZE);
+      console.log(`📦 Processando lote ${Math.floor(i/BATCH_SIZE) + 1}: ${batch.length} leads`);
+
+      // Processar lote em paralelo (mais rápido)
+      const batchPromises = batch.map(async (lead) => {
+        try {
+          let script;
+          
+          // Preferir template (mais rápido) se não tiver API key
+          if (geminiApiKey && Math.random() > 0.7) { // Usar IA apenas 30% das vezes para economizar tempo
+            script = await this.generateAIScript(lead, geminiApiKey);
+          } else {
+            script = this.generateTemplateScript(lead);
+          }
+
+          return {
+            campaign_id: campaignId,
+            empresa: lead.empresa,
+            roteiro_ligacao: script.callScript,
+            assunto_email: script.emailSubject,
+            modelo_email: script.emailTemplate
+          };
+        } catch (error) {
+          console.error(`❌ Erro ao gerar script para ${lead.empresa}:`, error);
+          return null;
         }
+      });
 
-        const scriptData = {
-          campaign_id: campaignId,
-          empresa: lead.empresa,
-          roteiro_ligacao: script.callScript,
-          assunto_email: script.emailSubject,
-          modelo_email: script.emailTemplate
-        };
+      const batchResults = await Promise.all(batchPromises);
+      const validScripts = batchResults.filter(s => s !== null);
+      scripts.push(...validScripts);
 
-        scripts.push(scriptData);
-      } catch (error) {
-        console.error(`Erro ao gerar script para ${lead.empresa}:`, error);
+      // Inserir lote no banco imediatamente
+      if (validScripts.length > 0) {
+        try {
+          const { error } = await this.supabase
+            .from('campaign_scripts')
+            .insert(validScripts);
+
+          if (error) {
+            console.error('❌ Erro ao inserir lote de scripts:', error);
+          } else {
+            console.log(`✅ Lote inserido: ${validScripts.length} scripts`);
+          }
+        } catch (insertError) {
+          console.error('❌ Erro crítico ao inserir scripts:', insertError);
+        }
+      }
+
+      // Pequeno delay entre lotes para evitar sobrecarga
+      if (i + BATCH_SIZE < leads.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
-    // Inserir scripts no banco
-    if (scripts.length > 0) {
-      const { error } = await this.supabase
-        .from('campaign_scripts')
-        .insert(scripts);
-
-      if (error) {
-        console.error('Erro ao inserir scripts:', error);
-      }
-    }
-
+    console.log(`✅ Geração de scripts finalizada: ${scripts.length}/${leads.length} criados`);
     return scripts;
   }
 
