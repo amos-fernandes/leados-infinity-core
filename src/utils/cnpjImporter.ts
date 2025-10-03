@@ -20,6 +20,7 @@ export interface CNPJRecord {
   estado: string;
   cep: string;
   atividade_principal: string;
+  socio?: string; // Campo opcional para nome do sócio
 }
 
 // Limpa e formata telefone brasileiro
@@ -118,6 +119,7 @@ export async function parseCNPJCSV(fileContent: string): Promise<CNPJRecord[]> {
       records.push({
         cnpj: values[0],
         razao_social: values[1],
+        socio: values[2] || '', // NOME DO SÓCIO da coluna 3
         porte: 'Não informado',
         capital_social: '0',
         natureza_juridica: 'Não informado',
@@ -222,7 +224,7 @@ export async function importCNPJToLeads(
         qualification_level: 'high',
         capital_social: record.capital_social ? parseFloat(record.capital_social.replace(/[^\d,]/g, '').replace(',', '.')) : null,
         gancho_prospeccao: `Empresa ativa no setor de ${determineSetor(record.atividade_principal)}`,
-        contato_decisor: null,
+        contato_decisor: record.socio || null, // MAPEAR SÓCIO PARA CONTATO_DECISOR
         qualification_score: '80', // Score alto para leads importados
         google_maps_verified: false,
         website_validated: false,
