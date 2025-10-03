@@ -66,38 +66,78 @@ function determineRegimeTributario(porte: string): string {
 export async function parseCNPJCSV(fileContent: string): Promise<CNPJRecord[]> {
   const lines = fileContent.split('\n').filter(line => line.trim());
   
-  // Remove primeira linha (título) e segunda linha (cabeçalhos)
-  const dataLines = lines.slice(2);
+  if (lines.length === 0) return [];
+  
+  // Detectar formato do arquivo
+  const firstLine = lines[0].toLowerCase();
+  const isSimpleFormat = firstLine.includes('cnpj') && firstLine.includes('razão social') || 
+                         firstLine.includes('cnpj') && firstLine.includes('razao social');
   
   const records: CNPJRecord[] = [];
   
-  for (const line of dataLines) {
-    // Split por ponto-e-vírgula, respeitando valores entre aspas
-    const values = line.split(';').map(v => v.trim().replace(/^"|"$/g, ''));
+  // Formato simplificado: CNPJ;Razão Social;socio;celular
+  if (isSimpleFormat) {
+    const dataLines = lines.slice(1); // Pula cabeçalho
     
-    if (values.length < 30) continue; // Linha inválida
+    for (const line of dataLines) {
+      const values = line.split(';').map(v => v.trim().replace(/^"|"$/g, ''));
+      
+      if (values.length < 4) continue; // Linha inválida
+      
+      records.push({
+        cnpj: values[0] || '',
+        razao_social: values[1] || '',
+        porte: 'Não informado',
+        capital_social: '0',
+        natureza_juridica: 'Não informado',
+        data_abertura: '',
+        nome_fantasia: values[1] || '', // Usar razão social como nome fantasia
+        situacao_cadastral: 'Ativa',
+        telefone_principal: values[3] || '',
+        telefone_secundario: '',
+        email: '',
+        logradouro: '',
+        numero: '',
+        complemento: '',
+        bairro: '',
+        cidade: '',
+        estado: '',
+        cep: '',
+        atividade_principal: 'Não informado'
+      });
+    }
+  } 
+  // Formato completo (30+ colunas)
+  else {
+    const dataLines = lines.slice(2); // Remove primeira linha (título) e segunda linha (cabeçalhos)
     
-    records.push({
-      cnpj: values[0],
-      razao_social: values[1],
-      porte: values[3],
-      capital_social: values[4],
-      natureza_juridica: values[6],
-      data_abertura: values[9],
-      nome_fantasia: values[10],
-      situacao_cadastral: values[12],
-      telefone_principal: values[19],
-      telefone_secundario: values[20],
-      email: values[21],
-      logradouro: values[23],
-      numero: values[24],
-      complemento: values[25],
-      bairro: values[26],
-      cidade: values[27],
-      estado: values[28],
-      cep: values[29],
-      atividade_principal: values[33]
-    });
+    for (const line of dataLines) {
+      const values = line.split(';').map(v => v.trim().replace(/^"|"$/g, ''));
+      
+      if (values.length < 30) continue; // Linha inválida
+      
+      records.push({
+        cnpj: values[0],
+        razao_social: values[1],
+        porte: values[3],
+        capital_social: values[4],
+        natureza_juridica: values[6],
+        data_abertura: values[9],
+        nome_fantasia: values[10],
+        situacao_cadastral: values[12],
+        telefone_principal: values[19],
+        telefone_secundario: values[20],
+        email: values[21],
+        logradouro: values[23],
+        numero: values[24],
+        complemento: values[25],
+        bairro: values[26],
+        cidade: values[27],
+        estado: values[28],
+        cep: values[29],
+        atividade_principal: values[33]
+      });
+    }
   }
   
   return records;
