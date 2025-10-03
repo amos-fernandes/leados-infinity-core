@@ -24,8 +24,17 @@ const CampaignManager = () => {
   useEffect(() => {
     if (user) {
       loadCampaigns();
+      
+      // Auto-reload a cada 5 segundos se houver campanhas em execução
+      const interval = setInterval(() => {
+        if (campaigns.some(c => c.status === 'em_execucao')) {
+          loadCampaigns();
+        }
+      }, 5000);
+      
+      return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, campaigns]);
 
   const loadCampaigns = async () => {
     if (!user) return;
@@ -205,7 +214,7 @@ const CampaignManager = () => {
         </Button>
         <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
           <Plus className="h-4 w-4 mr-2" />
-          {isCreating ? 'Criando...' : 'Campanha Completa (4 Fases)'}
+          {isCreating ? 'Iniciando...' : 'Disparar Campanha (Todos os Leads)'}
         </Button>
         <Button 
           onClick={handleLaunchCampaign} 
@@ -228,11 +237,36 @@ const CampaignManager = () => {
             {campaigns.map((campaign) => (
               <div key={campaign.id} className="border rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-semibold">{campaign.name}</h4>
                     <p className="text-sm text-muted-foreground">{campaign.description}</p>
+                    
+                    {/* Mostrar progresso se estiver em execução */}
+                    {campaign.status === 'em_execucao' && campaign.description?.includes('Processando:') && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                          <span className="animate-pulse">🔄</span>
+                          <span>Em andamento...</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${campaign.description.match(/\((\d+)%\)/)?.[1] || 0}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Badge variant="outline">{campaign.status}</Badge>
+                  <Badge variant={
+                    campaign.status === 'ativa' ? 'default' :
+                    campaign.status === 'em_execucao' ? 'secondary' :
+                    campaign.status === 'concluida' ? 'outline' :
+                    'destructive'
+                  }>
+                    {campaign.status === 'em_execucao' ? '🔄 Processando' : campaign.status}
+                  </Badge>
                 </div>
               </div>
             ))}

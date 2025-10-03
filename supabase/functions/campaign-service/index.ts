@@ -50,48 +50,223 @@ class CampaignService {
     return campaign;
   }
 
-  // Executar campanha multi-canal com resiliência a falhas
+  // Executar campanha multi-canal com processamento em background
   async runCampaign(campaignId: string, userId: string) {
-    console.log(`📊 CampaignService: Iniciando campanha resiliente ID: ${campaignId}`);
+    console.log(`📊 CampaignService: Iniciando campanha ID: ${campaignId}`);
     
-    const results: {
-      whatsapp: any;
-      email: any;
-      scripts: any;
-      interactions: any;
-    } = {
-      whatsapp: { successCount: 0, failureCount: 0, errors: [] },
-      email: { successCount: 0, failureCount: 0, errors: [] },
-      scripts: null,
-      interactions: null
-    };
-
     try {
-      // 1. Buscar leads qualificados para a campanha (LIMITADO A 100 POR VEZ)
-      const MAX_LEADS_PER_RUN = 100;
-      const { data: leads } = await this.supabase
+      // 1. Buscar TODOS os leads qualificados
+      const { data: allLeads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
-        .in('status', ['qualificado', 'contatado', 'novo'])
-        .limit(MAX_LEADS_PER_RUN);
+        .in('status', ['qualificado', 'contatado', 'novo']);
 
-      if (!leads || leads.length === 0) {
+      if (leadsError) throw leadsError;
+
+      if (!allLeads || allLeads.length === 0) {
         throw new Error('Nenhum lead disponível para campanha');
       }
 
-      console.log(`Encontrados ${leads.length} leads para processar (máx ${MAX_LEADS_PER_RUN} por execução)`);
+      console.log(`✅ Total de leads encontrados: ${allLeads.length}`);
 
-      // 2. Gerar scripts personalizados
-      console.log('📝 Gerando scripts personalizados...');
-      const scripts = await this.generateCampaignScripts(campaignId, leads);
-      results.scripts = { 
-        status: 'success', 
-        count: scripts.length,
-        details: 'Scripts personalizados criados com IA'
+      // 2. Atualizar campanha com status inicial e total de leads
+      await this.supabase
+        .from('campaigns')
+        .update({ 
+          status: 'em_execucao',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      // 3. PROCESSAR EM BACKGROUND - não aguardar conclusão
+      this.processAllLeadsInBackground(campaignId, userId, allLeads);
+
+      // 4. Retornar imediatamente (processamento continua em background)
+      return {
+        success: true,
+        campaignId,
+        message: `Campanha iniciada! Processando ${allLeads.length} leads em background.`,
+        totalLeads: allLeads.length,
+        status: 'em_execucao'
       };
 
-      // 3. Executar WhatsApp via whatsapp-service
+    } catch (error) {
+      console.error('❌ Erro ao iniciar campanha:', error);
+      
+      await this.supabase
+        .from('campaigns')
+        .update({ status: 'erro' })
+        .eq('id', campaignId);
+
+      throw error;
+    }
+  }
+
+  // Processar todos os leads em background (sem bloquear resposta)
+  private async processAllLeadsInBackground(campaignId: string, userId: string, allLeads: any[]) {
+    const BATCH_SIZE = 25; // Processar 25 leads por vez
+    const totalLeads = allLeads.length;
+    let processedCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    console.log(`🚀 BACKGROUND: Iniciando processamento de ${totalLeads} leads em lotes de ${BATCH_SIZE}`);
+
+    try {
+      // FASE 1: Gerar scripts para todos os leads (rápido, sem IA)
+      console.log('📝 FASE 1/3: Gerando scripts...');
+      const scriptsResult = await this.generateCampaignScriptsFast(campaignId, allLeads);
+      console.log(`✅ Scripts gerados: ${scriptsResult.length}/${totalLeads}`);
+
+      // FASE 2 & 3: Processar lotes de leads (WhatsApp + Email)
+      console.log('📱📧 FASE 2-3/3: Disparando WhatsApp e Email...');
+      
+      for (let i = 0; i < allLeads.length; i += BATCH_SIZE) {
+        const batch = allLeads.slice(i, i + BATCH_SIZE);
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(totalLeads / BATCH_SIZE);
+        
+        console.log(`📦 Processando lote ${batchNumber}/${totalBatches} (${batch.length} leads)`);
+
+        // Processar lote em paralelo
+        const batchPromises = batch.map(async (lead) => {
+          try {
+            // Enviar WhatsApp e Email em paralelo
+            await Promise.all([
+              this.sendWhatsAppForLead(campaignId, userId, lead),
+              this.sendEmailForLead(campaignId, userId, lead)
+            ]);
+            successCount++;
+          } catch (error) {
+            console.error(`❌ Erro ao processar lead ${lead.empresa}:`, error);
+            errorCount++;
+          }
+          processedCount++;
+        });
+
+        await Promise.all(batchPromises);
+
+        // Atualizar progresso da campanha
+        const progressPercent = Math.round((processedCount / totalLeads) * 100);
+        await this.supabase
+          .from('campaigns')
+          .update({ 
+            description: `Processando: ${processedCount}/${totalLeads} leads (${progressPercent}%)`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', campaignId);
+
+        console.log(`📊 Progresso: ${processedCount}/${totalLeads} (${progressPercent}%) - ✅ ${successCount} sucesso, ❌ ${errorCount} erros`);
+
+        // Pequeno delay entre lotes para evitar sobrecarga
+        if (i + BATCH_SIZE < allLeads.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      // Finalizar campanha
+      await this.supabase
+        .from('campaigns')
+        .update({ 
+          status: 'concluida',
+          description: `Concluída! ${successCount}/${totalLeads} enviados com sucesso. ${errorCount} erros.`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      console.log(`🎉 CAMPANHA CONCLUÍDA! Total: ${totalLeads}, Sucesso: ${successCount}, Erros: ${errorCount}`);
+
+    } catch (error) {
+      console.error('❌ ERRO CRÍTICO no processamento em background:', error);
+      
+      await this.supabase
+        .from('campaigns')
+        .update({ 
+          status: 'erro',
+          description: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+    }
+  }
+
+  // Gerar scripts de forma otimizada (só templates, sem IA)
+  private async generateCampaignScriptsFast(campaignId: string, leads: any[]) {
+    const scripts = leads.map(lead => ({
+      campaign_id: campaignId,
+      empresa: lead.empresa,
+      roteiro_ligacao: this.generateTemplateScript(lead).callScript,
+      assunto_email: this.generateTemplateScript(lead).emailSubject,
+      modelo_email: this.generateTemplateScript(lead).emailTemplate
+    }));
+
+    // Inserir em lotes de 100
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < scripts.length; i += BATCH_SIZE) {
+      const batch = scripts.slice(i, i + BATCH_SIZE);
+      await this.supabase.from('campaign_scripts').insert(batch);
+    }
+
+    return scripts;
+  }
+
+  // Enviar WhatsApp para um lead específico
+  private async sendWhatsAppForLead(campaignId: string, userId: string, lead: any) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/whatsapp-service`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`
+        },
+        body: JSON.stringify({
+          action: 'sendSingle',
+          campaignId,
+          userId,
+          lead
+        })
+      });
+
+      if (!response.ok) throw new Error(`WhatsApp error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error(`WhatsApp failed for ${lead.empresa}:`, error);
+      throw error;
+    }
+  }
+
+  // Enviar Email para um lead específico
+  private async sendEmailForLead(campaignId: string, userId: string, lead: any) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/email-service`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`
+        },
+        body: JSON.stringify({
+          action: 'sendSingle',
+          campaignId,
+          userId,
+          lead
+        })
+      });
+
+      if (!response.ok) throw new Error(`Email error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error(`Email failed for ${lead.empresa}:`, error);
+      throw error;
+    }
+
+      // NÃO USADO MAIS - processamento movido para background
       console.log('📱 Chamando whatsapp-service para disparo...');
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -251,80 +426,9 @@ class CampaignService {
     // O email-service já cuida de tudo: validação, envio, registro de interações
   }
 
-  // Gerar scripts personalizados com IA (OTIMIZADO PARA LOTES)
+  // MÉTODO LEGADO - mantido para compatibilidade
   async generateCampaignScripts(campaignId: string, leads: any[]) {
-    console.log(`📝 Iniciando geração de scripts para ${leads.length} leads`);
-    const scripts = [];
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const BATCH_SIZE = 50; // Processar 50 leads por vez
-    const MAX_EXECUTION_TIME = 120000; // 120 segundos máximo
-    const startTime = Date.now();
-
-    // Processar em lotes
-    for (let i = 0; i < leads.length; i += BATCH_SIZE) {
-      // Verificar timeout
-      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-        console.warn(`⚠️  Timeout atingido. Processados ${scripts.length}/${leads.length} scripts`);
-        break;
-      }
-
-      const batch = leads.slice(i, i + BATCH_SIZE);
-      console.log(`📦 Processando lote ${Math.floor(i/BATCH_SIZE) + 1}: ${batch.length} leads`);
-
-      // Processar lote em paralelo (mais rápido)
-      const batchPromises = batch.map(async (lead) => {
-        try {
-          let script;
-          
-          // Preferir template (mais rápido) se não tiver API key
-          if (geminiApiKey && Math.random() > 0.7) { // Usar IA apenas 30% das vezes para economizar tempo
-            script = await this.generateAIScript(lead, geminiApiKey);
-          } else {
-            script = this.generateTemplateScript(lead);
-          }
-
-          return {
-            campaign_id: campaignId,
-            empresa: lead.empresa,
-            roteiro_ligacao: script.callScript,
-            assunto_email: script.emailSubject,
-            modelo_email: script.emailTemplate
-          };
-        } catch (error) {
-          console.error(`❌ Erro ao gerar script para ${lead.empresa}:`, error);
-          return null;
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      const validScripts = batchResults.filter(s => s !== null);
-      scripts.push(...validScripts);
-
-      // Inserir lote no banco imediatamente
-      if (validScripts.length > 0) {
-        try {
-          const { error } = await this.supabase
-            .from('campaign_scripts')
-            .insert(validScripts);
-
-          if (error) {
-            console.error('❌ Erro ao inserir lote de scripts:', error);
-          } else {
-            console.log(`✅ Lote inserido: ${validScripts.length} scripts`);
-          }
-        } catch (insertError) {
-          console.error('❌ Erro crítico ao inserir scripts:', insertError);
-        }
-      }
-
-      // Pequeno delay entre lotes para evitar sobrecarga
-      if (i + BATCH_SIZE < leads.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    console.log(`✅ Geração de scripts finalizada: ${scripts.length}/${leads.length} criados`);
-    return scripts;
+    return this.generateCampaignScriptsFast(campaignId, leads);
   }
 
   // Gerar script com IA (Gemini)
