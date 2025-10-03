@@ -64,34 +64,65 @@ function determineRegimeTributario(porte: string): string {
 }
 
 export async function parseCNPJCSV(fileContent: string): Promise<CNPJRecord[]> {
+  console.log('🔍 Iniciando parse do CSV...');
+  
   const lines = fileContent.split('\n').filter(line => line.trim());
+  console.log(`📊 Total de linhas: ${lines.length}`);
   
-  if (lines.length === 0) return [];
+  if (lines.length === 0) {
+    console.log('❌ Nenhuma linha encontrada');
+    return [];
+  }
   
-  // Detectar formato do arquivo
-  const firstLine = lines[0].toLowerCase();
-  const isSimpleFormat = firstLine.includes('cnpj') && firstLine.includes('razão social') || 
-                         firstLine.includes('cnpj') && firstLine.includes('razao social');
+  // Analisar primeira linha para detectar formato
+  const firstLine = lines[0];
+  const firstLineColumns = firstLine.split(';').length;
+  console.log(`📋 Primeira linha tem ${firstLineColumns} colunas`);
+  console.log(`📝 Primeira linha: ${firstLine.substring(0, 100)}...`);
   
   const records: CNPJRecord[] = [];
   
-  // Formato simplificado: CNPJ;Razão Social;socio;celular
+  // Detectar formato pelo número de colunas
+  // Formato simplificado: 4 colunas (CNPJ;Razão Social;socio;celular)
+  // Formato completo: 30+ colunas
+  const isSimpleFormat = firstLineColumns <= 5;
+  
+  console.log(`✅ Formato detectado: ${isSimpleFormat ? 'SIMPLIFICADO (4 colunas)' : 'COMPLETO (30+ colunas)'}`);
+  
   if (isSimpleFormat) {
-    const dataLines = lines.slice(1); // Pula cabeçalho
+    // Pula cabeçalho (primeira linha)
+    const dataLines = lines.slice(1);
+    console.log(`📦 Processando ${dataLines.length} linhas de dados...`);
     
-    for (const line of dataLines) {
+    for (let i = 0; i < dataLines.length; i++) {
+      const line = dataLines[i];
       const values = line.split(';').map(v => v.trim().replace(/^"|"$/g, ''));
       
-      if (values.length < 4) continue; // Linha inválida
+      // Debug primeira linha de dados
+      if (i === 0) {
+        console.log(`🔎 Primeira linha de dados tem ${values.length} valores:`, values);
+      }
+      
+      // Validar se tem as 4 colunas mínimas
+      if (values.length < 4) {
+        console.log(`⚠️  Linha ${i + 2} ignorada: apenas ${values.length} colunas`);
+        continue;
+      }
+      
+      // Validar se tem CNPJ e razão social válidos
+      if (!values[0] || values[0].length < 14 || !values[1] || values[1].length < 3) {
+        console.log(`⚠️  Linha ${i + 2} ignorada: CNPJ ou razão social inválidos`);
+        continue;
+      }
       
       records.push({
-        cnpj: values[0] || '',
-        razao_social: values[1] || '',
+        cnpj: values[0],
+        razao_social: values[1],
         porte: 'Não informado',
         capital_social: '0',
         natureza_juridica: 'Não informado',
         data_abertura: '',
-        nome_fantasia: values[1] || '', // Usar razão social como nome fantasia
+        nome_fantasia: values[1], // Usar razão social como nome fantasia
         situacao_cadastral: 'Ativa',
         telefone_principal: values[3] || '',
         telefone_secundario: '',
@@ -105,16 +136,25 @@ export async function parseCNPJCSV(fileContent: string): Promise<CNPJRecord[]> {
         cep: '',
         atividade_principal: 'Não informado'
       });
+      
+      // Log progresso a cada 100 registros
+      if ((i + 1) % 100 === 0) {
+        console.log(`✅ Processados ${i + 1} registros...`);
+      }
     }
-  } 
-  // Formato completo (30+ colunas)
-  else {
-    const dataLines = lines.slice(2); // Remove primeira linha (título) e segunda linha (cabeçalhos)
+  } else {
+    // Formato completo
+    const dataLines = lines.slice(2);
+    console.log(`📦 Processando ${dataLines.length} linhas de dados (formato completo)...`);
     
-    for (const line of dataLines) {
+    for (let i = 0; i < dataLines.length; i++) {
+      const line = dataLines[i];
       const values = line.split(';').map(v => v.trim().replace(/^"|"$/g, ''));
       
-      if (values.length < 30) continue; // Linha inválida
+      if (values.length < 30) {
+        console.log(`⚠️  Linha ${i + 3} ignorada: apenas ${values.length} colunas`);
+        continue;
+      }
       
       records.push({
         cnpj: values[0],
@@ -137,9 +177,14 @@ export async function parseCNPJCSV(fileContent: string): Promise<CNPJRecord[]> {
         cep: values[29],
         atividade_principal: values[33]
       });
+      
+      if ((i + 1) % 100 === 0) {
+        console.log(`✅ Processados ${i + 1} registros...`);
+      }
     }
   }
   
+  console.log(`✅ Parse concluído! ${records.length} registros válidos encontrados`);
   return records;
 }
 
