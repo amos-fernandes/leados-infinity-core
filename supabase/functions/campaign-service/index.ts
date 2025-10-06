@@ -183,8 +183,8 @@ class CampaignService {
       const scriptsResult = await this.generateCampaignScriptsFast(campaignId, allLeads);
       console.log(`✅ Scripts gerados: ${scriptsResult.length}/${totalLeads}`);
 
-      // FASE 2 & 3: Processar lotes de leads (WhatsApp + Email)
-      console.log('📱📧 FASE 2-3/3: Disparando WhatsApp e Email...');
+      // FASE 2: Processar lotes de leads (APENAS WhatsApp - Email desabilitado)
+      console.log('📱 FASE 2/3: Disparando WhatsApp...');
       
       for (let i = 0; i < allLeads.length; i += BATCH_SIZE) {
         const batch = allLeads.slice(i, i + BATCH_SIZE);
@@ -193,14 +193,11 @@ class CampaignService {
         
         console.log(`📦 Processando lote ${batchNumber}/${totalBatches} (${batch.length} leads)`);
 
-        // Processar lote em paralelo
+        // Processar lote em paralelo - APENAS WHATSAPP
         const batchPromises = batch.map(async (lead) => {
           try {
-            // Enviar WhatsApp e Email em paralelo
-            await Promise.all([
-              this.sendWhatsAppForLead(campaignId, userId, lead),
-              this.sendEmailForLead(campaignId, userId, lead)
-            ]);
+            // Enviar APENAS WhatsApp (email desabilitado por limite SendGrid)
+            await this.sendWhatsAppForLead(campaignId, userId, lead);
             successCount++;
           } catch (error) {
             console.error(`❌ Erro ao processar lead ${lead.empresa}:`, error);
