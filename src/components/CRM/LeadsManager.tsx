@@ -120,7 +120,8 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
         .from('leads')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10000); // Aumentar limite para 10.000 leads
 
       if (error) throw error;
       setLeads(data || []);

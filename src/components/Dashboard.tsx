@@ -56,11 +56,12 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Buscar leads (prospects ativos)
+      // Buscar leads (prospects ativos) - SEM LIMITAÇÃO
       const { data: leadsData } = await supabase
         .from('leads')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .limit(10000); // Aumentar limite para 10.000 leads
 
       // Buscar oportunidades
       const { data: opportunitiesData } = await supabase
