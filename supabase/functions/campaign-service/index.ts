@@ -57,13 +57,22 @@ class CampaignService {
     try {
       // 1. Buscar leads que AINDA NÃO receberam disparo
       // Buscar empresas que já têm scripts com whatsapp_enviado = true ou email_enviado = true
+      console.log('🔍 Verificando empresas que já receberam disparo...');
       const { data: sentScripts } = await this.supabase
         .from('campaign_scripts')
-        .select('empresa')
+        .select('empresa, whatsapp_enviado, email_enviado, created_at')
         .or('whatsapp_enviado.eq.true,email_enviado.eq.true');
 
       const sentCompanies = new Set((sentScripts || []).map((s: any) => s.empresa));
-      console.log(`📊 Empresas que já receberam disparo: ${sentCompanies.size}`);
+      
+      console.log(`📊 Total de scripts de envio encontrados: ${sentScripts?.length || 0}`);
+      console.log(`📊 Empresas únicas que já receberam disparo: ${sentCompanies.size}`);
+      
+      // Log das primeiras 10 empresas que já receberam (para debug)
+      if (sentScripts && sentScripts.length > 0) {
+        const sample = Array.from(sentCompanies).slice(0, 10);
+        console.log('📋 Amostra de empresas que já receberam:', sample);
+      }
 
       // Buscar TODOS os leads usando paginação (Supabase retorna max ~1000 por query)
       let allLeads: any[] = [];
@@ -101,9 +110,17 @@ class CampaignService {
       // Filtrar apenas leads que NÃO receberam disparo ainda
       const pendingLeads = allLeads.filter(lead => !sentCompanies.has(lead.empresa));
       
+      console.log('\n📊 === RESUMO DO FILTRO DE LEADS ===');
       console.log(`✅ Total de leads no banco: ${allLeads.length}`);
-      console.log(`📩 Leads que já receberam: ${allLeads.length - pendingLeads.length}`);
-      console.log(`⏳ Leads pendentes de disparo: ${pendingLeads.length}`);
+      console.log(`📩 Leads que já receberam disparo: ${allLeads.length - pendingLeads.length}`);
+      console.log(`⏳ Leads NOVOS pendentes de disparo: ${pendingLeads.length}`);
+      console.log('===================================\n');
+      
+      // Log de alguns leads pendentes para conferência
+      if (pendingLeads.length > 0) {
+        const samplePending = pendingLeads.slice(0, 5).map(l => l.empresa);
+        console.log('📋 Primeiros 5 leads que serão processados:', samplePending);
+      }
 
       if (pendingLeads.length === 0) {
         throw new Error('Todos os leads já receberam disparo. Nenhum lead pendente.');
