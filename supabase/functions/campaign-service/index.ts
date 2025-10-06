@@ -126,9 +126,9 @@ class CampaignService {
         throw new Error('Todos os leads já receberam disparo. Nenhum lead pendente.');
       }
 
-      // Limitar a 1000 leads por campanha (próximos 1000 pendentes)
-      const leadsToProcess = pendingLeads.slice(0, 1000);
-      console.log(`🎯 Processando próximos ${leadsToProcess.length} leads pendentes`);
+      // Processar TODOS os leads pendentes (sem limitação)
+      const leadsToProcess = pendingLeads;
+      console.log(`🎯 Processando TODOS os ${leadsToProcess.length} leads pendentes`);
 
       // 2. Atualizar campanha com status inicial e total de leads
       await this.supabase
