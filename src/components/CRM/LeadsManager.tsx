@@ -116,15 +116,34 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10000); // Aumentar limite para 10.000 leads
-
-      if (error) throw error;
-      setLeads(data || []);
+      
+      // Buscar TODOS os leads usando paginação (Supabase limit máximo ~1000 por query)
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      console.log(`✅ Total de leads carregados: ${allLeads.length}`);
+      setLeads(allLeads);
     } catch (error) {
       console.error('Erro ao carregar leads:', error);
       toast.error('Erro ao carregar leads');
