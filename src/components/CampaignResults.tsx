@@ -56,11 +56,14 @@ const CampaignResults = () => {
       // Carregar apenas campanhas (sem scripts para evitar timeout)
       const { data: campaignsData, error } = await supabase
         .from('campaigns')
-        .select('id, name, description, status, target_companies, created_at, user_id')
+        .select('id, name, description, status, target_companies, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao carregar campanhas:', error);
+        throw error;
+      }
 
       // Carregar contagem de scripts por campanha
       const campaignsWithCount = await Promise.all(
