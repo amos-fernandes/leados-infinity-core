@@ -24,17 +24,23 @@ const CampaignManager = () => {
   useEffect(() => {
     if (user) {
       loadCampaigns();
-      
-      // Auto-reload a cada 5 segundos se houver campanhas em execução
+    }
+  }, [user]);
+
+  // Auto-reload separado para campanhas em execução
+  useEffect(() => {
+    if (!user || campaigns.length === 0) return;
+    
+    const hasRunning = campaigns.some(c => c.status === 'em_execucao');
+    
+    if (hasRunning) {
       const interval = setInterval(() => {
-        if (campaigns.some(c => c.status === 'em_execucao')) {
-          loadCampaigns();
-        }
+        loadCampaigns();
       }, 5000);
       
       return () => clearInterval(interval);
     }
-  }, [user, campaigns]);
+  }, [user, campaigns.length, campaigns.some(c => c.status === 'em_execucao')]);
 
   const loadCampaigns = async () => {
     if (!user) return;
