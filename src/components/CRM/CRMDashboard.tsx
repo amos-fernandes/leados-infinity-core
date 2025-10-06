@@ -47,11 +47,34 @@ const CRMDashboard = () => {
     if (!user) return;
 
     try {
-      // Carregar leads
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('status')
-        .eq('user_id', user.id);
+      console.log('📊 CRMDashboard: Carregando estatísticas com paginação...');
+      
+      // Carregar TODOS os leads com paginação
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('status')
+          .eq('user_id', user.id)
+          .range(from, from + pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      const leads = allLeads;
+      console.log(`✅ CRMDashboard: ${leads.length} leads carregados`);
 
       // Carregar contatos
       const { data: contacts } = await supabase

@@ -62,24 +62,36 @@ const Dashboard = () => {
       const pageSize = 1000;
       let hasMore = true;
       
+      console.log('🔄 Dashboard: Iniciando carregamento paginado de leads...');
+      
       while (hasMore) {
-        const { data } = await supabase
+        console.log(`📄 Buscando página: from=${from}, até=${from + pageSize - 1}`);
+        const { data, error } = await supabase
           .from('leads')
           .select('*')
           .eq('user_id', user.id)
           .range(from, from + pageSize - 1);
         
+        if (error) {
+          console.error('❌ Erro ao buscar página de leads:', error);
+          throw error;
+        }
+        
+        console.log(`✅ Página carregada: ${data?.length || 0} leads`);
+        
         if (data && data.length > 0) {
           allLeads = [...allLeads, ...data];
           from += pageSize;
           hasMore = data.length === pageSize;
+          console.log(`📊 Total acumulado: ${allLeads.length} leads, hasMore: ${hasMore}`);
         } else {
           hasMore = false;
+          console.log('🏁 Não há mais leads para carregar');
         }
       }
       
       const leadsData = allLeads;
-      console.log(`📊 Dashboard: Total de leads carregados: ${leadsData.length}`);
+      console.log(`\n✅ DASHBOARD FINAL: ${leadsData.length} leads carregados\n`);
 
       // Buscar oportunidades
       const { data: opportunitiesData } = await supabase

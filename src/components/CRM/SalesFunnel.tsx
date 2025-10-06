@@ -58,14 +58,35 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
 
     try {
       setLoading(true);
+      
+      console.log('📊 SalesFunnel: Carregando estatísticas com paginação...');
 
-      // Carregar estatísticas de leads
-      const { data: leadsData, error: leadsError } = await supabase
-        .from('leads')
-        .select('status')
-        .eq('user_id', user.id);
-
-      if (leadsError) throw leadsError;
+      // Carregar TODOS os leads com paginação
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('status')
+          .eq('user_id', user.id)
+          .range(from, from + pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      const leadsData = allLeads;
+      console.log(`✅ SalesFunnel: ${leadsData.length} leads carregados`);
 
       // Carregar estatísticas de oportunidades
       const { data: opportunitiesData, error: opportunitiesError } = await supabase
@@ -87,6 +108,18 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
       };
 
       setStats(newStats);
+      
+      const totalCalculado = newStats.leads + newStats.contatados + newStats.qualificados + newStats.reunioes + newStats.propostas + newStats.fechamentos;
+      console.log(`✅ SalesFunnel Stats calculados:`, {
+        leads: newStats.leads,
+        contatados: newStats.contatados,
+        qualificados: newStats.qualificados,
+        reunioes: newStats.reunioes,
+        propostas: newStats.propostas,
+        fechamentos: newStats.fechamentos,
+        perdidos: newStats.perdidos,
+        TOTAL: totalCalculado
+      });
     } catch (error) {
       console.error('Erro ao carregar estatísticas do funil:', error);
       toast.error('Erro ao carregar estatísticas do funil');
