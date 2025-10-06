@@ -366,7 +366,7 @@ Crie scripts personalizados para:
 
 EMPRESA: ${lead.empresa}
 SETOR: ${lead.setor || 'Não informado'}
-CONTATO: ${lead.contato_decisor || '[Responsável]'}
+CONTATO: ${lead.contato_decisor || lead.empresa}
 
 PRODUTO: Conta PJ C6 Bank
 BENEFÍCIOS: Conta gratuita, Pix ilimitado, 100 TEDs/boletos grátis, crédito sujeito a análise
@@ -412,7 +412,7 @@ Foque em redução de custos bancários e facilidades operacionais.
   // Script template de fallback
   generateTemplateScript(lead: any) {
     const empresa = lead.empresa || '[EMPRESA]';
-    const contato = lead.contato_decisor || '[Responsável]';
+    const contato = lead.contato_decisor || lead.empresa;
 
     return {
       callScript: `Bom dia, ${contato}. Falo da Infinity, escritório autorizado C6 Bank. Temos uma proposta para reduzir custos bancários da ${empresa} com conta PJ 100% gratuita, Pix ilimitado e 100 TEDs/boletos grátis. Posso enviar os detalhes?`,
