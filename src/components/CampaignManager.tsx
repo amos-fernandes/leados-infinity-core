@@ -64,44 +64,6 @@ const CampaignManager = () => {
     }
   };
 
-  const handleSendTestMessage = async () => {
-    if (!user) return;
-
-    let toastId: string | number | undefined;
-    
-    try {
-      toastId = toast.loading("Enviando mensagem de teste...");
-      console.log('Iniciando envio de teste para 5562981647087');
-      
-      const { data, error } = await supabase.functions.invoke('whatsapp-service', {
-        body: { 
-          action: 'sendTest',
-          userId: user.id,
-          phoneNumber: '5562981647087'
-        }
-      });
-
-      console.log('Resposta whatsapp-service:', { data, error });
-
-      if (toastId) toast.dismiss(toastId);
-
-      if (error) {
-        console.error('Erro na função:', error);
-        toast.error(`Erro ao enviar: ${error.message || 'Erro desconhecido'}`);
-        return;
-      }
-
-      if (data?.success) {
-        toast.success(`✅ Mensagem enviada para 5562981647087! Verifique os logs para detalhes.`);
-      } else {
-        toast.error(`Erro: ${data?.error || 'Falha ao enviar mensagem'}`);
-      }
-    } catch (error: any) {
-      console.error('Erro ao enviar teste:', error);
-      if (toastId) toast.dismiss(toastId);
-      toast.error(`Erro: ${error.message || 'Falha ao enviar mensagem de teste'}`);
-    }
-  };
 
   const handleCreateCampaign = async () => {
     setIsCreating(true);
@@ -267,16 +229,7 @@ const CampaignManager = () => {
             Gerenciar Campanhas
           </CardTitle>
       <div className="flex gap-2">
-        <Button 
-          onClick={handleSendTestMessage} 
-          disabled={isCreating || loading}
-          variant="secondary"
-          size="sm"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          Teste WhatsApp
-        </Button>
-        <Button 
+        <Button
           onClick={handleDispararPendentes} 
           disabled={isCreating || loading}
           className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold"
