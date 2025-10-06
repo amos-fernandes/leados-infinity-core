@@ -194,6 +194,64 @@ const CampaignManager = () => {
     }
   };
 
+  const handleDispararPendentes = async () => {
+    if (!user) return;
+    
+    setIsCreating(true);
+    try {
+      console.log('🚨 DISPARO URGENTE: Enviando para próximos 1000 leads pendentes');
+      
+      // Primeiro, criar uma nova campanha
+      const { data: createData, error: createError } = await supabase.functions.invoke('campaign-service', {
+        body: {
+          action: 'create',
+          userId: user.id,
+          campaignData: {
+            userId: user.id,
+            name: `🚨 Disparo Urgente - ${new Date().toLocaleDateString('pt-BR')}`,
+            description: 'Disparo emergencial para leads pendentes',
+            status: 'ativa'
+          }
+        }
+      });
+
+      if (createError) throw createError;
+      if (!createData?.success) throw new Error(createData?.error || 'Erro ao criar campanha');
+
+      const campaignId = createData.data.id;
+      console.log('Campanha criada:', campaignId);
+
+      // Agora executar a campanha (que buscará apenas leads pendentes)
+      const { data: runData, error: runError } = await supabase.functions.invoke('campaign-service', {
+        body: {
+          action: 'run',
+          userId: user.id,
+          campaignId: campaignId
+        }
+      });
+
+      console.log('Run campaign response:', { runData, runError });
+
+      if (runError) throw runError;
+      if (!runData?.success) throw new Error(runData?.error || 'Erro ao executar campanha');
+
+      toast.success(
+        `🚀 ${runData.data.message}\n` +
+        `📊 Total no banco: ${runData.data.totalInDatabase}\n` +
+        `✅ Já enviados: ${runData.data.alreadySent}\n` +
+        `⏳ Pendentes: ${runData.data.totalPending}\n` +
+        `🎯 Processando agora: ${runData.data.totalLeads}`
+      );
+
+      await loadCampaigns();
+    } catch (error) {
+      console.error('Erro ao disparar para pendentes:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao disparar campanha urgente');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Card className="shadow-soft">
       <CardHeader>
@@ -212,9 +270,17 @@ const CampaignManager = () => {
           <Send className="h-4 w-4 mr-2" />
           Teste WhatsApp
         </Button>
+        <Button 
+          onClick={handleDispararPendentes} 
+          disabled={isCreating || loading}
+          className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          🚨 DISPARAR PENDENTES AGORA
+        </Button>
         <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
           <Plus className="h-4 w-4 mr-2" />
-          {isCreating ? 'Iniciando...' : 'Disparar Campanha (Todos os Leads)'}
+          {isCreating ? 'Iniciando...' : 'Campanha Completa'}
         </Button>
         <Button 
           onClick={handleLaunchCampaign} 
@@ -222,7 +288,7 @@ const CampaignManager = () => {
           variant="outline"
         >
           <Send className="h-4 w-4 mr-2" />
-          Lançar p/ Leads Qualificados
+          Lançar p/ Qualificados
         </Button>
       </div>
         </div>

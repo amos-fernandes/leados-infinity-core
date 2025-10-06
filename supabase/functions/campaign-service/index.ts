@@ -55,12 +55,23 @@ class CampaignService {
     console.log(`📊 CampaignService: Iniciando campanha ID: ${campaignId}`);
     
     try {
-      // 1. Buscar TODOS os leads qualificados
+      // 1. Buscar leads que AINDA NÃO receberam disparo
+      // Buscar empresas que já têm scripts com whatsapp_enviado = true ou email_enviado = true
+      const { data: sentScripts } = await this.supabase
+        .from('campaign_scripts')
+        .select('empresa')
+        .or('whatsapp_enviado.eq.true,email_enviado.eq.true');
+
+      const sentCompanies = new Set((sentScripts || []).map((s: any) => s.empresa));
+      console.log(`📊 Empresas que já receberam disparo: ${sentCompanies.size}`);
+
+      // Buscar TODOS os leads, ordenados por data de criação (mais antigos primeiro)
       const { data: allLeads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
-        .in('status', ['qualificado', 'contatado', 'novo']);
+        .in('status', ['qualificado', 'contatado', 'novo'])
+        .order('created_at', { ascending: true });
 
       if (leadsError) throw leadsError;
 
@@ -68,26 +79,43 @@ class CampaignService {
         throw new Error('Nenhum lead disponível para campanha');
       }
 
-      console.log(`✅ Total de leads encontrados: ${allLeads.length}`);
+      // Filtrar apenas leads que NÃO receberam disparo ainda
+      const pendingLeads = allLeads.filter(lead => !sentCompanies.has(lead.empresa));
+      
+      console.log(`✅ Total de leads no banco: ${allLeads.length}`);
+      console.log(`📩 Leads que já receberam: ${allLeads.length - pendingLeads.length}`);
+      console.log(`⏳ Leads pendentes de disparo: ${pendingLeads.length}`);
+
+      if (pendingLeads.length === 0) {
+        throw new Error('Todos os leads já receberam disparo. Nenhum lead pendente.');
+      }
+
+      // Limitar a 1000 leads por campanha (próximos 1000 pendentes)
+      const leadsToProcess = pendingLeads.slice(0, 1000);
+      console.log(`🎯 Processando próximos ${leadsToProcess.length} leads pendentes`);
 
       // 2. Atualizar campanha com status inicial e total de leads
       await this.supabase
         .from('campaigns')
         .update({ 
           status: 'em_execucao',
+          description: `Iniciando disparo para ${leadsToProcess.length} leads pendentes de ${pendingLeads.length} disponíveis`,
           updated_at: new Date().toISOString()
         })
         .eq('id', campaignId);
 
       // 3. PROCESSAR EM BACKGROUND - não aguardar conclusão
-      this.processAllLeadsInBackground(campaignId, userId, allLeads);
+      this.processAllLeadsInBackground(campaignId, userId, leadsToProcess);
 
       // 4. Retornar imediatamente (processamento continua em background)
       return {
         success: true,
         campaignId,
-        message: `Campanha iniciada! Processando ${allLeads.length} leads em background.`,
-        totalLeads: allLeads.length,
+        message: `Campanha iniciada! Processando ${leadsToProcess.length} leads pendentes em background.`,
+        totalLeads: leadsToProcess.length,
+        totalPending: pendingLeads.length,
+        totalInDatabase: allLeads.length,
+        alreadySent: allLeads.length - pendingLeads.length,
         status: 'em_execucao'
       };
 
