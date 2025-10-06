@@ -140,8 +140,13 @@ class CampaignService {
         })
         .eq('id', campaignId);
 
-      // 3. PROCESSAR EM BACKGROUND - não aguardar conclusão
-      this.processAllLeadsInBackground(campaignId, userId, leadsToProcess);
+      // 3. PROCESSAR EM BACKGROUND - usar EdgeRuntime.waitUntil para manter vivo
+      const backgroundTask = this.processAllLeadsInBackground(campaignId, userId, leadsToProcess);
+      
+      // Garantir que o background task continue executando
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        EdgeRuntime.waitUntil(backgroundTask);
+      }
 
       // 4. Retornar imediatamente (processamento continua em background)
       return {
