@@ -65,17 +65,34 @@ class CampaignService {
       const sentCompanies = new Set((sentScripts || []).map((s: any) => s.empresa));
       console.log(`📊 Empresas que já receberam disparo: ${sentCompanies.size}`);
 
-      // Buscar TODOS os leads, ordenados por data de criação (mais antigos primeiro)
-      // REMOVER LIMITAÇÃO DE 1000 - buscar todos sem limit
-      const { data: allLeads, error: leadsError, count } = await this.supabase
-        .from('leads')
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .in('status', ['qualificado', 'contatado', 'novo'])
-        .order('created_at', { ascending: true })
-        .limit(10000); // Aumentar limite para 10.000 leads
-
-      if (leadsError) throw leadsError;
+      // Buscar TODOS os leads usando paginação (Supabase retorna max ~1000 por query)
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      console.log('🔍 Buscando todos os leads do usuário em páginas...');
+      
+      while (hasMore) {
+        const { data, error } = await this.supabase
+          .from('leads')
+          .select('*')
+          .eq('user_id', userId)
+          .in('status', ['qualificado', 'contatado', 'novo'])
+          .order('created_at', { ascending: true })
+          .range(from, from + pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+          console.log(`📄 Página carregada: ${data.length} leads (total acumulado: ${allLeads.length})`);
+        } else {
+          hasMore = false;
+        }
+      }
 
       if (!allLeads || allLeads.length === 0) {
         throw new Error('Nenhum lead disponível para campanha');

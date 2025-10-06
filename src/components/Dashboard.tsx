@@ -56,12 +56,30 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Buscar leads (prospects ativos) - SEM LIMITAÇÃO
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id)
-        .limit(10000); // Aumentar limite para 10.000 leads
+      // Buscar leads (prospects ativos) - usar paginação para todos os leads
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('user_id', user.id)
+          .range(from, from + pageSize - 1);
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      const leadsData = allLeads;
+      console.log(`📊 Dashboard: Total de leads carregados: ${leadsData.length}`);
 
       // Buscar oportunidades
       const { data: opportunitiesData } = await supabase
