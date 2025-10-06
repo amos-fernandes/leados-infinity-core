@@ -199,10 +199,51 @@ export async function importCNPJToLeads(
   let errors = 0;
   const messages: string[] = [];
   
+  console.log('🔍 Verificando leads existentes...');
+  
+  // Buscar todos os leads existentes do usuário para verificar duplicatas
+  const { data: existingLeads, error: fetchError } = await supabase
+    .from('leads')
+    .select('empresa')
+    .eq('user_id', userId);
+  
+  if (fetchError) {
+    console.error('❌ Erro ao buscar leads existentes:', fetchError);
+    messages.push(`Erro ao verificar duplicatas: ${fetchError.message}`);
+  }
+  
+  // Criar Set com razões sociais já cadastradas (normalizado para comparação)
+  const existingCompanies = new Set(
+    (existingLeads || []).map(lead => 
+      lead.empresa?.toLowerCase().trim()
+    ).filter(Boolean)
+  );
+  
+  console.log(`📊 Leads existentes no banco: ${existingCompanies.size}`);
+  
+  // Filtrar registros novos (que não existem no banco)
+  const newRecords = records.filter(record => {
+    const razaoSocial = (record.nome_fantasia || record.razao_social)?.toLowerCase().trim();
+    return razaoSocial && !existingCompanies.has(razaoSocial);
+  });
+  
+  const duplicates = records.length - newRecords.length;
+  console.log(`✅ Registros novos a importar: ${newRecords.length}`);
+  console.log(`⚠️  Registros duplicados ignorados: ${duplicates}`);
+  
+  if (duplicates > 0) {
+    messages.push(`${duplicates} registros duplicados foram ignorados`);
+  }
+  
+  if (newRecords.length === 0) {
+    messages.push('Nenhum registro novo para importar');
+    return { success: 0, errors: 0, messages };
+  }
+  
   const batchSize = 50;
   
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, Math.min(i + batchSize, records.length));
+  for (let i = 0; i < newRecords.length; i += batchSize) {
+    const batch = newRecords.slice(i, Math.min(i + batchSize, newRecords.length));
     
     const leadsToInsert = batch.map(record => {
       const telefoneFormatado = formatBrazilianPhone(record.telefone_principal);
@@ -245,7 +286,7 @@ export async function importCNPJToLeads(
     }
     
     if (onProgress) {
-      onProgress(Math.min(i + batchSize, records.length), records.length);
+      onProgress(Math.min(i + batchSize, newRecords.length), newRecords.length);
     }
   }
   
