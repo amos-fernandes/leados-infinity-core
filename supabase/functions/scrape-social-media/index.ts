@@ -24,10 +24,14 @@ serve(async (req) => {
       });
     }
 
-    const scrapingBeeApiKey = Deno.env.get('SCRAPINGBEE_API_KEY');
-    if (!scrapingBeeApiKey) {
+    // 🔑 Configurar APIs avançadas
+    const APIFY_API_KEY = Deno.env.get('APIFY_API_KEY');
+    const HUNTER_API_KEY = Deno.env.get('HUNTER_API_KEY');
+    const ABSTRACT_EMAIL_API_KEY = Deno.env.get('ABSTRACT_EMAIL_API_KEY');
+    
+    if (!APIFY_API_KEY) {
       return new Response(JSON.stringify({ 
-        error: 'ScrapingBee API Key não configurado' 
+        error: 'APIFY_API_KEY não configurado. Configure nas secrets do backend.' 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -38,102 +42,111 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`Scraping ${platform} profiles:`, profiles);
+    console.log(`🚀 Iniciando scraping avançado de ${platform} com Apify`);
+    console.log(`📊 Total de perfis para processar: ${profiles.length}`);
 
     const results = [];
     const savedLeads = [];
+    let businessProfilesCount = 0;
+    let verifiedProfilesCount = 0;
 
-    for (const profile of profiles.slice(0, 5)) { // Limitar a 5 perfis por vez
+    // Processar até 10 perfis por vez para evitar timeout
+    for (const profileUrl of profiles.slice(0, 10)) {
       try {
-        let contactData;
+        console.log(`🔍 Processando: ${profileUrl}`);
+        
+        let profileData;
         
         if (platform === 'instagram') {
-          contactData = await scrapeInstagramProfile(profile, scrapingBeeApiKey);
+          profileData = await scrapeInstagramWithApify(profileUrl, APIFY_API_KEY, HUNTER_API_KEY, ABSTRACT_EMAIL_API_KEY);
         } else if (platform === 'facebook') {
-          contactData = await scrapeFacebookProfile(profile, scrapingBeeApiKey);
+          profileData = await scrapeFacebookWithApify(profileUrl, APIFY_API_KEY, HUNTER_API_KEY, ABSTRACT_EMAIL_API_KEY);
         } else {
-          throw new Error('Plataforma não suportada');
+          throw new Error('Plataforma não suportada. Use: instagram ou facebook');
         }
 
-        results.push(contactData);
+        results.push(profileData);
 
-        if (contactData.contacts.length > 0) {
-          // Salvar cada contato encontrado como lead
-          for (const contact of contactData.contacts) {
-            try {
-              // Verificar se já existe
-              const { data: existing } = await supabase
-                .from('leads')
-                .select('id')
-                .eq('user_id', userId)
-                .eq('empresa', contact.profileName)
-                .limit(1);
+        // 🎯 Filtrar apenas perfis comerciais com informações úteis
+        if (profileData.isBusinessProfile || profileData.isVerified || 
+            profileData.phone || profileData.email || profileData.whatsapp) {
+          
+          if (profileData.isBusinessProfile) businessProfilesCount++;
+          if (profileData.isVerified) verifiedProfilesCount++;
 
-              if (existing && existing.length > 0) {
-                console.log('Lead já existe:', contact.profileName);
-                continue;
-              }
+          // Verificar se lead já existe
+          const { data: existing } = await supabase
+            .from('leads')
+            .select('id')
+            .eq('user_id', userId)
+            .or(`empresa.eq.${profileData.name},whatsapp.eq.${profileData.whatsapp},email.eq.${profileData.email}`)
+            .limit(1);
 
-              // Inserir novo lead
-              const { data: newLead, error } = await supabase
-                .from('leads')
-                .insert({
-                  user_id: userId,
-                  empresa: contact.profileName,
-                  telefone: contact.phone,
-                  whatsapp: contact.whatsapp,
-                  email: contact.email,
-                  linkedin: platform === 'instagram' ? contact.instagramUrl : contact.facebookUrl,
-                  setor: contact.category || 'Redes Sociais',
-                  status: 'novo',
-                  gancho_prospeccao: `Perfil comercial encontrado no ${platform}: ${contact.bio}`,
-                })
-                .select()
-                .single();
-
-              if (error) {
-                console.error('Erro ao salvar lead das redes sociais:', error);
-                continue;
-              }
-
-              savedLeads.push(newLead);
-
-              // Registrar na base de conhecimento
-              await supabase
-                .from('campaign_knowledge')
-                .insert({
-                  user_id: userId,
-                  campaign_id: campaignId,
-                  content: `Lead coletado do ${platform}: ${contact.profileName} - WhatsApp: ${contact.whatsapp || 'N/A'}`,
-                  knowledge_type: 'social_media_scraping',
-                  generated_at: new Date().toISOString()
-                });
-
-            } catch (leadError) {
-              console.error('Erro ao processar lead das redes sociais:', leadError);
-            }
+          if (existing && existing.length > 0) {
+            console.log('✓ Lead já existe:', profileData.name);
+            continue;
           }
+
+          // 💾 Inserir novo lead comercial
+          const { data: newLead, error } = await supabase
+            .from('leads')
+            .insert({
+              user_id: userId,
+              empresa: profileData.name,
+              telefone: profileData.phone,
+              whatsapp: profileData.whatsapp,
+              email: profileData.email,
+              website: profileData.website,
+              linkedin: platform === 'instagram' ? profileUrl : null,
+              setor: profileData.category || `${platform} Business`,
+              status: 'novo',
+              gancho_prospeccao: `${profileData.isVerified ? '✓ VERIFICADO ' : ''}${profileData.isBusinessProfile ? '🏢 COMERCIAL ' : ''}| ${profileData.bio || 'Perfil encontrado'}`,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            console.error('❌ Erro ao salvar lead:', error);
+            continue;
+          }
+
+          savedLeads.push(newLead);
+          console.log(`✅ Lead comercial salvo: ${profileData.name}`);
+
+          // 📝 Registrar na base de conhecimento
+          await supabase
+            .from('campaign_knowledge')
+            .insert({
+              user_id: userId,
+              campaign_id: campaignId,
+              content: `🎯 Lead ${profileData.isVerified ? 'VERIFICADO' : ''} coletado do ${platform}: ${profileData.name} | Comercial: ${profileData.isBusinessProfile ? 'Sim' : 'Não'} | WhatsApp: ${profileData.whatsapp || 'N/A'} | Email: ${profileData.email || 'N/A'} | Seguidores: ${profileData.followers || 0}`,
+              knowledge_type: 'social_media_advanced_scraping',
+            });
         }
 
       } catch (profileError) {
-        console.error(`Erro ao fazer scraping do perfil ${profile}:`, profileError);
+        console.error(`❌ Erro ao processar perfil ${profileUrl}:`, profileError);
         results.push({
-          profile,
+          profile: profileUrl,
           success: false,
           error: profileError instanceof Error ? profileError.message : 'Erro desconhecido',
-          contacts: []
         });
       }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `${savedLeads.length} novos leads coletados do ${platform}`,
+      message: `✅ ${savedLeads.length} novos leads comerciais coletados do ${platform}`,
       leads: savedLeads,
+      stats: {
+        totalProcessed: results.length,
+        totalSaved: savedLeads.length,
+        businessProfiles: businessProfilesCount,
+        verifiedProfiles: verifiedProfilesCount,
+        successRate: `${((savedLeads.length / results.length) * 100).toFixed(1)}%`
+      },
       scrapingResults: results,
       platform: platform,
-      totalProfiles: profiles.length,
-      processedProfiles: results.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -150,247 +163,298 @@ serve(async (req) => {
   }
 });
 
-async function scrapeInstagramProfile(profileUrl: string, apiKey: string) {
+// 🚀 APIFY INSTAGRAM SCRAPER - Recursos Avançados
+async function scrapeInstagramWithApify(
+  profileUrl: string, 
+  apifyKey: string, 
+  hunterKey: string | undefined, 
+  abstractEmailKey: string | undefined
+) {
   try {
-    const scrapingUrl = new URL('https://app.scrapingbee.com/api/v1/');
-    scrapingUrl.searchParams.append('api_key', apiKey);
-    scrapingUrl.searchParams.append('url', profileUrl);
-    scrapingUrl.searchParams.append('render_js', 'true');
-    scrapingUrl.searchParams.append('wait', '3000');
-
-    const response = await fetch(scrapingUrl.toString());
+    const username = profileUrl.split('/').filter(Boolean).pop()?.replace('@', '');
+    console.log(`📸 Iniciando Apify Instagram Scraper para: @${username}`);
     
-    if (!response.ok) {
-      throw new Error(`Erro ao acessar perfil Instagram: ${response.status}`);
+    // Iniciar Apify Instagram Profile Scraper
+    const actorResponse = await fetch(`https://api.apify.com/v2/acts/apify~instagram-profile-scraper/runs?token=${apifyKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        directUrls: [profileUrl],
+        resultsType: 'details',
+        searchLimit: 1,
+        addParentData: true,
+      })
+    });
+
+    if (!actorResponse.ok) {
+      throw new Error(`Apify API error: ${actorResponse.status}`);
     }
 
-    const html = await response.text();
-    const contacts = extractContactsFromInstagram(html, profileUrl);
+    const runData = await actorResponse.json();
+    const runId = runData.data.id;
+    console.log(`⏳ Apify run iniciado: ${runId}`);
 
+    // Aguardar conclusão (máx 60 segundos)
+    let attempts = 0;
+    let runStatus = 'RUNNING';
+    while (runStatus === 'RUNNING' && attempts < 30) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyKey}`);
+      const statusData = await statusResponse.json();
+      runStatus = statusData.data.status;
+      attempts++;
+      console.log(`⏳ Status: ${runStatus} (tentativa ${attempts}/30)`);
+    }
+
+    if (runStatus !== 'SUCCEEDED') {
+      throw new Error(`Apify run falhou com status: ${runStatus}`);
+    }
+
+    // Obter resultados
+    const resultsResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apifyKey}`);
+    const results = await resultsResponse.json();
+    
+    if (!results || results.length === 0) {
+      throw new Error('Nenhum dado retornado do Apify');
+    }
+
+    const profile = results[0];
+    console.log(`✅ Dados extraídos: @${profile.username}`);
+
+    // 🎯 Identificar perfil comercial
+    const isBusinessProfile = profile.businessCategoryName || profile.isBusinessAccount || 
+                             profile.category || false;
+    const isVerified = profile.verified || profile.isVerified || false;
+    const bio = profile.biography || '';
+    
+    // 📞 Extrair contatos da bio
+    const phoneMatch = bio.match(/(\+?55\s?)?\(?(\d{2})\)?\s?9?\s?\d{4}[\s-]?\d{4}/);
+    const emailMatch = bio.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+    const whatsappMatch = bio.match(/wa\.me\/(\d+)|whatsapp.*?(\d{10,})/i);
+    
+    let phone = phoneMatch ? formatPhone(phoneMatch[0]) : null;
+    let email = emailMatch ? emailMatch[0] : null;
+    let whatsapp = whatsappMatch ? formatPhone(whatsappMatch[1] || whatsappMatch[2]) : phone;
+
+    // 📱 Extrair WhatsApp de botões de ação
+    if (profile.businessContactMethod === 'WHATSAPP' || profile.whatsappNumber) {
+      whatsapp = formatPhone(profile.whatsappNumber || profile.contactPhoneNumber);
+      if (!phone) phone = whatsapp;
+    }
+
+    // 🔍 Hunter.io - Buscar email por domínio
+    if (!email && hunterKey && profile.website) {
+      try {
+        const domain = new URL(profile.website).hostname.replace('www.', '');
+        console.log(`🔍 Buscando email no Hunter.io para: ${domain}`);
+        const hunterResponse = await fetch(`https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterKey}&limit=1`);
+        const hunterData = await hunterResponse.json();
+        if (hunterData.data?.emails?.[0]) {
+          email = hunterData.data.emails[0].value;
+          console.log(`✅ Email encontrado via Hunter.io: ${email}`);
+        }
+      } catch (e) {
+        console.log('⚠️ Hunter.io lookup falhou:', e);
+      }
+    }
+
+    // ✉️ Abstract API - Validar email
+    if (email && abstractEmailKey) {
+      try {
+        console.log(`✉️ Validando email com Abstract API: ${email}`);
+        const validationResponse = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${abstractEmailKey}&email=${email}`);
+        const validation = await validationResponse.json();
+        if (validation.deliverability === 'UNDELIVERABLE') {
+          console.log(`⚠️ Email inválido (não entregável): ${email}`);
+          email = null;
+        } else {
+          console.log(`✅ Email validado: ${email}`);
+        }
+      } catch (e) {
+        console.log('⚠️ Validação de email falhou:', e);
+      }
+    }
+
+    // 🎯 Retornar dados enriquecidos
     return {
       profile: profileUrl,
       success: true,
-      contacts: contacts,
+      platform: 'instagram',
+      name: profile.fullName || profile.username,
+      username: profile.username,
+      bio: bio,
+      phone: phone,
+      email: email,
+      whatsapp: whatsapp,
+      website: profile.website || profile.externalUrl || profile.url,
+      category: profile.businessCategoryName || profile.category,
+      isVerified: isVerified,
+      isBusinessProfile: isBusinessProfile,
+      followers: profile.followersCount || profile.followers || 0,
+      following: profile.followingCount || profile.following || 0,
+      posts: profile.postsCount || profile.posts || 0,
+      hasStories: profile.hasStories || false,
+      contactButtonText: profile.contactButtonText,
+    };
+  } catch (error) {
+    console.error('❌ Erro no Apify Instagram scraper:', error);
+    return {
+      profile: profileUrl,
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       platform: 'instagram'
     };
-
-  } catch (error) {
-    throw new Error(`Erro no scraping Instagram: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
   }
 }
 
-async function scrapeFacebookProfile(profileUrl: string, apiKey: string) {
+// 🚀 APIFY FACEBOOK SCRAPER
+async function scrapeFacebookWithApify(
+  profileUrl: string, 
+  apifyKey: string, 
+  hunterKey: string | undefined, 
+  abstractEmailKey: string | undefined
+) {
   try {
-    const scrapingUrl = new URL('https://app.scrapingbee.com/api/v1/');
-    scrapingUrl.searchParams.append('api_key', apiKey);
-    scrapingUrl.searchParams.append('url', profileUrl);
-    scrapingUrl.searchParams.append('render_js', 'true');
-    scrapingUrl.searchParams.append('wait', '3000');
-
-    const response = await fetch(scrapingUrl.toString());
+    console.log(`📘 Iniciando Apify Facebook Scraper para: ${profileUrl}`);
     
-    if (!response.ok) {
-      throw new Error(`Erro ao acessar perfil Facebook: ${response.status}`);
+    const actorResponse = await fetch(`https://api.apify.com/v2/acts/apify~facebook-pages-scraper/runs?token=${apifyKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        startUrls: [{ url: profileUrl }],
+        maxPosts: 0,
+        maxReviews: 0,
+      })
+    });
+
+    if (!actorResponse.ok) {
+      throw new Error(`Apify API error: ${actorResponse.status}`);
     }
 
-    const html = await response.text();
-    const contacts = extractContactsFromFacebook(html, profileUrl);
+    const runData = await actorResponse.json();
+    const runId = runData.data.id;
+    console.log(`⏳ Apify run iniciado: ${runId}`);
+
+    let attempts = 0;
+    let runStatus = 'RUNNING';
+    while (runStatus === 'RUNNING' && attempts < 30) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const statusResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apifyKey}`);
+      const statusData = await statusResponse.json();
+      runStatus = statusData.data.status;
+      attempts++;
+      console.log(`⏳ Status: ${runStatus} (tentativa ${attempts}/30)`);
+    }
+
+    if (runStatus !== 'SUCCEEDED') {
+      throw new Error(`Apify run falhou com status: ${runStatus}`);
+    }
+
+    const resultsResponse = await fetch(`https://api.apify.com/v2/actor-runs/${runId}/dataset/items?token=${apifyKey}`);
+    const results = await resultsResponse.json();
+    
+    if (!results || results.length === 0) {
+      throw new Error('Nenhum dado retornado do Apify');
+    }
+
+    const page = results[0];
+    console.log(`✅ Página Facebook extraída: ${page.name}`);
+
+    let phone = page.phone ? formatPhone(page.phone) : null;
+    let email = page.email || null;
+    let whatsapp = page.whatsapp ? formatPhone(page.whatsapp) : phone;
+
+    // 🔍 Hunter.io para email
+    if (!email && hunterKey && page.website) {
+      try {
+        const domain = new URL(page.website).hostname.replace('www.', '');
+        console.log(`🔍 Buscando email no Hunter.io para: ${domain}`);
+        const hunterResponse = await fetch(`https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${hunterKey}&limit=1`);
+        const hunterData = await hunterResponse.json();
+        if (hunterData.data?.emails?.[0]) {
+          email = hunterData.data.emails[0].value;
+          console.log(`✅ Email encontrado via Hunter.io: ${email}`);
+        }
+      } catch (e) {
+        console.log('⚠️ Hunter.io lookup falhou:', e);
+      }
+    }
+
+    // ✉️ Validar email
+    if (email && abstractEmailKey) {
+      try {
+        const validationResponse = await fetch(`https://emailvalidation.abstractapi.com/v1/?api_key=${abstractEmailKey}&email=${email}`);
+        const validation = await validationResponse.json();
+        if (validation.deliverability === 'UNDELIVERABLE') {
+          console.log(`⚠️ Email inválido: ${email}`);
+          email = null;
+        }
+      } catch (e) {
+        console.log('⚠️ Validação de email falhou:', e);
+      }
+    }
 
     return {
       profile: profileUrl,
       success: true,
-      contacts: contacts,
+      platform: 'facebook',
+      name: page.name,
+      bio: page.about || page.description,
+      phone: phone,
+      email: email,
+      whatsapp: whatsapp,
+      website: page.website,
+      category: page.categories?.[0] || page.category,
+      isVerified: page.verified || false,
+      isBusinessProfile: true,
+      likes: page.likes || 0,
+      followers: page.followers || page.likes || 0,
+      checkIns: page.checkIns || 0,
+    };
+  } catch (error) {
+    console.error('❌ Erro no Apify Facebook scraper:', error);
+    return {
+      profile: profileUrl,
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       platform: 'facebook'
     };
-
-  } catch (error) {
-    throw new Error(`Erro no scraping Facebook: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
   }
 }
 
-function extractContactsFromInstagram(html: string, profileUrl: string) {
-  const contacts: any[] = [];
-
-  try {
-    // Extrair nome do perfil
-    const profileNameMatch = html.match(/<title[^>]*>([^@]+)(@[^)]+)?\s*\([^)]*\)\s*•\s*Instagram/i);
-    const profileName = profileNameMatch ? profileNameMatch[1].trim() : 'Perfil Instagram';
-
-    // Extrair bio
-    const bioMatch = html.match(/"biography":"([^"]+)"/);
-    const bio = bioMatch ? bioMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"') : '';
-
-    // Buscar números WhatsApp na bio
-    const whatsappRegex = /(api\.whatsapp\.com\/send\?phone=|wa\.me\/)(\+?55)?(\d{10,11})/gi;
-    const phoneRegex = /(\+55\s?\(?1[1-9]\)?\s?\d{4,5}-?\d{4}|\+55\s?\(?[1-9][1-9]\)?\s?\d{4,5}-?\d{4}|1[1-9]\s?\d{4,5}-?\d{4}|[1-9][1-9]\s?\d{4,5}-?\d{4})/g;
-    const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
-
-    // WhatsApp links
-    let whatsappMatch;
-    while ((whatsappMatch = whatsappRegex.exec(bio)) !== null) {
-      const phone = whatsappMatch[3];
-      if (phone) {
-        contacts.push({
-          profileName,
-          bio,
-          whatsapp: formatPhone(phone),
-          phone: formatPhone(phone),
-          email: null,
-          instagramUrl: profileUrl,
-          category: 'Instagram Business',
-          type: 'whatsapp_instagram'
-        });
-      }
-    }
-
-    // Números de telefone
-    const phones = bio.match(phoneRegex) || [];
-    phones.forEach(phone => {
-      const cleanPhone = phone.replace(/\D/g, '');
-      if (cleanPhone.length >= 10) {
-        contacts.push({
-          profileName,
-          bio,
-          phone: formatPhone(cleanPhone),
-          whatsapp: checkIfMobile(cleanPhone) ? formatPhone(cleanPhone) : null,
-          email: null,
-          instagramUrl: profileUrl,
-          category: 'Instagram Business',
-          type: 'phone_instagram'
-        });
-      }
-    });
-
-    // Emails
-    const emails = bio.match(emailRegex) || [];
-    emails.forEach(email => {
-      contacts.push({
-        profileName,
-        bio,
-        phone: null,
-        whatsapp: null,
-        email: email.toLowerCase(),
-        instagramUrl: profileUrl,
-        category: 'Instagram Business',
-        type: 'email_instagram'
-      });
-    });
-
-    // Se não encontrou contatos mas é um perfil business, adicionar pelo menos o perfil
-    if (contacts.length === 0 && (bio.includes('business') || bio.includes('empresa') || bio.includes('loja'))) {
-      contacts.push({
-        profileName,
-        bio,
-        phone: null,
-        whatsapp: null,
-        email: null,
-        instagramUrl: profileUrl,
-        category: 'Instagram Business',
-        type: 'profile_instagram'
-      });
-    }
-
-  } catch (error) {
-    console.error('Erro ao extrair dados do Instagram:', error);
-  }
-
-  return contacts;
-}
-
-function extractContactsFromFacebook(html: string, profileUrl: string) {
-  const contacts: any[] = [];
-
-  try {
-    // Extrair nome da página
-    const pageNameMatch = html.match(/<title[^>]*>([^|]+)/i);
-    const profileName = pageNameMatch ? pageNameMatch[1].trim() : 'Página Facebook';
-
-    // Buscar informações de contato
-    const phoneRegex = /(\+55\s?\(?1[1-9]\)?\s?\d{4,5}-?\d{4}|\+55\s?\(?[1-9][1-9]\)?\s?\d{4,5}-?\d{4}|1[1-9]\s?\d{4,5}-?\d{4}|[1-9][1-9]\s?\d{4,5}-?\d{4})/g;
-    const whatsappRegex = /(api\.whatsapp\.com\/send\?phone=|wa\.me\/)(\+?55)?(\d{10,11})/gi;
-    const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
-
-    // Buscar na seção "About" ou descrição
-    const aboutMatch = html.match(/"about":"([^"]+)"/);
-    const about = aboutMatch ? aboutMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"') : '';
-
-    // WhatsApp
-    let whatsappMatch;
-    while ((whatsappMatch = whatsappRegex.exec(html)) !== null) {
-      const phone = whatsappMatch[3];
-      if (phone) {
-        contacts.push({
-          profileName,
-          bio: about,
-          whatsapp: formatPhone(phone),
-          phone: formatPhone(phone),
-          email: null,
-          facebookUrl: profileUrl,
-          category: 'Facebook Business',
-          type: 'whatsapp_facebook'
-        });
-      }
-    }
-
-    // Telefones
-    const phones = html.match(phoneRegex) || [];
-    phones.forEach(phone => {
-      const cleanPhone = phone.replace(/\D/g, '');
-      if (cleanPhone.length >= 10) {
-        contacts.push({
-          profileName,
-          bio: about,
-          phone: formatPhone(cleanPhone),
-          whatsapp: checkIfMobile(cleanPhone) ? formatPhone(cleanPhone) : null,
-          email: null,
-          facebookUrl: profileUrl,
-          category: 'Facebook Business',
-          type: 'phone_facebook'
-        });
-      }
-    });
-
-    // Emails
-    const emails = html.match(emailRegex) || [];
-    emails.forEach(email => {
-      contacts.push({
-        profileName,
-        bio: about,
-        phone: null,
-        whatsapp: null,
-        email: email.toLowerCase(),
-        facebookUrl: profileUrl,
-        category: 'Facebook Business',
-        type: 'email_facebook'
-      });
-    });
-
-  } catch (error) {
-    console.error('Erro ao extrair dados do Facebook:', error);
-  }
-
-  return contacts;
-}
-
+// 🛠️ UTILITY FUNCTIONS
 function formatPhone(phone: string): string {
-  const clean = phone.replace(/\D/g, '');
-  if (clean.length === 11 && clean.startsWith('55')) {
-    return clean;
+  if (!phone) return '';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Já tem código do país
+  if (cleaned.startsWith('55') && (cleaned.length === 12 || cleaned.length === 13)) {
+    return cleaned;
   }
-  if (clean.length === 10 || clean.length === 11) {
-    return `55${clean}`;
+  
+  // Número brasileiro sem código do país
+  if (cleaned.length === 10 || cleaned.length === 11) {
+    return '55' + cleaned;
   }
-  return clean;
+  
+  return cleaned;
 }
 
 function checkIfMobile(phone: string): boolean {
-  const clean = phone.replace(/\D/g, '');
-  // Verificar se é número móvel brasileiro (9 como primeiro dígito após o DDD)
-  if (clean.length >= 10) {
-    const dddIndex = clean.length === 11 ? 2 : (clean.length === 10 ? 2 : -1);
-    if (dddIndex >= 0 && clean.charAt(dddIndex) === '9') {
-      return true;
-    }
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Número brasileiro móvel: 55 + DDD (2 dígitos) + 9 + 8 dígitos
+  if (cleaned.startsWith('55') && cleaned.length === 13) {
+    const ninthDigit = cleaned[4];
+    return ninthDigit === '9';
   }
+  
+  // Número sem código do país
+  if (cleaned.length === 11) {
+    const thirdDigit = cleaned[2];
+    return thirdDigit === '9';
+  }
+  
   return false;
 }

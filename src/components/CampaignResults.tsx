@@ -44,52 +44,103 @@ const CampaignResults = () => {
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignResult | null>(null);
   const [interactions, setInteractions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingScripts, setLoadingScripts] = useState(false);
   const [knowledgeContent, setKnowledgeContent] = useState<string>('');
 
   const loadCampaignResults = async () => {
     if (!user) return;
 
     try {
+      setLoading(true);
+      
+      // Carregar apenas campanhas (sem scripts para evitar timeout)
       const { data: campaignsData, error } = await supabase
         .from('campaigns')
-        .select(`
-          *,
-          campaign_scripts(*)
-        `)
+        .select('id, name, description, status, target_companies, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('Erro ao carregar campanhas:', error);
+        throw error;
+      }
+
+      // Carregar contagem de scripts por campanha
+      const campaignsWithCount = await Promise.all(
+        (campaignsData || []).map(async (campaign) => {
+          const { count } = await supabase
+            .from('campaign_scripts')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id);
+          
+          return {
+            id: campaign.id,
+            name: campaign.name,
+            description: campaign.description,
+            status: campaign.status,
+            target_companies: campaign.target_companies,
+            created_at: campaign.created_at,
+            scripts: [], // Scripts serão carregados on-demand
+            scriptsCount: count || 0
+          };
+        })
+      );
+
+      setCampaigns(campaignsWithCount);
+      
+      // Selecionar primeira campanha e carregar seus scripts
+      if (campaignsWithCount.length > 0 && !selectedCampaign) {
+        await loadCampaignScripts(campaignsWithCount[0]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar resultados das campanhas:', error);
+      toast.error("Erro ao carregar campanhas");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCampaignScripts = async (campaign: CampaignResult) => {
+    if (!campaign) return;
+
+    try {
+      setLoadingScripts(true);
+      
+      // Carregar TODOS os scripts da campanha (sem limite para ter estatísticas corretas)
+      const { data: scriptsData, error } = await supabase
+        .from('campaign_scripts')
+        .select('*')
+        .eq('campaign_id', campaign.id);
+
       if (error) throw error;
 
-      // Carregar interações relacionadas às campanhas
+      // Carregar interações relacionadas ao período da campanha
+      const campaignDate = new Date(campaign.created_at);
+      const dayAfter = new Date(campaignDate);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+
       const { data: interactionsData } = await supabase
         .from('interactions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user!.id)
         .in('tipo', ['email', 'whatsapp', 'ligacao', 'follow_up'])
+        .gte('created_at', campaignDate.toISOString())
+        .lte('created_at', dayAfter.toISOString())
         .order('created_at', { ascending: false });
 
       setInteractions(interactionsData || []);
 
-      const formattedCampaigns: CampaignResult[] = campaignsData?.map(campaign => ({
-        id: campaign.id,
-        name: campaign.name,
-        description: campaign.description,
-        status: campaign.status,
-        target_companies: campaign.target_companies,
-        created_at: campaign.created_at,
-        scripts: campaign.campaign_scripts || []
-      })) || [];
+      const updatedCampaign = {
+        ...campaign,
+        scripts: scriptsData || []
+      };
 
-      setCampaigns(formattedCampaigns);
-      if (formattedCampaigns.length > 0 && !selectedCampaign) {
-        setSelectedCampaign(formattedCampaigns[0]);
-      }
+      setSelectedCampaign(updatedCampaign);
     } catch (error) {
-      console.error('Erro ao carregar resultados das campanhas:', error);
-      toast.error("Erro ao carregar resultados das campanhas");
+      console.error('Erro ao carregar scripts da campanha:', error);
+      toast.error("Erro ao carregar scripts");
     } finally {
-      setLoading(false);
+      setLoadingScripts(false);
     }
   };
 
@@ -122,7 +173,9 @@ const CampaignResults = () => {
   };
 
   useEffect(() => {
-    loadCampaignResults();
+    if (user) {
+      loadCampaignResults();
+    }
   }, [user]);
 
   const getStatusBadge = (status: string) => {
@@ -194,18 +247,26 @@ const CampaignResults = () => {
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/50'
                     }`}
-                    onClick={() => setSelectedCampaign(campaign)}
+                    onClick={() => loadCampaignScripts(campaign)}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-sm">{campaign.name}</h4>
+                      <h4 className="font-medium text-sm line-clamp-1">{campaign.name}</h4>
                       {getStatusBadge(campaign.status)}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {campaign.scripts.length} roteiros
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(campaign.created_at).toLocaleDateString('pt-BR')}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        📄 {(campaign as any).scriptsCount || 0} scripts criados
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        📅 {new Date(campaign.created_at).toLocaleDateString('pt-BR', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -214,7 +275,13 @@ const CampaignResults = () => {
 
           {/* Detalhes da Campanha */}
           <div className="lg:col-span-3">
-            {selectedCampaign ? (
+            {loadingScripts ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <div className="text-primary animate-pulse">Carregando scripts da campanha...</div>
+                </CardContent>
+              </Card>
+            ) : selectedCampaign ? (
               <Tabs defaultValue="overview" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="overview">Visão Geral</TabsTrigger>
@@ -239,22 +306,55 @@ const CampaignResults = () => {
                       {(() => {
                         const stats = getProgressStats(selectedCampaign.scripts);
                         return (
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-primary">✅</div>
-                              <div className="text-sm text-muted-foreground">Templates Criados</div>
+                          <div className="space-y-6">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center p-4 bg-gradient-subtle rounded-lg border border-border">
+                                <div className="text-3xl font-bold text-primary">{stats.total}</div>
+                                <div className="text-sm text-muted-foreground mt-1">Scripts Gerados</div>
+                              </div>
+                              <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                                <div className="text-3xl font-bold text-green-600">{stats.whatsappSent}</div>
+                                <div className="text-sm text-muted-foreground mt-1">WhatsApp Enviados</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {stats.total > 0 ? Math.round((stats.whatsappSent / stats.total) * 100) : 0}% do total
+                                </div>
+                              </div>
+                              <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <div className="text-3xl font-bold text-blue-600">{stats.emailsSent}</div>
+                                <div className="text-sm text-muted-foreground mt-1">E-mails Enviados</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {stats.total > 0 ? Math.round((stats.emailsSent / stats.total) * 100) : 0}% do total
+                                </div>
+                              </div>
+                              <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                <div className="text-3xl font-bold text-yellow-600">{stats.callsMade}</div>
+                                <div className="text-sm text-muted-foreground mt-1">Ligações Feitas</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {stats.total > 0 ? Math.round((stats.callsMade / stats.total) * 100) : 0}% do total
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-success">✅</div>
-                              <div className="text-sm text-muted-foreground">Oportunidades</div>
-                            </div>
-                            <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-info">3</div>
-                              <div className="text-sm text-muted-foreground">Canais Config.</div>
-                            </div>
-                            <div className="text-center p-4 bg-gradient-subtle rounded-lg">
-                              <div className="text-2xl font-bold text-warning">✅</div>
-                              <div className="text-sm text-muted-foreground">CRM Integrado</div>
+                            
+                            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                              <div className="flex items-start gap-3">
+                                <TrendingUp className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                                    Status da Campanha
+                                  </h4>
+                                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                                    {stats.total} scripts foram criados. 
+                                    {stats.whatsappSent > 0 && ` ${stats.whatsappSent} mensagens WhatsApp enviadas`}
+                                    {stats.emailsSent > 0 && `, ${stats.emailsSent} e-mails enviados`}
+                                    {stats.callsMade > 0 && `, ${stats.callsMade} ligações feitas`}.
+                                    {(stats.whatsappSent + stats.emailsSent + stats.callsMade) === 0 && 
+                                      ' Nenhum disparo foi executado ainda.'}
+                                  </p>
+                                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                                    Total de interações registradas: {interactions.length}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );

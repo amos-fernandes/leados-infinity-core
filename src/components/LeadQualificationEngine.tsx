@@ -234,30 +234,40 @@ const LeadQualificationEngine: React.FC = () => {
         <CardHeader>
           <CardTitle>Pipeline de Qualificação</CardTitle>
           <CardDescription>
-            Fluxo: Lead Novo → Busca de E-mail → Enriquecimento CNPJ → Validação → Lead Qualificado
+            Fluxo: Lead Novo → E-mail → WhatsApp → Website → CNPJ → Validação → Lead Qualificado
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 border rounded-lg">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="text-center p-3 border rounded-lg bg-card">
               <div className="text-2xl font-bold text-primary">📧</div>
-              <div className="text-sm font-medium mt-2">Busca de E-mail</div>
-              <div className="text-xs text-muted-foreground">Hunter.io + Padrões</div>
+              <div className="text-xs font-medium mt-1">E-mail</div>
+              <div className="text-xs text-muted-foreground">Hunter.io</div>
             </div>
-            <div className="text-center p-4 border rounded-lg">
+            <div className="text-center p-3 border rounded-lg bg-card">
+              <div className="text-2xl font-bold text-primary">📱</div>
+              <div className="text-xs font-medium mt-1">WhatsApp</div>
+              <div className="text-xs text-muted-foreground">Validação</div>
+            </div>
+            <div className="text-center p-3 border rounded-lg bg-card">
+              <div className="text-2xl font-bold text-primary">🌐</div>
+              <div className="text-xs font-medium mt-1">Website</div>
+              <div className="text-xs text-muted-foreground">Análise</div>
+            </div>
+            <div className="text-center p-3 border rounded-lg bg-card">
               <div className="text-2xl font-bold text-primary">🏢</div>
-              <div className="text-sm font-medium mt-2">Enriquecimento</div>
-              <div className="text-xs text-muted-foreground">BrasilAPI + ReceitaWS</div>
+              <div className="text-xs font-medium mt-1">CNPJ</div>
+              <div className="text-xs text-muted-foreground">Receita</div>
             </div>
-            <div className="text-center p-4 border rounded-lg">
+            <div className="text-center p-3 border rounded-lg bg-card">
               <div className="text-2xl font-bold text-primary">🎯</div>
-              <div className="text-sm font-medium mt-2">Validação</div>
-              <div className="text-xs text-muted-foreground">Critérios de Negócio</div>
+              <div className="text-xs font-medium mt-1">Validação</div>
+              <div className="text-xs text-muted-foreground">Critérios</div>
             </div>
-            <div className="text-center p-4 border rounded-lg">
+            <div className="text-center p-3 border rounded-lg bg-card">
               <div className="text-2xl font-bold text-primary">✅</div>
-              <div className="text-sm font-medium mt-2">Qualificado</div>
-              <div className="text-xs text-muted-foreground">Pronto p/ Campanha</div>
+              <div className="text-xs font-medium mt-1">Qualificado</div>
+              <div className="text-xs text-muted-foreground">Pronto</div>
             </div>
           </div>
         </CardContent>

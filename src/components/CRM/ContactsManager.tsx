@@ -19,6 +19,7 @@ import {
   Phone,
   Building2
 } from "lucide-react";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,6 +58,9 @@ const ContactsManager = ({ onStatsUpdate }: ContactsManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const CONTACTS_PER_PAGE = 10;
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -178,6 +182,48 @@ const ContactsManager = ({ onStatsUpdate }: ContactsManagerProps) => {
     contact.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contact.cargo?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const totalPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * CONTACTS_PER_PAGE;
+  const endIndex = startIndex + CONTACTS_PER_PAGE;
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
+  
+  // Gera números de página limitados
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7;
+    
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    pages.push(1);
+    
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+    
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -401,7 +447,7 @@ const ContactsManager = ({ onStatsUpdate }: ContactsManagerProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredContacts.map((contact) => (
+              {paginatedContacts.map((contact) => (
                 <TableRow key={contact.id}>
                   <TableCell className="font-medium">
                     {contact.nome}
@@ -461,11 +507,60 @@ const ContactsManager = ({ onStatsUpdate }: ContactsManagerProps) => {
             </TableBody>
           </Table>
           
+          {paginatedContacts.length === 0 && filteredContacts.length > 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum contato nesta página
+            </div>
+          )}
+          
           {filteredContacts.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               {searchTerm ? 'Nenhum contato encontrado com esse termo' : 'Nenhum contato cadastrado'}
             </div>
           )}
+        </div>
+        
+        {totalPages > 1 && (
+          <div className="mt-4 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {getPageNumbers().map((page, idx) => (
+                  <PaginationItem key={`page-${idx}`}>
+                    {page === '...' ? (
+                      <span className="px-4 py-2">...</span>
+                    ) : (
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page as number)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+        
+        <div className="mt-4 text-sm text-muted-foreground text-center">
+          Mostrando {startIndex + 1}-{Math.min(endIndex, filteredContacts.length)} de {filteredContacts.length} contatos
+          {filteredContacts.length !== contacts.length && ` (${contacts.length} no total)`}
         </div>
       </CardContent>
     </Card>

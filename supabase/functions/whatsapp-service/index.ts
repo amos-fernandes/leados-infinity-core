@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { compareTwoStrings } from "npm:string-similarity@4.0.4";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,9 +18,84 @@ class WhatsAppService {
     this.maytapiApiKey = Deno.env.get('MAYTAPI_API_KEY');
   }
 
+  // Enviar mensagem de teste direta
+  async sendTestMessage(phoneNumber: string, userId: string) {
+    console.log('=== INÍCIO TESTE WHATSAPP ===');
+    console.log(`📱 phoneNumber: ${phoneNumber}`);
+    console.log(`👤 userId: ${userId}`);
+    console.log(`🔑 MAYTAPI_API_KEY configurado: ${this.maytapiApiKey ? 'SIM' : 'NÃO'}`);
+    console.log(`🔑 MAYTAPI_PRODUCT_ID: ${Deno.env.get('MAYTAPI_PRODUCT_ID') || 'NÃO CONFIGURADO'}`);
+    console.log(`🔑 MAYTAPI_PHONE_ID: ${Deno.env.get('MAYTAPI_PHONE_ID') || 'NÃO CONFIGURADO'}`);
+    
+    if (!this.maytapiApiKey) {
+      throw new Error('❌ MAYTAPI_API_KEY não está configurada');
+    }
+
+    const productId = Deno.env.get('MAYTAPI_PRODUCT_ID');
+    const phoneId = Deno.env.get('MAYTAPI_PHONE_ID');
+
+    if (!productId || !phoneId) {
+      throw new Error('❌ MAYTAPI_PRODUCT_ID ou MAYTAPI_PHONE_ID não estão configurados');
+    }
+
+    const testMessage = `🏦 *Teste de Contato - Infinity*
+
+Olá! Este é um teste de envio de WhatsApp.
+
+Seu sistema de campanhas automatizadas está funcionando corretamente! ✅
+
+*✅ Benefícios da Conta PJ C6 Bank:*
+• Conta 100% gratuita
+• Pix ilimitado sem custo
+• 100 TEDs gratuitos/mês
+• 100 boletos gratuitos/mês
+• Acesso a crédito sujeito a análise
+
+---
+*Escritório Infinity - C6 Bank PJ*
+📞 (62) 99179-2303`;
+
+    try {
+      console.log('🚀 Iniciando envio...');
+      const success = await this.sendWhatsAppMessage({
+        to: phoneNumber,
+        message: testMessage,
+        leadName: 'Teste'
+      });
+
+      if (success) {
+        console.log('✅ Mensagem enviada com sucesso!');
+        
+        // Registrar mensagem de teste
+        await this.supabase
+          .from('whatsapp_messages')
+          .insert({
+            user_id: userId,
+            phone_number: phoneNumber,
+            sender_name: 'Teste Contato',
+            message_content: testMessage,
+            direction: 'outgoing',  // CORRIGIDO: era 'outbound', agora é 'outgoing'
+            message_type: 'text'
+          });
+
+        console.log('✅ Mensagem registrada no banco');
+
+        return {
+          success: true,
+          message: `Mensagem de teste enviada com sucesso para ${phoneNumber}`,
+          phoneNumber
+        };
+      }
+    } catch (error) {
+      console.error('❌ Erro ao enviar teste:', error);
+      throw error;
+    }
+  }
+
   // Enviar campanha de WhatsApp
   async sendCampaignMessages(campaignId: string, userId: string) {
     console.log('📱 WhatsAppService: Iniciando campanha de WhatsApp');
+    console.log(`📋 CampaignId: ${campaignId}, UserId: ${userId}`);
     
     if (!this.maytapiApiKey) {
       console.warn('⚠️ MAYTAPI_API_KEY não configurada, simulando envios');
@@ -34,26 +110,74 @@ class WhatsAppService {
         .eq('campaign_id', campaignId)
         .eq('campaigns.user_id', userId);
 
-      if (scriptsError) throw scriptsError;
+      console.log(`📝 Scripts encontrados: ${scripts?.length || 0}`);
+      if (scriptsError) {
+        console.error('❌ Erro ao buscar scripts:', scriptsError);
+        throw scriptsError;
+      }
       if (!scripts || scripts.length === 0) {
         throw new Error('Nenhum script encontrado para a campanha');
       }
 
-      // Buscar leads correspondentes com WhatsApp
-      const empresas = scripts.map((s: any) => s.empresa);
-      const { data: leads } = await this.supabase
+      // Buscar leads correspondentes com telefone/WhatsApp
+      // Filtrar empresas válidas (remover "-" e strings vazias)
+      const empresas = scripts
+        .map((s: any) => s.empresa)
+        .filter((e: string) => e && e.trim() !== '' && e !== '-');
+      
+      console.log(`🏢 Total de empresas nos scripts: ${scripts.length}`);
+      console.log(`✅ Empresas válidas (primeiras 10): ${empresas.slice(0, 10).join(', ')}`);
+      console.log(`📊 Total de empresas válidas: ${empresas.length}`);
+      
+      if (empresas.length === 0) {
+        console.warn('⚠️ Nenhuma empresa válida encontrada nos scripts');
+        return { sent: 0, errors: [], message: 'Nenhuma empresa válida encontrada' };
+      }
+
+      // Buscar todos os leads do usuário primeiro, depois filtrar
+      const { data: allLeads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
-        .eq('user_id', userId)
-        .in('empresa', empresas)
-        .not('whatsapp', 'is', null);
+        .eq('user_id', userId);
 
-      if (!leads || leads.length === 0) {
-        console.warn('Nenhum lead com WhatsApp encontrado');
-        return { sent: 0, errors: [], message: 'Nenhum lead com WhatsApp válido' };
+      console.log(`👥 Total de leads encontrados: ${allLeads?.length || 0}`);
+      if (leadsError) {
+        console.error('❌ Erro ao buscar leads:', leadsError);
+        throw new Error(`Erro ao buscar leads: ${leadsError.message}`);
+      }
+
+      // Filtrar leads que pertençam às empresas da campanha E tenham telefone/whatsapp válido
+      const leads = allLeads?.filter((lead: any) => {
+        // Verificar se a empresa do lead está na lista de empresas da campanha
+        const isInCampaign = empresas.includes(lead.empresa);
+        if (!isInCampaign) return false;
+
+        // Verificar se tem telefone ou whatsapp válido (mínimo 10 dígitos)
+        const hasWhatsApp = lead.whatsapp && lead.whatsapp.replace(/\D/g, '').length >= 10;
+        const hasTelefone = lead.telefone && lead.telefone.replace(/\D/g, '').length >= 10;
+        return hasWhatsApp || hasTelefone;
+      }) || [];
+
+      if (leads.length > 0) {
+        console.log('📊 Primeiros 3 leads válidos:');
+        leads.slice(0, 3).forEach((lead: any) => {
+          console.log(`  - ${lead.empresa}: whatsapp=${lead.whatsapp || 'vazio'}, telefone=${lead.telefone || 'vazio'}`);
+        });
+      }
+
+      console.log(`✅ Leads com telefone/WhatsApp válido: ${leads.length}`);
+
+      if (leads.length === 0) {
+        console.warn('⚠️ Nenhum lead com telefone/WhatsApp encontrado');
+        console.warn(`Total de leads: ${allLeads?.length || 0}, mas nenhum tem telefone/whatsapp válido (mínimo 10 dígitos)`);
+        return { sent: 0, errors: [], message: 'Nenhum lead com telefone/WhatsApp válido' };
       }
 
       console.log(`📲 Enviando WhatsApp para ${leads.length} leads`);
+      console.log('📝 Primeiros 5 leads que receberão mensagens:');
+      leads.slice(0, 5).forEach((lead: any, index: any) => {
+        console.log(`  ${index + 1}. ${lead.empresa} - Contato: ${lead.contato_decisor || 'Não informado'} - Tel: ${lead.whatsapp || lead.telefone}`);
+      });
 
       const sent = [];
       const errors = [];
@@ -61,12 +185,14 @@ class WhatsAppService {
       // Enviar mensagens individualizadas
       for (const lead of leads) {
         const script = scripts.find((s: any) => s.empresa === lead.empresa);
-        if (!script || !lead.whatsapp) continue;
+        const phoneNumber = lead.whatsapp || lead.telefone;
+        
+        if (!script || !phoneNumber) continue;
 
         try {
           const message = this.formatWhatsAppMessage(script.roteiro_ligacao, lead);
           const success = await this.sendWhatsAppMessage({
-            to: lead.whatsapp,
+            to: phoneNumber,
             message: message,
             leadName: lead.empresa
           });
@@ -97,10 +223,10 @@ class WhatsAppService {
               .from('whatsapp_messages')
               .insert({
                 user_id: userId,
-                phone_number: lead.whatsapp,
+                phone_number: phoneNumber,
                 sender_name: lead.empresa,
                 message_content: message,
-                direction: 'outbound',
+                direction: 'outgoing',  // CORRIGIDO: era 'outbound'
                 message_type: 'text'
               });
           }
@@ -126,32 +252,60 @@ class WhatsAppService {
     }
   }
 
-  // Enviar mensagem individual via MayTapi
+  // Enviar mensagem individual via Maytapi - API CORRETA
   async sendWhatsAppMessage({ to, message, leadName }: any) {
     try {
-      // Limpar e formatar número
-      const cleanPhone = to.replace(/\D/g, '');
+      console.log(`📱 Iniciando envio via Maytapi para ${leadName} (${to})`);
       
-      const response = await fetch(`https://api.maytapi.com/api/send-message`, {
+      // Limpar e formatar número - Maytapi aceita formato internacional
+      const cleanPhone = to.replace(/\D/g, '');
+      console.log(`Número limpo: ${cleanPhone}`);
+      
+      // Configuração Maytapi
+      const productId = Deno.env.get('MAYTAPI_PRODUCT_ID');
+      const phoneId = Deno.env.get('MAYTAPI_PHONE_ID');
+      
+      if (!productId || !phoneId) {
+        throw new Error('MAYTAPI_PRODUCT_ID e MAYTAPI_PHONE_ID são necessários');
+      }
+      
+      // URL correta da API Maytapi
+      const apiUrl = `https://api.maytapi.com/api/${productId}/${phoneId}/sendMessage`;
+      console.log(`📡 URL da API: ${apiUrl}`);
+      
+      const payload = {
+        to_number: cleanPhone,
+        type: 'text',
+        message: message
+      };
+      
+      console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-maytapi-key': this.maytapiApiKey!
         },
-        body: JSON.stringify({
-          to_number: cleanPhone,
-          message: message,
-          type: 'text'
-        })
+        body: JSON.stringify(payload)
       });
 
+      const responseText = await response.text();
+      console.log(`✅ Status: ${response.status}`);
+      console.log(`📄 Response: ${responseText}`);
+
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`MayTapi API error: ${response.status} - ${error}`);
+        throw new Error(`Maytapi API error ${response.status}: ${responseText}`);
       }
 
-      const result = await response.json();
-      console.log(`✅ WhatsApp enviado para ${leadName}: ${result.message_id || 'success'}`);
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = { message: responseText };
+      }
+      
+      console.log(`✅ WhatsApp enviado para ${leadName}!`);
       return true;
 
     } catch (error) {
@@ -163,13 +317,15 @@ class WhatsAppService {
   // Formatar mensagem de WhatsApp
   formatWhatsAppMessage(template: string, lead: any) {
     const empresa = lead.empresa || '[EMPRESA]';
-    const contato = lead.contato_decisor || 'responsável';
     
-    const message = `🏦 *Conta PJ C6 Bank - Infinity*
+    // Substituir [Responsável] pelo nome da empresa no template
+    const templateFormatted = template.replace(/\[Responsável\]/gi, empresa);
+    
+    const message = `🏦 *Olá, ${empresa}!*
 
-${template}
+${templateFormatted}
 
-*✅ Benefícios Exclusivos:*
+*✅ Benefícios Exclusivos para ${empresa}:*
 • Conta 100% gratuita
 • Pix ilimitado sem custo
 • 100 TEDs gratuitos/mês
@@ -179,7 +335,7 @@ ${template}
 
 *🚀 Abertura 100% digital*
 
-Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
+Posso enviar mais detalhes sobre os benefícios para sua empresa?
 
 ---
 *Escritório Infinity - C6 Bank PJ*
@@ -224,7 +380,7 @@ Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
       phone_number: '62999999999',
       sender_name: script.empresa,
       message_content: `[SIMULADO] Mensagem para ${script.empresa}`,
-      direction: 'outbound',
+      direction: 'outgoing',  // CORRIGIDO: era 'outbound'
       message_type: 'text'
     }));
 
@@ -246,7 +402,7 @@ Posso enviar mais detalhes sobre os benefícios para a ${empresa}?
     const { data: messages } = await this.supabase
       .from('whatsapp_messages')
       .select('*')
-      .eq('direction', 'inbound')
+      .eq('direction', 'incoming')  // CORRIGIDO: era 'inbound'
       .eq('response_sent', false)
       .order('created_at', { ascending: true });
 
@@ -333,13 +489,21 @@ Aguarde só um momento! 😊`;
 }
 
 serve(async (req) => {
+  console.log('=== WHATSAPP SERVICE CHAMADO ===');
+  console.log('Method:', req.method);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const { action, campaignId, userId, channel } = body;
+    const bodyText = await req.text();
+    console.log('Body recebido:', bodyText);
+    
+    const body = JSON.parse(bodyText);
+    const { action, campaignId, userId, phoneNumber } = body;
+    
+    console.log('Parâmetros:', { action, campaignId, userId, phoneNumber });
 
     if (!userId) {
       return new Response(JSON.stringify({ 
@@ -359,17 +523,30 @@ serve(async (req) => {
     
     let result;
 
+    console.log('Action recebida:', action);
+
     switch (action) {
+      case 'sendTest':
+        if (!phoneNumber) {
+          throw new Error('phoneNumber é obrigatório para teste');
+        }
+        console.log('Executando sendTest...');
+        result = await whatsappService.sendTestMessage(phoneNumber, userId);
+        break;
       case 'processInbound':
+        console.log('Executando processInbound...');
         result = await whatsappService.processInboundMessages();
         break;
       default:
         if (campaignId) {
+          console.log('Executando sendCampaignMessages...');
           result = await whatsappService.sendCampaignMessages(campaignId, userId);
         } else {
           throw new Error('campaignId é obrigatório para campanhas');
         }
     }
+
+    console.log('Resultado:', JSON.stringify(result));
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -379,10 +556,11 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Erro no WhatsAppService:', error);
+    console.error('❌ Erro no WhatsAppService:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
     return new Response(JSON.stringify({ 
       success: false,
-      error: error instanceof Error ? error.message : 'Erro interno do servidor'
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

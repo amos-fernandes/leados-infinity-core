@@ -41,11 +41,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get leads to process
+    // Get leads to process - incluir leads qualificados que precisam de enriquecimento
     let query = supabase
       .from('leads')
       .select('*')
-      .eq('status', 'novo')
+      .or('status.eq.novo,and(status.eq.qualificado,whatsapp_business.is.null)')
       .limit(batchSize);
 
     if (userId) {
@@ -59,9 +59,9 @@ serve(async (req) => {
     }
 
     if (!leadsToProcess || leadsToProcess.length === 0) {
-      console.log('📭 Nenhum lead novo encontrado para processar');
+      console.log('📭 Nenhum lead encontrado para processar');
       return new Response(JSON.stringify({ 
-        message: 'Nenhum lead novo encontrado',
+        message: 'Nenhum lead encontrado para enriquecimento',
         processed: 0 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -81,13 +81,16 @@ serve(async (req) => {
     // Process each lead through the pipeline
     for (const lead of leadsToProcess) {
       console.log(`\n🔄 Processando lead: ${lead.empresa} (ID: ${lead.id})`);
+      console.log(`   Status atual: ${lead.status}, WhatsApp: ${lead.whatsapp || 'N/A'}, Website: ${lead.website_validated ? 'Validado' : 'Não validado'}`);
       
       try {
-        // Update status to PROCESSING
-        await supabase
-          .from('leads')
-          .update({ status: 'PROCESSING' })
-          .eq('id', lead.id);
+        // Update status to PROCESSING (apenas se for novo)
+        if (lead.status === 'novo') {
+          await supabase
+            .from('leads')
+            .update({ status: 'PROCESSING' })
+            .eq('id', lead.id);
+        }
 
         let currentLead = { ...lead };
         
@@ -120,7 +123,83 @@ serve(async (req) => {
           }
         }
 
-        // === ESTAÇÃO 2: ENRIQUECIMENTO CNPJ ===
+        // === ESTAÇÃO 2: VALIDAÇÃO DE WHATSAPP ===
+        if (currentLead.telefone || currentLead.whatsapp) {
+          console.log('📱 Iniciando validação de WhatsApp...');
+          
+          const phoneToValidate = currentLead.whatsapp || currentLead.telefone;
+          try {
+            const whatsappResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/validate-whatsapp-number`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                phone: phoneToValidate,
+                phoneNumberId: Deno.env.get('PHONE_NUMBER_ID') || '5562991792303'
+              }),
+            });
+
+            if (whatsappResponse.ok) {
+              const whatsappResult = await whatsappResponse.json();
+              if (whatsappResult.valid) {
+                await supabase
+                  .from('leads')
+                  .update({ 
+                    whatsapp_business: whatsappResult.phone,
+                    whatsapp: whatsappResult.phone 
+                  })
+                  .eq('id', lead.id);
+                console.log(`✅ WhatsApp validado: ${whatsappResult.phone}`);
+              } else {
+                console.log('⚠️ Número não possui WhatsApp ativo');
+              }
+            }
+          } catch (error) {
+            console.error('⚠️ Erro na validação de WhatsApp:', (error as Error).message);
+          }
+        }
+
+        // === ESTAÇÃO 3: ANÁLISE DE WEBSITE ===
+        if (currentLead.website && !currentLead.website_validated) {
+          console.log('🌐 Iniciando análise de website...');
+          
+          try {
+            const websiteResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/scrape-contact-info`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                website: currentLead.website,
+                leadId: lead.id,
+                userId: currentLead.user_id
+              }),
+            });
+
+            if (websiteResponse.ok) {
+              const websiteResult = await websiteResponse.json();
+              console.log('✅ Website analisado e dados atualizados');
+              
+              // Reload lead data
+              const { data: updatedLead } = await supabase
+                .from('leads')
+                .select('*')
+                .eq('id', lead.id)
+                .single();
+              
+              if (updatedLead) {
+                currentLead = updatedLead;
+              }
+            }
+          } catch (error) {
+            console.error('⚠️ Erro na análise de website:', (error as Error).message);
+          }
+        }
+
+        // === ESTAÇÃO 4: ENRIQUECIMENTO CNPJ ===
         // Check if we have CNPJ data or try to extract from company name
         if (!currentLead.cnpj && !currentLead.tech_stack?.codigo_cnae) {
           console.log('🏢 Dados de CNPJ não encontrados, tentando extrair...');
@@ -164,7 +243,7 @@ serve(async (req) => {
           }
         }
 
-        // === ESTAÇÃO 3: VALIDAÇÃO E QUALIFICAÇÃO ===
+        // === ESTAÇÃO 5: VALIDAÇÃO E QUALIFICAÇÃO ===
         console.log('🎯 Iniciando validação de critérios...');
         
         // Set default criteria if none provided

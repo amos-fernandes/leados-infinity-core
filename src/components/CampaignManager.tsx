@@ -24,8 +24,17 @@ const CampaignManager = () => {
   useEffect(() => {
     if (user) {
       loadCampaigns();
+      
+      // Auto-reload a cada 5 segundos se houver campanhas em execução
+      const interval = setInterval(() => {
+        if (campaigns.some(c => c.status === 'em_execucao')) {
+          loadCampaigns();
+        }
+      }, 5000);
+      
+      return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, campaigns]);
 
   const loadCampaigns = async () => {
     if (!user) return;
@@ -46,6 +55,45 @@ const CampaignManager = () => {
       toast.error("Erro ao carregar campanhas");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendTestMessage = async () => {
+    if (!user) return;
+
+    let toastId: string | number | undefined;
+    
+    try {
+      toastId = toast.loading("Enviando mensagem de teste...");
+      console.log('Iniciando envio de teste para 5562981647087');
+      
+      const { data, error } = await supabase.functions.invoke('whatsapp-service', {
+        body: { 
+          action: 'sendTest',
+          userId: user.id,
+          phoneNumber: '5562981647087'
+        }
+      });
+
+      console.log('Resposta whatsapp-service:', { data, error });
+
+      if (toastId) toast.dismiss(toastId);
+
+      if (error) {
+        console.error('Erro na função:', error);
+        toast.error(`Erro ao enviar: ${error.message || 'Erro desconhecido'}`);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success(`✅ Mensagem enviada para 5562981647087! Verifique os logs para detalhes.`);
+      } else {
+        toast.error(`Erro: ${data?.error || 'Falha ao enviar mensagem'}`);
+      }
+    } catch (error: any) {
+      console.error('Erro ao enviar teste:', error);
+      if (toastId) toast.dismiss(toastId);
+      toast.error(`Erro: ${error.message || 'Falha ao enviar mensagem de teste'}`);
     }
   };
 
@@ -146,6 +194,64 @@ const CampaignManager = () => {
     }
   };
 
+  const handleDispararPendentes = async () => {
+    if (!user) return;
+    
+    setIsCreating(true);
+    try {
+      console.log('🚨 DISPARO URGENTE: Enviando para próximos 1000 leads pendentes');
+      
+      // Primeiro, criar uma nova campanha
+      const { data: createData, error: createError } = await supabase.functions.invoke('campaign-service', {
+        body: {
+          action: 'create',
+          userId: user.id,
+          campaignData: {
+            userId: user.id,
+            name: `🚨 Disparo Urgente - ${new Date().toLocaleDateString('pt-BR')}`,
+            description: 'Disparo emergencial para leads pendentes',
+            status: 'ativa'
+          }
+        }
+      });
+
+      if (createError) throw createError;
+      if (!createData?.success) throw new Error(createData?.error || 'Erro ao criar campanha');
+
+      const campaignId = createData.data.id;
+      console.log('Campanha criada:', campaignId);
+
+      // Agora executar a campanha (que buscará apenas leads pendentes)
+      const { data: runData, error: runError } = await supabase.functions.invoke('campaign-service', {
+        body: {
+          action: 'run',
+          userId: user.id,
+          campaignId: campaignId
+        }
+      });
+
+      console.log('Run campaign response:', { runData, runError });
+
+      if (runError) throw runError;
+      if (!runData?.success) throw new Error(runData?.error || 'Erro ao executar campanha');
+
+      toast.success(
+        `🚀 ${runData.data.message}\n` +
+        `📊 Total no banco: ${runData.data.totalInDatabase}\n` +
+        `✅ Já enviados: ${runData.data.alreadySent}\n` +
+        `⏳ Pendentes: ${runData.data.totalPending}\n` +
+        `🎯 Processando agora: ${runData.data.totalLeads}`
+      );
+
+      await loadCampaigns();
+    } catch (error) {
+      console.error('Erro ao disparar para pendentes:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao disparar campanha urgente');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <Card className="shadow-soft">
       <CardHeader>
@@ -155,9 +261,26 @@ const CampaignManager = () => {
             Gerenciar Campanhas
           </CardTitle>
       <div className="flex gap-2">
+        <Button 
+          onClick={handleSendTestMessage} 
+          disabled={isCreating || loading}
+          variant="secondary"
+          size="sm"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          Teste WhatsApp
+        </Button>
+        <Button 
+          onClick={handleDispararPendentes} 
+          disabled={isCreating || loading}
+          className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold"
+        >
+          <Send className="h-4 w-4 mr-2" />
+          🚨 DISPARAR PENDENTES AGORA
+        </Button>
         <Button onClick={handleCreateCampaign} disabled={isCreating || loading}>
           <Plus className="h-4 w-4 mr-2" />
-          {isCreating ? 'Criando...' : 'Campanha Completa (4 Fases)'}
+          {isCreating ? 'Iniciando...' : 'Campanha Completa'}
         </Button>
         <Button 
           onClick={handleLaunchCampaign} 
@@ -165,7 +288,7 @@ const CampaignManager = () => {
           variant="outline"
         >
           <Send className="h-4 w-4 mr-2" />
-          Lançar p/ Leads Qualificados
+          Lançar p/ Qualificados
         </Button>
       </div>
         </div>
@@ -180,11 +303,36 @@ const CampaignManager = () => {
             {campaigns.map((campaign) => (
               <div key={campaign.id} className="border rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-semibold">{campaign.name}</h4>
                     <p className="text-sm text-muted-foreground">{campaign.description}</p>
+                    
+                    {/* Mostrar progresso se estiver em execução */}
+                    {campaign.status === 'em_execucao' && campaign.description?.includes('Processando:') && (
+                      <div className="mt-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                          <span className="animate-pulse">🔄</span>
+                          <span>Em andamento...</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${campaign.description.match(/\((\d+)%\)/)?.[1] || 0}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Badge variant="outline">{campaign.status}</Badge>
+                  <Badge variant={
+                    campaign.status === 'ativa' ? 'default' :
+                    campaign.status === 'em_execucao' ? 'secondary' :
+                    campaign.status === 'concluida' ? 'outline' :
+                    'destructive'
+                  }>
+                    {campaign.status === 'em_execucao' ? '🔄 Processando' : campaign.status}
+                  </Badge>
                 </div>
               </div>
             ))}

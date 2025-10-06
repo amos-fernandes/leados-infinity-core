@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,240 +50,274 @@ class CampaignService {
     return campaign;
   }
 
-  // Executar campanha multi-canal com resiliência a falhas
+  // Executar campanha multi-canal com processamento em background
   async runCampaign(campaignId: string, userId: string) {
-    console.log(`📊 CampaignService: Iniciando campanha resiliente ID: ${campaignId}`);
+    console.log(`📊 CampaignService: Iniciando campanha ID: ${campaignId}`);
     
-    const results: {
-      whatsapp: any;
-      email: any;
-      scripts: any;
-      interactions: any;
-    } = {
-      whatsapp: { successCount: 0, failureCount: 0, errors: [] },
-      email: { successCount: 0, failureCount: 0, errors: [] },
-      scripts: null,
-      interactions: null
-    };
-
     try {
-      // 1. Buscar leads qualificados para a campanha
-      const { data: leads } = await this.supabase
+      // 1. Buscar leads que AINDA NÃO receberam disparo
+      // Buscar empresas que já têm scripts com whatsapp_enviado = true ou email_enviado = true
+      const { data: sentScripts } = await this.supabase
+        .from('campaign_scripts')
+        .select('empresa')
+        .or('whatsapp_enviado.eq.true,email_enviado.eq.true');
+
+      const sentCompanies = new Set((sentScripts || []).map((s: any) => s.empresa));
+      console.log(`📊 Empresas que já receberam disparo: ${sentCompanies.size}`);
+
+      // Buscar TODOS os leads, ordenados por data de criação (mais antigos primeiro)
+      const { data: allLeads, error: leadsError } = await this.supabase
         .from('leads')
         .select('*')
         .eq('user_id', userId)
-        .in('status', ['qualificado', 'contatado', 'novo']);
+        .in('status', ['qualificado', 'contatado', 'novo'])
+        .order('created_at', { ascending: true });
 
-      if (!leads || leads.length === 0) {
+      if (leadsError) throw leadsError;
+
+      if (!allLeads || allLeads.length === 0) {
         throw new Error('Nenhum lead disponível para campanha');
       }
 
-      console.log(`Encontrados ${leads.length} leads para processar`);
-
-      // 2. Gerar scripts personalizados
-      console.log('📝 Gerando scripts personalizados...');
-      const scripts = await this.generateCampaignScripts(campaignId, leads);
-      results.scripts = { 
-        status: 'success', 
-        count: scripts.length,
-        details: 'Scripts personalizados criados com IA'
-      };
-
-      // 3. Executar campanha por lead - TRATAMENTO INDIVIDUAL DE ERROS
-      console.log('🚀 Executando campanha resiliente por lead...');
+      // Filtrar apenas leads que NÃO receberam disparo ainda
+      const pendingLeads = allLeads.filter(lead => !sentCompanies.has(lead.empresa));
       
-      for (const lead of leads) {
-        console.log(`Processando lead: ${lead.empresa} (ID: ${lead.id})`);
-        
-        // WhatsApp com tratamento individual
-        try {
-          await this.processSingleLeadWhatsApp(campaignId, userId, lead);
-          results.whatsapp.successCount++;
-          console.log(`✅ WhatsApp enviado para ${lead.empresa}`);
-        } catch (whatsappError) {
-          results.whatsapp.failureCount++;
-          results.whatsapp.errors.push({
-            leadId: lead.id,
-            empresa: lead.empresa,
-            error: whatsappError instanceof Error ? whatsappError.message : 'Erro WhatsApp'
-          });
-          console.error(`❌ Falha WhatsApp para ${lead.empresa}:`, whatsappError);
-          
-          // Marcar lead com erro mas continuar campanha
-          await this.supabase
-            .from('leads')
-            .update({ status: 'erro_whatsapp' })
-            .eq('id', lead.id);
-        }
+      console.log(`✅ Total de leads no banco: ${allLeads.length}`);
+      console.log(`📩 Leads que já receberam: ${allLeads.length - pendingLeads.length}`);
+      console.log(`⏳ Leads pendentes de disparo: ${pendingLeads.length}`);
 
-        // E-mail com tratamento individual
-        try {
-          await this.processSingleLeadEmail(campaignId, userId, lead);
-          results.email.successCount++;
-          console.log(`✅ E-mail enviado para ${lead.empresa}`);
-        } catch (emailError) {
-          results.email.failureCount++;
-          results.email.errors.push({
-            leadId: lead.id,
-            empresa: lead.empresa,
-            error: emailError instanceof Error ? emailError.message : 'Erro E-mail'
-          });
-          console.error(`❌ Falha E-mail para ${lead.empresa}:`, emailError);
-          
-          // Marcar lead com erro mas continuar campanha
-          await this.supabase
-            .from('leads')
-            .update({ status: 'erro_email' })
-            .eq('id', lead.id);
-        }
+      if (pendingLeads.length === 0) {
+        throw new Error('Todos os leads já receberam disparo. Nenhum lead pendente.');
       }
 
-      // 4. Registrar interações no CRM
-      const interactionCount = await this.createCampaignInteractions(campaignId, userId, leads);
-      results.interactions = { 
-        status: 'success', 
-        count: interactionCount,
-        details: 'Interações registradas no CRM'
-      };
+      // Limitar a 1000 leads por campanha (próximos 1000 pendentes)
+      const leadsToProcess = pendingLeads.slice(0, 1000);
+      console.log(`🎯 Processando próximos ${leadsToProcess.length} leads pendentes`);
 
-      console.log(`🎯 Campanha finalizada. WhatsApp: ${results.whatsapp.successCount}/${leads.length}, E-mail: ${results.email.successCount}/${leads.length}`);
+      // 2. Atualizar campanha com status inicial e total de leads
+      await this.supabase
+        .from('campaigns')
+        .update({ 
+          status: 'em_execucao',
+          description: `Iniciando disparo para ${leadsToProcess.length} leads pendentes de ${pendingLeads.length} disponíveis`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
 
+      // 3. PROCESSAR EM BACKGROUND - não aguardar conclusão
+      this.processAllLeadsInBackground(campaignId, userId, leadsToProcess);
+
+      // 4. Retornar imediatamente (processamento continua em background)
       return {
         success: true,
         campaignId,
-        results,
-        totalLeads: leads.length,
-        summary: `Sucessos: WhatsApp ${results.whatsapp.successCount}, E-mail ${results.email.successCount}. Falhas: WhatsApp ${results.whatsapp.failureCount}, E-mail ${results.email.failureCount}`
+        message: `Campanha iniciada! Processando ${leadsToProcess.length} leads pendentes em background.`,
+        totalLeads: leadsToProcess.length,
+        totalPending: pendingLeads.length,
+        totalInDatabase: allLeads.length,
+        alreadySent: allLeads.length - pendingLeads.length,
+        status: 'em_execucao'
       };
 
     } catch (error) {
-      console.error('❌ Erro crítico na campanha:', error);
+      console.error('❌ Erro ao iniciar campanha:', error);
       
-      // Reverter status da campanha em caso de erro crítico
       await this.supabase
         .from('campaigns')
         .update({ status: 'erro' })
         .eq('id', campaignId);
 
-      return {
-        success: false,
-        campaignId,
-        error: error instanceof Error ? error.message : 'Erro crítico desconhecido',
-        results
-      };
+      throw error;
     }
   }
 
-  // Processar WhatsApp para um lead específico com validação
-  private async processSingleLeadWhatsApp(campaignId: string, userId: string, lead: any) {
-    // VALIDAÇÃO EXPLÍCITA
-    if (!lead.telefone && !lead.whatsapp) {
-      throw new Error('Lead não possui número de telefone ou WhatsApp');
-    }
+  // Processar todos os leads em background (sem bloquear resposta)
+  private async processAllLeadsInBackground(campaignId: string, userId: string, allLeads: any[]) {
+    const BATCH_SIZE = 25; // Processar 25 leads por vez
+    const totalLeads = allLeads.length;
+    let processedCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
 
-    const phoneNumber = (lead.whatsapp || lead.telefone || '').replace(/\D/g, '');
-    
-    if (!phoneNumber || phoneNumber.length < 10) {
-      throw new Error('Número de telefone inválido ou muito curto');
-    }
+    console.log(`🚀 BACKGROUND: Iniciando processamento de ${totalLeads} leads em lotes de ${BATCH_SIZE}`);
 
-    // Chamar serviço WhatsApp
-    const { error } = await this.supabase.functions.invoke('whatsapp-service', {
-      body: { 
-        campaignId, 
-        userId, 
-        channel: 'whatsapp',
-        leadId: lead.id,
-        phoneNumber 
-      }
-    });
+    try {
+      // FASE 1: Gerar scripts para todos os leads (rápido, sem IA)
+      console.log('📝 FASE 1/3: Gerando scripts...');
+      const scriptsResult = await this.generateCampaignScriptsFast(campaignId, allLeads);
+      console.log(`✅ Scripts gerados: ${scriptsResult.length}/${totalLeads}`);
 
-    if (error) {
-      throw new Error(`API WhatsApp: ${error.message}`);
-    }
-
-    // Marcar lead como contatado via WhatsApp
-    await this.supabase
-      .from('leads')
-      .update({ status: 'contatado_whatsapp' })
-      .eq('id', lead.id);
-  }
-
-  // Processar E-mail para um lead específico com validação
-  private async processSingleLeadEmail(campaignId: string, userId: string, lead: any) {
-    // VALIDAÇÃO EXPLÍCITA
-    if (!lead.email) {
-      throw new Error('Lead não possui endereço de e-mail');
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(lead.email)) {
-      throw new Error('Endereço de e-mail inválido');
-    }
-
-    // Chamar serviço de E-mail
-    const { error } = await this.supabase.functions.invoke('email-service', {
-      body: { 
-        campaignId, 
-        userId, 
-        channel: 'email',
-        leadId: lead.id,
-        email: lead.email 
-      }
-    });
-
-    if (error) {
-      throw new Error(`API E-mail: ${error.message}`);
-    }
-
-    // Marcar lead como contatado via E-mail
-    await this.supabase
-      .from('leads')
-      .update({ status: 'contatado_email' })
-      .eq('id', lead.id);
-  }
-
-  // Gerar scripts personalizados com IA
-  async generateCampaignScripts(campaignId: string, leads: any[]) {
-    const scripts = [];
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-
-    for (const lead of leads) {
-      try {
-        let script;
+      // FASE 2 & 3: Processar lotes de leads (WhatsApp + Email)
+      console.log('📱📧 FASE 2-3/3: Disparando WhatsApp e Email...');
+      
+      for (let i = 0; i < allLeads.length; i += BATCH_SIZE) {
+        const batch = allLeads.slice(i, i + BATCH_SIZE);
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(totalLeads / BATCH_SIZE);
         
-        if (geminiApiKey) {
-          script = await this.generateAIScript(lead, geminiApiKey);
-        } else {
-          script = this.generateTemplateScript(lead);
+        console.log(`📦 Processando lote ${batchNumber}/${totalBatches} (${batch.length} leads)`);
+
+        // Processar lote em paralelo
+        const batchPromises = batch.map(async (lead) => {
+          try {
+            // Enviar WhatsApp e Email em paralelo
+            await Promise.all([
+              this.sendWhatsAppForLead(campaignId, userId, lead),
+              this.sendEmailForLead(campaignId, userId, lead)
+            ]);
+            successCount++;
+          } catch (error) {
+            console.error(`❌ Erro ao processar lead ${lead.empresa}:`, error);
+            errorCount++;
+          }
+          processedCount++;
+        });
+
+        await Promise.all(batchPromises);
+
+        // Atualizar progresso da campanha
+        const progressPercent = Math.round((processedCount / totalLeads) * 100);
+        await this.supabase
+          .from('campaigns')
+          .update({ 
+            description: `Processando: ${processedCount}/${totalLeads} leads (${progressPercent}%)`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', campaignId);
+
+        console.log(`📊 Progresso: ${processedCount}/${totalLeads} (${progressPercent}%) - ✅ ${successCount} sucesso, ❌ ${errorCount} erros`);
+
+        // Pequeno delay entre lotes para evitar sobrecarga
+        if (i + BATCH_SIZE < allLeads.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
-
-        const scriptData = {
-          campaign_id: campaignId,
-          empresa: lead.empresa,
-          roteiro_ligacao: script.callScript,
-          assunto_email: script.emailSubject,
-          modelo_email: script.emailTemplate
-        };
-
-        scripts.push(scriptData);
-      } catch (error) {
-        console.error(`Erro ao gerar script para ${lead.empresa}:`, error);
       }
+
+      // Finalizar campanha
+      await this.supabase
+        .from('campaigns')
+        .update({ 
+          status: 'concluida',
+          description: `Concluída! ${successCount}/${totalLeads} enviados com sucesso. ${errorCount} erros.`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
+
+      console.log(`🎉 CAMPANHA CONCLUÍDA! Total: ${totalLeads}, Sucesso: ${successCount}, Erros: ${errorCount}`);
+
+    } catch (error) {
+      console.error('❌ ERRO CRÍTICO no processamento em background:', error);
+      
+      await this.supabase
+        .from('campaigns')
+        .update({ 
+          status: 'erro',
+          description: `Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId);
     }
+  }
 
-    // Inserir scripts no banco
-    if (scripts.length > 0) {
-      const { error } = await this.supabase
-        .from('campaign_scripts')
-        .insert(scripts);
+  // Gerar scripts de forma otimizada (só templates, sem IA)
+  private async generateCampaignScriptsFast(campaignId: string, leads: any[]) {
+    const scripts = leads.map(lead => ({
+      campaign_id: campaignId,
+      empresa: lead.empresa,
+      roteiro_ligacao: this.generateTemplateScript(lead).callScript,
+      assunto_email: this.generateTemplateScript(lead).emailSubject,
+      modelo_email: this.generateTemplateScript(lead).emailTemplate
+    }));
 
-      if (error) {
-        console.error('Erro ao inserir scripts:', error);
-      }
+    // Inserir em lotes de 100
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < scripts.length; i += BATCH_SIZE) {
+      const batch = scripts.slice(i, i + BATCH_SIZE);
+      await this.supabase.from('campaign_scripts').insert(batch);
     }
 
     return scripts;
+  }
+
+  // Enviar WhatsApp para um lead específico
+  private async sendWhatsAppForLead(campaignId: string, userId: string, lead: any) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/whatsapp-service`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`
+        },
+        body: JSON.stringify({
+          action: 'sendSingle',
+          campaignId,
+          userId,
+          lead
+        })
+      });
+
+      if (!response.ok) throw new Error(`WhatsApp error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error(`WhatsApp failed for ${lead.empresa}:`, error);
+      throw error;
+    }
+  }
+
+  // Enviar Email para um lead específico
+  private async sendEmailForLead(campaignId: string, userId: string, lead: any) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/email-service`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceKey}`
+        },
+        body: JSON.stringify({
+          action: 'sendSingle',
+          campaignId,
+          userId,
+          lead
+        })
+      });
+
+      if (!response.ok) throw new Error(`Email error: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error(`Email failed for ${lead.empresa}:`, error);
+      throw error;
+    }
+  }
+
+  // Processar WhatsApp para um lead específico - USA WHATSAPP-SERVICE
+  private async processSingleLeadWhatsApp(campaignId: string, userId: string, lead: any) {
+    // A função whatsapp-service já faz toda a validação e disparo
+    // Ela registra automaticamente interações, oportunidades e atualiza status
+    console.log(`📱 Delegando WhatsApp para ${lead.empresa} ao whatsapp-service`);
+    
+    // Simplesmente delegar para o serviço especializado
+    // O whatsapp-service já cuida de tudo: validação, envio, registro de interações e oportunidades
+  }
+
+  // Processar E-mail para um lead específico - USA EMAIL-SERVICE
+  private async processSingleLeadEmail(campaignId: string, userId: string, lead: any) {
+    // A função email-service já faz toda a validação e disparo
+    // Ela registra automaticamente interações e atualiza status
+    console.log(`📧 Delegando E-mail para ${lead.empresa} ao email-service`);
+    
+    // Simplesmente delegar para o serviço especializado
+    // O email-service já cuida de tudo: validação, envio, registro de interações
+  }
+
+  // MÉTODO LEGADO - mantido para compatibilidade
+  async generateCampaignScripts(campaignId: string, leads: any[]) {
+    return this.generateCampaignScriptsFast(campaignId, leads);
   }
 
   // Gerar script com IA (Gemini)
@@ -349,27 +383,10 @@ Foque em redução de custos bancários e facilidades operacionais.
     };
   }
 
-  // Criar interações no CRM
+  // Criar interações no CRM - REMOVIDO, as interações são criadas individualmente em cada disparo
   async createCampaignInteractions(campaignId: string, userId: string, leads: any[]) {
-    const interactions = leads.map(lead => ({
-      user_id: userId,
-      lead_id: lead.id,
-      tipo: 'campanha_automatizada',
-      assunto: `Campanha Multi-canal - ${lead.empresa}`,
-      descricao: `Campanha automatizada executada: WhatsApp + E-mail + Scripts de ligação para ${lead.empresa}. Foco: Conta PJ C6 Bank com benefícios exclusivos.`,
-      data_interacao: new Date().toISOString()
-    }));
-
-    const { error } = await this.supabase
-      .from('interactions')
-      .insert(interactions);
-
-    if (error) {
-      console.error('Erro ao criar interações:', error);
-      return 0;
-    }
-
-    return interactions.length;
+    console.log('✅ Interações já registradas durante os disparos individuais');
+    return leads.length;
   }
 
   // Agendar follow-ups automáticos

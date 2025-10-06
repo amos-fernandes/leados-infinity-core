@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,7 +33,7 @@ class WhatsAppRAGResponder {
         userId,
         phone,
         message,
-        direction: 'inbound',
+        direction: 'incoming',  // CORRIGIDO: era 'inbound'
         senderName: senderName || 'Cliente'
       });
 
@@ -58,7 +58,7 @@ class WhatsAppRAGResponder {
           userId,
           phone,
           message: aiResponse,
-          direction: 'outbound',
+          direction: 'outgoing',  // CORRIGIDO: era 'outbound'
           senderName: 'Escritório Infinity'
         });
 
@@ -194,7 +194,7 @@ class WhatsAppRAGResponder {
         message_content: message,
         direction: direction,
         message_type: 'text',
-        response_sent: direction === 'outbound'
+        response_sent: direction === 'outgoing'  // CORRIGIDO: era 'outbound'
       });
 
     if (error) {
@@ -248,7 +248,7 @@ class WhatsAppRAGResponder {
         .from('whatsapp_messages')
         .select('*')
         .eq('user_id', userId)
-        .eq('direction', 'inbound')
+        .eq('direction', 'incoming')  // CORRIGIDO: era 'inbound'
         .eq('response_sent', false)
         .order('created_at', { ascending: true });
 

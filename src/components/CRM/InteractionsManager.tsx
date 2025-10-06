@@ -18,6 +18,7 @@ import {
   Search,
   Filter
 } from "lucide-react";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -54,6 +55,9 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
   const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  const INTERACTIONS_PER_PAGE = 10;
 
   const [formData, setFormData] = useState({
     contact_id: "",
@@ -229,6 +233,48 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
 
     return matchesSearch && matchesFilter;
   });
+  
+  const totalPages = Math.ceil(filteredInteractions.length / INTERACTIONS_PER_PAGE);
+  const startIndex = (currentPage - 1) * INTERACTIONS_PER_PAGE;
+  const endIndex = startIndex + INTERACTIONS_PER_PAGE;
+  const paginatedInteractions = filteredInteractions.slice(startIndex, endIndex);
+  
+  // Gera números de página limitados
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7;
+    
+    if (totalPages <= maxVisible) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    pages.push(1);
+    
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+    
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+    
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterType]);
 
   return (
     <Card className="shadow-soft">
@@ -388,9 +434,9 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
           <div className="text-center py-8">
             <p className="text-muted-foreground">Carregando interações...</p>
           </div>
-        ) : filteredInteractions.length > 0 ? (
+        ) : paginatedInteractions.length > 0 ? (
           <div className="space-y-4">
-            {filteredInteractions.map((interaction) => (
+            {paginatedInteractions.map((interaction) => (
               <div key={interaction.id} className="border rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -453,6 +499,51 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
                 : "Comece criando sua primeira interação"
               }
             </p>
+          </div>
+        )}
+        
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {getPageNumbers().map((page, idx) => (
+                  <PaginationItem key={`page-${idx}`}>
+                    {page === '...' ? (
+                      <span className="px-4 py-2">...</span>
+                    ) : (
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page as number)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+        
+        {filteredInteractions.length > 0 && (
+          <div className="mt-4 text-sm text-muted-foreground text-center">
+            Mostrando {startIndex + 1}-{Math.min(endIndex, filteredInteractions.length)} de {filteredInteractions.length} interações
+            {filteredInteractions.length !== interactions.length && ` (${interactions.length} no total)`}
           </div>
         )}
       </CardContent>

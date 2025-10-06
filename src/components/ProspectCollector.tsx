@@ -35,6 +35,10 @@ export const ProspectCollector: React.FC = () => {
   // Sites Institucionais
   const [websites, setWebsites] = useState('');
   
+  // Redes Sociais
+  const [socialProfiles, setSocialProfiles] = useState('');
+  const [socialPlatform, setSocialPlatform] = useState<'instagram' | 'facebook'>('instagram');
+  
   // Validação WhatsApp
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [numbersToValidate, setNumbersToValidate] = useState('');
@@ -161,6 +165,55 @@ export const ProspectCollector: React.FC = () => {
       
       toast({
         title: "Erro - Sites",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const collectFromSocialMedia = async () => {
+    if (!socialProfiles.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite pelo menos um perfil de rede social",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setProgress(30);
+      
+      const profiles = socialProfiles.split('\n').map(p => p.trim()).filter(Boolean);
+      
+      const { data, error } = await supabase.functions.invoke('scrape-social-media', {
+        body: {
+          profiles: profiles,
+          platform: socialPlatform,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      const result: CollectorResult = {
+        type: `${socialPlatform === 'instagram' ? 'Instagram' : 'Facebook'} (Apify)`,
+        success: data.success,
+        leads: data.leads || [],
+        message: data.message || `${data.stats?.totalSaved || 0} perfis salvos`,
+      };
+
+      setResults(prev => [...prev, result]);
+      
+      toast({
+        title: `✅ ${socialPlatform === 'instagram' ? 'Instagram' : 'Facebook'}`,
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "Erro - Redes Sociais",
         description: error.message,
         variant: "destructive"
       });
@@ -453,11 +506,11 @@ export const ProspectCollector: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Instagram className="w-5 h-5" />
-                Instagram & Facebook
+                Instagram & Facebook - Coleta Avançada
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-2 text-purple-800 mb-3">
                   <Instagram className="w-5 h-5" />
                   <span className="font-semibold">🚀 Recursos Avançados de Redes Sociais</span>
@@ -480,15 +533,15 @@ export const ProspectCollector: React.FC = () => {
                   
                   <div className="space-y-2">
                     <h4 className="font-semibold text-purple-900 flex items-center gap-2">
-                      <Facebook className="w-4 h-4" />
-                      PhantomBuster Automation
+                      <Zap className="w-4 h-4" />
+                      APIs de Enriquecimento
                     </h4>
                     <ul className="text-sm text-purple-700 space-y-1">
-                      <li>• Automação inteligente de coleta</li>
-                      <li>• Bypass de limitações de API</li>
-                      <li>• Extração de dados de páginas comerciais</li>
+                      <li>• Hunter.io para busca de emails</li>
+                      <li>• Abstract API para validação</li>
+                      <li>• Extração de WhatsApp da bio</li>
                       <li>• Análise de engajamento</li>
-                      <li>• Coleta de informações de contato</li>
+                      <li>• Identificação automática de comerciais</li>
                     </ul>
                   </div>
                 </div>
@@ -498,7 +551,7 @@ export const ProspectCollector: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2 text-sm text-purple-700">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-3 h-3 text-green-600" />
-                      Perfis verificados
+                      Perfis verificados ✓
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-3 h-3 text-green-600" />
@@ -514,16 +567,73 @@ export const ProspectCollector: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
-                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-yellow-800 mb-1">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="font-semibold text-sm">Status: Em Desenvolvimento</span>
-                  </div>
-                  <p className="text-xs text-yellow-700">
-                    Funcionalidade em fase final de implementação. Disponível em breve.
-                  </p>
+              </div>
+
+              <div>
+                <Label>Selecione a Plataforma *</Label>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant={socialPlatform === 'instagram' ? 'default' : 'outline'}
+                    onClick={() => setSocialPlatform('instagram')}
+                    className="flex-1"
+                  >
+                    <Instagram className="w-4 h-4 mr-2" />
+                    Instagram
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={socialPlatform === 'facebook' ? 'default' : 'outline'}
+                    onClick={() => setSocialPlatform('facebook')}
+                    className="flex-1"
+                  >
+                    <Facebook className="w-4 h-4 mr-2" />
+                    Facebook
+                  </Button>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="social-profiles">
+                  URLs dos Perfis {socialPlatform === 'instagram' ? 'Instagram' : 'Facebook'} *
+                </Label>
+                <Textarea
+                  id="social-profiles"
+                  placeholder={socialPlatform === 'instagram' 
+                    ? "Digite uma URL por linha:\nhttps://www.instagram.com/empresa1/\nhttps://www.instagram.com/empresa2/"
+                    : "Digite uma URL por linha:\nhttps://www.facebook.com/empresa1\nhttps://www.facebook.com/empresa2"
+                  }
+                  value={socialProfiles}
+                  onChange={(e) => setSocialProfiles(e.target.value)}
+                  rows={6}
+                />
+              </div>
+              
+              <Button 
+                onClick={collectFromSocialMedia}
+                disabled={isCollecting || !socialProfiles.trim()}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {isCollecting ? (
+                  <>
+                    <Zap className="w-4 h-4 mr-2 animate-pulse" />
+                    Coletando Perfis...
+                  </>
+                ) : (
+                  <>
+                    {socialPlatform === 'instagram' ? <Instagram className="w-4 h-4 mr-2" /> : <Facebook className="w-4 h-4 mr-2" />}
+                    Iniciar Coleta Avançada
+                  </>
+                )}
+              </Button>
+              
+              <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+                <p className="font-semibold mb-2">🎯 Como funciona:</p>
+                <p>• <strong>Apify Scraper:</strong> Extrai dados completos do perfil</p>
+                <p>• <strong>Filtragem Inteligente:</strong> Identifica perfis comerciais e verificados</p>
+                <p>• <strong>Hunter.io:</strong> Busca emails profissionais por domínio</p>
+                <p>• <strong>Abstract API:</strong> Valida emails encontrados</p>
+                <p>• <strong>WhatsApp Detection:</strong> Extrai links wa.me e api.whatsapp.com</p>
               </div>
             </CardContent>
           </Card>
