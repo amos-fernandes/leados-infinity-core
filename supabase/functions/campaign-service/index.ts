@@ -66,12 +66,14 @@ class CampaignService {
       console.log(`📊 Empresas que já receberam disparo: ${sentCompanies.size}`);
 
       // Buscar TODOS os leads, ordenados por data de criação (mais antigos primeiro)
-      const { data: allLeads, error: leadsError } = await this.supabase
+      // REMOVER LIMITAÇÃO DE 1000 - buscar todos sem limit
+      const { data: allLeads, error: leadsError, count } = await this.supabase
         .from('leads')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('user_id', userId)
         .in('status', ['qualificado', 'contatado', 'novo'])
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .limit(10000); // Aumentar limite para 10.000 leads
 
       if (leadsError) throw leadsError;
 
