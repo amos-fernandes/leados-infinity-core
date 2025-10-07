@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { 
   MessageSquare, 
   Mail, 
@@ -46,6 +54,8 @@ const CampaignResults = () => {
   const [loading, setLoading] = useState(true);
   const [loadingScripts, setLoadingScripts] = useState(false);
   const [knowledgeContent, setKnowledgeContent] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const loadCampaignResults = async () => {
     if (!user) return;
@@ -92,6 +102,8 @@ const CampaignResults = () => {
       if (campaignsWithCount.length > 0 && !selectedCampaign) {
         await loadCampaignScripts(campaignsWithCount[0]);
       }
+      
+      setCurrentPage(1); // Reset to first page when campaigns are reloaded
     } catch (error) {
       console.error('Erro ao carregar resultados das campanhas:', error);
       toast.error("Erro ao carregar campanhas");
@@ -197,6 +209,12 @@ const CampaignResults = () => {
     return { total, whatsappSent, emailsSent, callsMade };
   };
 
+  // Calcular campanhas paginadas
+  const totalPages = Math.ceil(campaigns.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCampaigns = campaigns.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -239,7 +257,7 @@ const CampaignResults = () => {
                 <CardTitle>Campanhas Executadas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {campaigns.map((campaign) => (
+                {paginatedCampaigns.map((campaign) => (
                   <div
                     key={campaign.id}
                     className={`p-3 rounded-lg border cursor-pointer transition-all ${
@@ -269,6 +287,41 @@ const CampaignResults = () => {
                     </div>
                   </div>
                 ))}
+                
+                {/* Paginação */}
+                {totalPages > 1 && (
+                  <div className="pt-4 border-t">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
