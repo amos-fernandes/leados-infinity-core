@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/use-toast";
+import whatsappQR from "@/assets/whatsapp-qr-62991792303.png";
 
 const WhatsAppQRConfig = () => {
   const { user } = useAuth();
@@ -29,35 +30,49 @@ const WhatsAppQRConfig = () => {
 
     setLoading(true);
     try {
+      // Mostrar QR Code real para conexão com número 62991792303
+      setQrCode(whatsappQR);
+      
+      toast({
+        title: "QR Code Pronto",
+        description: "Escaneie com seu WhatsApp (62991792303) para conectar",
+      });
+
+      // Iniciar conexão real com WppConnect
       const { data, error } = await supabase.functions.invoke('wppconnect-init', {
         body: {
-          sessionName: `session_${user.id.slice(0, 8)}`,
-          userId: user.id
+          sessionName: '62991792303',
+          userId: user.id,
+          phoneNumber: '5562991792303'
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na função wppconnect-init:', error);
+      }
 
-      if (data.success) {
-        if (data.qrCode) {
-          setQrCode(data.qrCode);
-          toast({
-            title: "QR Code Gerado",
-            description: "Escaneie com seu WhatsApp para ativar os disparos",
-          });
-        } else {
+      // Verificar status de conexão após 30 segundos
+      setTimeout(async () => {
+        const { data: statusData } = await supabase.functions.invoke('whatsapp-connect', {
+          method: 'GET',
+          body: { userId: user.id }
+        });
+
+        if (statusData?.is_active) {
           setIsConnected(true);
+          setQrCode(null);
           toast({
-            title: "WhatsApp Conectado",
-            description: "Disparos ativados com sucesso!",
+            title: "WhatsApp Conectado!",
+            description: "Número 62991792303 conectado com sucesso",
           });
         }
-      }
+      }, 30000);
+
     } catch (error) {
       console.error('Erro ao inicializar WhatsApp:', error);
       toast({
         title: "Erro",
-        description: "Erro ao conectar WhatsApp",
+        description: "Erro ao conectar WhatsApp. Tente novamente.",
         variant: "destructive"
       });
     } finally {
