@@ -57,23 +57,51 @@ class CampaignService {
     try {
       // 1. Buscar leads que AINDA NÃO receberam disparo
       // Buscar empresas que já têm scripts com whatsapp_enviado = true ou email_enviado = true
+      console.log('🔍 Verificando empresas que já receberam disparo...');
       const { data: sentScripts } = await this.supabase
         .from('campaign_scripts')
-        .select('empresa')
+        .select('empresa, whatsapp_enviado, email_enviado, created_at')
         .or('whatsapp_enviado.eq.true,email_enviado.eq.true');
 
       const sentCompanies = new Set((sentScripts || []).map((s: any) => s.empresa));
-      console.log(`📊 Empresas que já receberam disparo: ${sentCompanies.size}`);
+      
+      console.log(`📊 Total de scripts de envio encontrados: ${sentScripts?.length || 0}`);
+      console.log(`📊 Empresas únicas que já receberam disparo: ${sentCompanies.size}`);
+      
+      // Log das primeiras 10 empresas que já receberam (para debug)
+      if (sentScripts && sentScripts.length > 0) {
+        const sample = Array.from(sentCompanies).slice(0, 10);
+        console.log('📋 Amostra de empresas que já receberam:', sample);
+      }
 
-      // Buscar TODOS os leads, ordenados por data de criação (mais antigos primeiro)
-      const { data: allLeads, error: leadsError } = await this.supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', userId)
-        .in('status', ['qualificado', 'contatado', 'novo'])
-        .order('created_at', { ascending: true });
-
-      if (leadsError) throw leadsError;
+      // Buscar TODOS os leads usando paginação (Supabase retorna max ~1000 por query)
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      console.log('🔍 Buscando todos os leads do usuário em páginas...');
+      
+      while (hasMore) {
+        const { data, error } = await this.supabase
+          .from('leads')
+          .select('*')
+          .eq('user_id', userId)
+          .in('status', ['qualificado', 'contatado', 'novo'])
+          .order('created_at', { ascending: true })
+          .range(from, from + pageSize - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+          console.log(`📄 Página carregada: ${data.length} leads (total acumulado: ${allLeads.length})`);
+        } else {
+          hasMore = false;
+        }
+      }
 
       if (!allLeads || allLeads.length === 0) {
         throw new Error('Nenhum lead disponível para campanha');
@@ -82,17 +110,25 @@ class CampaignService {
       // Filtrar apenas leads que NÃO receberam disparo ainda
       const pendingLeads = allLeads.filter(lead => !sentCompanies.has(lead.empresa));
       
+      console.log('\n📊 === RESUMO DO FILTRO DE LEADS ===');
       console.log(`✅ Total de leads no banco: ${allLeads.length}`);
-      console.log(`📩 Leads que já receberam: ${allLeads.length - pendingLeads.length}`);
-      console.log(`⏳ Leads pendentes de disparo: ${pendingLeads.length}`);
+      console.log(`📩 Leads que já receberam disparo: ${allLeads.length - pendingLeads.length}`);
+      console.log(`⏳ Leads NOVOS pendentes de disparo: ${pendingLeads.length}`);
+      console.log('===================================\n');
+      
+      // Log de alguns leads pendentes para conferência
+      if (pendingLeads.length > 0) {
+        const samplePending = pendingLeads.slice(0, 5).map(l => l.empresa);
+        console.log('📋 Primeiros 5 leads que serão processados:', samplePending);
+      }
 
       if (pendingLeads.length === 0) {
         throw new Error('Todos os leads já receberam disparo. Nenhum lead pendente.');
       }
 
-      // Limitar a 1000 leads por campanha (próximos 1000 pendentes)
-      const leadsToProcess = pendingLeads.slice(0, 1000);
-      console.log(`🎯 Processando próximos ${leadsToProcess.length} leads pendentes`);
+      // Processar TODOS os leads pendentes (sem limitação)
+      const leadsToProcess = pendingLeads;
+      console.log(`🎯 Processando TODOS os ${leadsToProcess.length} leads pendentes`);
 
       // 2. Atualizar campanha com status inicial e total de leads
       await this.supabase
@@ -104,8 +140,13 @@ class CampaignService {
         })
         .eq('id', campaignId);
 
-      // 3. PROCESSAR EM BACKGROUND - não aguardar conclusão
-      this.processAllLeadsInBackground(campaignId, userId, leadsToProcess);
+      // 3. PROCESSAR EM BACKGROUND - usar EdgeRuntime.waitUntil para manter vivo
+      const backgroundTask = this.processAllLeadsInBackground(campaignId, userId, leadsToProcess);
+      
+      // Garantir que o background task continue executando
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        EdgeRuntime.waitUntil(backgroundTask);
+      }
 
       // 4. Retornar imediatamente (processamento continua em background)
       return {
@@ -147,8 +188,8 @@ class CampaignService {
       const scriptsResult = await this.generateCampaignScriptsFast(campaignId, allLeads);
       console.log(`✅ Scripts gerados: ${scriptsResult.length}/${totalLeads}`);
 
-      // FASE 2 & 3: Processar lotes de leads (WhatsApp + Email)
-      console.log('📱📧 FASE 2-3/3: Disparando WhatsApp e Email...');
+      // FASE 2: Processar lotes de leads (APENAS WhatsApp - Email desabilitado)
+      console.log('📱 FASE 2/3: Disparando WhatsApp...');
       
       for (let i = 0; i < allLeads.length; i += BATCH_SIZE) {
         const batch = allLeads.slice(i, i + BATCH_SIZE);
@@ -157,14 +198,11 @@ class CampaignService {
         
         console.log(`📦 Processando lote ${batchNumber}/${totalBatches} (${batch.length} leads)`);
 
-        // Processar lote em paralelo
+        // Processar lote em paralelo - APENAS WHATSAPP
         const batchPromises = batch.map(async (lead) => {
           try {
-            // Enviar WhatsApp e Email em paralelo
-            await Promise.all([
-              this.sendWhatsAppForLead(campaignId, userId, lead),
-              this.sendEmailForLead(campaignId, userId, lead)
-            ]);
+            // Enviar APENAS WhatsApp (email desabilitado por limite SendGrid)
+            await this.sendWhatsAppForLead(campaignId, userId, lead);
             successCount++;
           } catch (error) {
             console.error(`❌ Erro ao processar lead ${lead.empresa}:`, error);
@@ -328,7 +366,7 @@ Crie scripts personalizados para:
 
 EMPRESA: ${lead.empresa}
 SETOR: ${lead.setor || 'Não informado'}
-CONTATO: ${lead.contato_decisor || '[Responsável]'}
+CONTATO: ${lead.contato_decisor || lead.empresa}
 
 PRODUTO: Conta PJ C6 Bank
 BENEFÍCIOS: Conta gratuita, Pix ilimitado, 100 TEDs/boletos grátis, crédito sujeito a análise
@@ -374,7 +412,7 @@ Foque em redução de custos bancários e facilidades operacionais.
   // Script template de fallback
   generateTemplateScript(lead: any) {
     const empresa = lead.empresa || '[EMPRESA]';
-    const contato = lead.contato_decisor || '[Responsável]';
+    const contato = lead.contato_decisor || lead.empresa;
 
     return {
       callScript: `Bom dia, ${contato}. Falo da Infinity, escritório autorizado C6 Bank. Temos uma proposta para reduzir custos bancários da ${empresa} com conta PJ 100% gratuita, Pix ilimitado e 100 TEDs/boletos grátis. Posso enviar os detalhes?`,

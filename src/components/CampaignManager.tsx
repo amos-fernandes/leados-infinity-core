@@ -2,6 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { 
   Plus, 
   Target, 
@@ -20,6 +28,8 @@ const CampaignManager = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     if (user) {
@@ -56,6 +66,7 @@ const CampaignManager = () => {
 
       if (error) throw error;
       setCampaigns(data || []);
+      setCurrentPage(1); // Reset to first page when campaigns are reloaded
     } catch (error) {
       console.error('Erro ao carregar campanhas:', error);
       toast.error("Erro ao carregar campanhas");
@@ -64,44 +75,12 @@ const CampaignManager = () => {
     }
   };
 
-  const handleSendTestMessage = async () => {
-    if (!user) return;
+  // Calcular campanhas paginadas
+  const totalPages = Math.ceil(campaigns.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCampaigns = campaigns.slice(startIndex, endIndex);
 
-    let toastId: string | number | undefined;
-    
-    try {
-      toastId = toast.loading("Enviando mensagem de teste...");
-      console.log('Iniciando envio de teste para 5562981647087');
-      
-      const { data, error } = await supabase.functions.invoke('whatsapp-service', {
-        body: { 
-          action: 'sendTest',
-          userId: user.id,
-          phoneNumber: '5562981647087'
-        }
-      });
-
-      console.log('Resposta whatsapp-service:', { data, error });
-
-      if (toastId) toast.dismiss(toastId);
-
-      if (error) {
-        console.error('Erro na função:', error);
-        toast.error(`Erro ao enviar: ${error.message || 'Erro desconhecido'}`);
-        return;
-      }
-
-      if (data?.success) {
-        toast.success(`✅ Mensagem enviada para 5562981647087! Verifique os logs para detalhes.`);
-      } else {
-        toast.error(`Erro: ${data?.error || 'Falha ao enviar mensagem'}`);
-      }
-    } catch (error: any) {
-      console.error('Erro ao enviar teste:', error);
-      if (toastId) toast.dismiss(toastId);
-      toast.error(`Erro: ${error.message || 'Falha ao enviar mensagem de teste'}`);
-    }
-  };
 
   const handleCreateCampaign = async () => {
     setIsCreating(true);
@@ -267,16 +246,7 @@ const CampaignManager = () => {
             Gerenciar Campanhas
           </CardTitle>
       <div className="flex gap-2">
-        <Button 
-          onClick={handleSendTestMessage} 
-          disabled={isCreating || loading}
-          variant="secondary"
-          size="sm"
-        >
-          <Send className="h-4 w-4 mr-2" />
-          Teste WhatsApp
-        </Button>
-        <Button 
+        <Button
           onClick={handleDispararPendentes} 
           disabled={isCreating || loading}
           className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold"
@@ -305,8 +275,9 @@ const CampaignManager = () => {
             <p className="text-muted-foreground">Carregando campanhas...</p>
           </div>
         ) : campaigns.length > 0 ? (
-          <div className="space-y-4">
-            {campaigns.map((campaign) => (
+          <>
+            <div className="space-y-4">
+              {paginatedCampaigns.map((campaign) => (
               <div key={campaign.id} className="border rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -341,8 +312,47 @@ const CampaignManager = () => {
                   </Badge>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between border-t pt-4">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {startIndex + 1} a {Math.min(endIndex, campaigns.length)} de {campaigns.length} campanhas
+                </div>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-8">
             <Target className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />

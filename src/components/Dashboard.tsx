@@ -5,6 +5,7 @@ import StatsCard from "./StatsCard";
 import InAppCommunication from "./InAppCommunication";
 import UpgradeModal from "./UpgradeModal";
 import LeadQualificationEngine from "./LeadQualificationEngine";
+import { CampaignScheduler } from "./CampaignScheduler";
 import { useUserPlan } from "./UserPlanProvider";
 import { 
   Users, 
@@ -19,7 +20,8 @@ import {
   LogOut,
   Smartphone,
   Search,
-  Zap
+  Zap,
+  Clock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,6 +45,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showQualificationEngine, setShowQualificationEngine] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -56,11 +59,42 @@ const Dashboard = () => {
     try {
       setLoading(true);
 
-      // Buscar leads (prospects ativos)
-      const { data: leadsData } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id);
+      // Buscar leads (prospects ativos) - usar paginação para todos os leads
+      let allLeads: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      console.log('🔄 Dashboard: Iniciando carregamento paginado de leads...');
+      
+      while (hasMore) {
+        console.log(`📄 Buscando página: from=${from}, até=${from + pageSize - 1}`);
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('user_id', user.id)
+          .range(from, from + pageSize - 1);
+        
+        if (error) {
+          console.error('❌ Erro ao buscar página de leads:', error);
+          throw error;
+        }
+        
+        console.log(`✅ Página carregada: ${data?.length || 0} leads`);
+        
+        if (data && data.length > 0) {
+          allLeads = [...allLeads, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+          console.log(`📊 Total acumulado: ${allLeads.length} leads, hasMore: ${hasMore}`);
+        } else {
+          hasMore = false;
+          console.log('🏁 Não há mais leads para carregar');
+        }
+      }
+      
+      const leadsData = allLeads;
+      console.log(`\n✅ DASHBOARD FINAL: ${leadsData.length} leads carregados\n`);
 
       // Buscar oportunidades
       const { data: opportunitiesData } = await supabase
@@ -339,6 +373,19 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Campaign Scheduler Section */}
+      {showScheduler && user && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Agendamento Inteligente de Mensagens</h2>
+            <Button variant="outline" onClick={() => setShowScheduler(false)}>
+              Fechar
+            </Button>
+          </div>
+          <CampaignScheduler userId={user.id} />
+        </div>
+      )}
+
       {/* Quick Actions */}
       <Card className="shadow-soft">
         <CardHeader>
@@ -348,7 +395,7 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button 
               className="h-auto p-4 flex flex-col items-center gap-2" 
               variant="outline"
@@ -380,6 +427,17 @@ const Dashboard = () => {
               <div className="text-center">
                 <div className="font-medium">Campanhas</div>
                 <div className="text-sm text-muted-foreground">Gerenciar e criar</div>
+              </div>
+            </Button>
+            <Button 
+              className="h-auto p-4 flex flex-col items-center gap-2" 
+              variant="outline"
+              onClick={() => setShowScheduler(!showScheduler)}
+            >
+              <Clock className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-medium">Agendamento</div>
+                <div className="text-sm text-muted-foreground">1000 disparos/dia</div>
               </div>
             </Button>
           </div>
