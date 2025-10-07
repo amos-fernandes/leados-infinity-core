@@ -519,6 +519,105 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_messages: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          lead_id: string | null
+          max_retries: number
+          message_content: string
+          metadata: Json | null
+          phone_number: string
+          retry_count: number
+          scheduled_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          lead_id?: string | null
+          max_retries?: number
+          message_content: string
+          metadata?: Json | null
+          phone_number: string
+          retry_count?: number
+          scheduled_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          lead_id?: string | null
+          max_retries?: number
+          message_content?: string
+          metadata?: Json | null
+          phone_number?: string
+          retry_count?: number
+          scheduled_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduler_logs: {
+        Row: {
+          action: string
+          campaign_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          campaign_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          campaign_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_config: {
         Row: {
           access_token: string | null
