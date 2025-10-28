@@ -11,6 +11,7 @@ import WhatsAppDashboard from "@/components/WhatsAppDashboard";
 import WhatsAppConversations from "@/components/WhatsAppConversations";
 import RAGAttendanceMonitor from "@/components/RAGAttendanceMonitor";
 import WhatsAppConnector from "@/components/WhatsAppConnector";
+import EvolutionDashboard from "@/components/EvolutionDashboard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Index = () => {
@@ -18,6 +19,7 @@ const Index = () => {
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [showWhatsAppDashboard, setShowWhatsAppDashboard] = useState(false);
   const [showWhatsAppConnector, setShowWhatsAppConnector] = useState(false);
+  const [showEvolutionDashboard, setShowEvolutionDashboard] = useState(false);
 
   useEffect(() => {
     const handleOpenWhatsApp = () => {
@@ -32,14 +34,20 @@ const Index = () => {
       setShowWhatsAppConnector(true);
     };
 
+    const handleOpenEvolutionDashboard = () => {
+      setShowEvolutionDashboard(true);
+    };
+
     window.addEventListener('openWhatsAppBot', handleOpenWhatsApp);
     window.addEventListener('openWhatsAppDashboard', handleOpenWhatsAppDashboard);
     window.addEventListener('openWhatsAppConnector', handleOpenWhatsAppConnector);
+    window.addEventListener('openEvolutionDashboard', handleOpenEvolutionDashboard);
     
     return () => {
       window.removeEventListener('openWhatsAppBot', handleOpenWhatsApp);
       window.removeEventListener('openWhatsAppDashboard', handleOpenWhatsAppDashboard);
       window.removeEventListener('openWhatsAppConnector', handleOpenWhatsAppConnector);
+      window.removeEventListener('openEvolutionDashboard', handleOpenEvolutionDashboard);
     };
   }, []);
 
@@ -61,6 +69,25 @@ const Index = () => {
   if (showWhatsAppDashboard) {
     return (
       <WhatsAppDashboard onGoBack={() => setShowWhatsAppDashboard(false)} />
+    );
+  }
+
+  // Se está na dashboard da Evolution API, mostrar ela
+  if (showEvolutionDashboard) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b bg-card">
+          <div className="container mx-auto px-6 py-4">
+            <button
+              onClick={() => setShowEvolutionDashboard(false)}
+              className="text-primary hover:underline"
+            >
+              ← Voltar ao Dashboard
+            </button>
+          </div>
+        </div>
+        <EvolutionDashboard />
+      </div>
     );
   }
 
