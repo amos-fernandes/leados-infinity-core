@@ -254,6 +254,152 @@ export type Database = {
           },
         ]
       }
+      evolution_instances: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          instance_name: string
+          instance_url: string
+          is_active: boolean | null
+          phone_number: string | null
+          qr_code: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          id?: string
+          instance_name: string
+          instance_url: string
+          is_active?: boolean | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          instance_name?: string
+          instance_url?: string
+          is_active?: boolean | null
+          phone_number?: string | null
+          qr_code?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      evolution_messages: {
+        Row: {
+          created_at: string
+          from_me: boolean
+          id: string
+          instance_id: string
+          lead_id: string | null
+          media_url: string | null
+          message_content: string | null
+          message_id: string | null
+          message_type: string
+          remote_jid: string
+          status: string | null
+          timestamp: string
+          user_id: string
+          webhook_data: Json | null
+        }
+        Insert: {
+          created_at?: string
+          from_me?: boolean
+          id?: string
+          instance_id: string
+          lead_id?: string | null
+          media_url?: string | null
+          message_content?: string | null
+          message_id?: string | null
+          message_type: string
+          remote_jid: string
+          status?: string | null
+          timestamp?: string
+          user_id: string
+          webhook_data?: Json | null
+        }
+        Update: {
+          created_at?: string
+          from_me?: boolean
+          id?: string
+          instance_id?: string
+          lead_id?: string | null
+          media_url?: string | null
+          message_content?: string | null
+          message_id?: string | null
+          message_type?: string
+          remote_jid?: string
+          status?: string | null
+          timestamp?: string
+          user_id?: string
+          webhook_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evolution_messages_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "evolution_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evolution_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evolution_webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          instance_id: string | null
+          payload: Json
+          processed: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          instance_id?: string | null
+          payload: Json
+          processed?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          instance_id?: string | null
+          payload?: Json
+          processed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evolution_webhook_logs_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "evolution_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interactions: {
         Row: {
           assunto: string
