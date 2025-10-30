@@ -92,7 +92,9 @@ const EvolutionMessages = ({ instanceId }: EvolutionMessagesProps) => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.functions.invoke('evolution-send-message', {
+      console.log('📤 Enviando mensagem:', { instanceId, selectedNumber, text: newMessage });
+      
+      const { data, error } = await supabase.functions.invoke('evolution-send-message', {
         body: {
           instanceId,
           number: selectedNumber,
@@ -100,19 +102,33 @@ const EvolutionMessages = ({ instanceId }: EvolutionMessagesProps) => {
         }
       });
 
-      if (error) throw error;
+      console.log('📥 Resposta:', { data, error });
+
+      if (error) {
+        console.error('❌ Erro da função:', error);
+        throw error;
+      }
+
+      if (data && !data.success) {
+        console.error('❌ Função retornou erro:', data.error);
+        throw new Error(data.error || 'Erro desconhecido ao enviar mensagem');
+      }
 
       setNewMessage('');
       
       toast({
         title: 'Sucesso',
-        description: 'Mensagem enviada'
+        description: 'Mensagem enviada com sucesso!'
       });
+      
+      // Recarregar mensagens
+      await loadMessages();
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem';
       toast({
-        title: 'Erro',
-        description: 'Erro ao enviar mensagem',
+        title: 'Erro ao enviar',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {

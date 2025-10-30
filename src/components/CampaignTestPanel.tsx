@@ -153,6 +153,12 @@ const CampaignTestPanel = () => {
     try {
       const testLead = leads[0];
       addLog(`📱 Enviando para: ${testLead.empresa} (${testLead.whatsapp})`, 'info');
+      
+      console.log('📤 Test payload:', {
+        instanceId: selectedInstance,
+        number: testLead.whatsapp,
+        text: message
+      });
 
       const { data, error } = await supabase.functions.invoke('evolution-send-message', {
         body: {
@@ -162,25 +168,35 @@ const CampaignTestPanel = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('📥 Response:', { data, error });
 
-      if (data.success) {
-        addLog('✅ Mensagem enviada com sucesso!', 'success');
-        addLog(`📊 Message ID: ${data.messageId}`, 'info');
-        toast({
-          title: 'Sucesso!',
-          description: 'Mensagem enviada via Evolution API'
-        });
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
+      if (error) {
+        console.error('❌ Function error:', error);
+        throw error;
       }
 
-    } catch (error) {
-      console.error('Test error:', error);
-      addLog(`❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
+      if (!data || !data.success) {
+        const errorMsg = data?.error || 'Erro desconhecido';
+        console.error('❌ API returned error:', errorMsg);
+        addLog(`❌ Evolution API Error: ${errorMsg}`, 'error');
+        throw new Error(errorMsg);
+      }
+
+      addLog('✅ Mensagem enviada com sucesso!', 'success');
+      addLog(`📊 Message ID: ${data.messageId}`, 'info');
+      addLog(`📊 Evolution Data: ${JSON.stringify(data.data)}`, 'info');
       toast({
-        title: 'Erro',
-        description: 'Falha no envio',
+        title: 'Sucesso!',
+        description: 'Mensagem enviada via Evolution API'
+      });
+
+    } catch (error) {
+      console.error('❌ Test error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+      addLog(`❌ Erro detalhado: ${errorMsg}`, 'error');
+      toast({
+        title: 'Erro no envio',
+        description: errorMsg,
         variant: 'destructive'
       });
     } finally {
