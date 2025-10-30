@@ -214,21 +214,40 @@ Escritório Autorizado Infinity - C6 Bank PJ`;
     const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
     
     if (sendgridApiKey) {
+      console.log(`📧 Iniciando envio de ${emails.length} emails via SendGrid...`);
+      let emailsSent = 0;
+      let emailsFailed = 0;
+      
       for (const emailData of emails) {
         try {
           await sgMail.send({
             to: emailData.to,
-            from: 'C6 Bank Escritório Autorizado <contato@isf.net.br>',
+            from: {
+              email: 'noreply@isf.net.br',
+              name: 'Escritório Infinity Leads'
+            },
             subject: emailData.subject,
             html: emailData.html
           });
-          console.log(`Email sent to ${emailData.empresa}`);
-        } catch (error) {
-          console.error(`Failed to send email to ${emailData.empresa}:`, error);
+          emailsSent++;
+          console.log(`✅ Email ${emailsSent}/${emails.length} enviado para ${emailData.empresa} (${emailData.to})`);
+          
+          // Delay de 1 segundo entre emails para respeitar rate limits
+          if (emailsSent < emails.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (error: any) {
+          emailsFailed++;
+          console.error(`❌ Falha ao enviar email para ${emailData.empresa}:`, error);
+          if (error.response) {
+            console.error('SendGrid Error:', JSON.stringify(error.response.body, null, 2));
+          }
         }
       }
+      
+      console.log(`📊 Resumo de Emails: ${emailsSent} enviados, ${emailsFailed} falharam`);
     } else {
-      console.warn('SENDGRID_API_KEY not configured - emails not sent');
+      console.warn('⚠️ SENDGRID_API_KEY não configurada - emails não enviados');
     }
 
     // Log da atividade para demonstração
