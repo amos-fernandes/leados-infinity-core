@@ -88,8 +88,14 @@ serve(async (req) => {
       const statusData = await statusResponse.json();
       console.log('📊 Status real da instância:', statusData);
 
-      // Se não estiver conectada, atualizar banco
-      if (statusData.state !== 'open') {
+      // Verificar estrutura da resposta e estado da conexão
+      const instanceState = statusData?.instance?.state || statusData?.state;
+      
+      if (!instanceState) {
+        console.error('⚠️ Resposta da API sem campo state:', statusData);
+        // Se não conseguir verificar, continuar e deixar o envio tentar
+      } else if (instanceState !== 'open') {
+        console.log(`⚠️ Instância não está aberta: ${instanceState}`);
         await supabase
           .from('evolution_instances')
           .update({ status: 'disconnected' })
@@ -97,7 +103,7 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ 
           success: false,
-          error: `Instância está ${statusData.state}. Conecte novamente.`
+          error: `Instância está ${instanceState}. Conecte novamente no painel Evolution.`
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -105,7 +111,7 @@ serve(async (req) => {
       }
     } catch (statusError) {
       console.error('⚠️ Erro ao verificar status:', statusError);
-      // Continuar mesmo com erro de verificação
+      // Continuar mesmo com erro de verificação - tentará enviar
     }
 
     if (instance.status !== 'connected') {
