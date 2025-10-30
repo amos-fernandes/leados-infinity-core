@@ -5,9 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { Smartphone, Plus, Trash2, QrCode, MessageSquare, Phone, RefreshCw } from 'lucide-react';
+import { Smartphone, Plus, Trash2, QrCode, MessageSquare, Phone, RefreshCw, Activity, Users, BarChart3 } from 'lucide-react';
 import EvolutionInstanceForm from './EvolutionInstanceForm';
 import EvolutionMessages from './EvolutionMessages';
+import WebhookLogs from './WebhookLogs';
 
 interface EvolutionInstance {
   id: string;
@@ -233,14 +234,22 @@ const EvolutionDashboard = () => {
         </Card>
       ) : (
         <Tabs defaultValue="instances" className="space-y-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="instances">
               <Smartphone className="w-4 h-4 mr-2" />
-              Instâncias
+              Instâncias ({instances.length})
             </TabsTrigger>
             <TabsTrigger value="messages">
               <MessageSquare className="w-4 h-4 mr-2" />
               Mensagens
+            </TabsTrigger>
+            <TabsTrigger value="stats">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Estatísticas
+            </TabsTrigger>
+            <TabsTrigger value="logs">
+              <Activity className="w-4 h-4 mr-2" />
+              Logs
             </TabsTrigger>
           </TabsList>
 
@@ -341,6 +350,96 @@ const EvolutionDashboard = () => {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="stats" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Instâncias</CardTitle>
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{instances.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {instances.filter(i => i.status === 'connected').length} conectadas
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Mensagens Hoje</CardTitle>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">--</div>
+                  <p className="text-xs text-muted-foreground">
+                    Em desenvolvimento
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Taxa de Resposta</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">--</div>
+                  <p className="text-xs text-muted-foreground">
+                    Em desenvolvimento
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Leads Gerados</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">--</div>
+                  <p className="text-xs text-muted-foreground">
+                    Via mensagens WhatsApp
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Visão Geral das Instâncias</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {instances.map((instance) => (
+                    <div key={instance.id} className="flex items-center justify-between border-b pb-4 last:border-0">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{instance.instance_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {instance.phone_number || 'Aguardando conexão'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {getStatusBadge(instance.status)}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedInstance(instance.id)}
+                        >
+                          Ver Mensagens
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="logs" className="space-y-4">
+            <WebhookLogs />
           </TabsContent>
         </Tabs>
       )}
