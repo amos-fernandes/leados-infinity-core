@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { ProspectCollector } from "@/components/ProspectCollector";
 import LandingPage from "@/components/LandingPage";
@@ -14,12 +14,15 @@ import WhatsAppConnector from "@/components/WhatsAppConnector";
 import EvolutionDashboard from "@/components/EvolutionDashboard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+const CampaignTestPanel = lazy(() => import("@/components/CampaignTestPanel"));
+
 const Index = () => {
   const { user, loading } = useAuth();
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [showWhatsAppDashboard, setShowWhatsAppDashboard] = useState(false);
   const [showWhatsAppConnector, setShowWhatsAppConnector] = useState(false);
   const [showEvolutionDashboard, setShowEvolutionDashboard] = useState(false);
+  const [showCampaignTest, setShowCampaignTest] = useState(false);
 
   useEffect(() => {
     const handleOpenWhatsApp = () => {
@@ -38,16 +41,22 @@ const Index = () => {
       setShowEvolutionDashboard(true);
     };
 
+    const handleOpenCampaignTest = () => {
+      setShowCampaignTest(true);
+    };
+
     window.addEventListener('openWhatsAppBot', handleOpenWhatsApp);
     window.addEventListener('openWhatsAppDashboard', handleOpenWhatsAppDashboard);
     window.addEventListener('openWhatsAppConnector', handleOpenWhatsAppConnector);
     window.addEventListener('openEvolutionDashboard', handleOpenEvolutionDashboard);
+    window.addEventListener('openCampaignTest', handleOpenCampaignTest);
     
     return () => {
       window.removeEventListener('openWhatsAppBot', handleOpenWhatsApp);
       window.removeEventListener('openWhatsAppDashboard', handleOpenWhatsAppDashboard);
       window.removeEventListener('openWhatsAppConnector', handleOpenWhatsAppConnector);
       window.removeEventListener('openEvolutionDashboard', handleOpenEvolutionDashboard);
+      window.removeEventListener('openCampaignTest', handleOpenCampaignTest);
     };
   }, []);
 
@@ -87,6 +96,27 @@ const Index = () => {
           </div>
         </div>
         <EvolutionDashboard />
+      </div>
+    );
+  }
+
+  // Se está no painel de testes de campanha, mostrar ele
+  if (showCampaignTest) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="border-b bg-card">
+          <div className="container mx-auto px-6 py-4">
+            <button
+              onClick={() => setShowCampaignTest(false)}
+              className="text-primary hover:underline"
+            >
+              ← Voltar ao Dashboard
+            </button>
+          </div>
+        </div>
+        <Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>
+          <CampaignTestPanel />
+        </Suspense>
       </div>
     );
   }

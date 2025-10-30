@@ -395,7 +395,7 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Button 
               className="h-auto p-4 flex flex-col items-center gap-2" 
               variant="outline"
@@ -416,6 +416,16 @@ const Dashboard = () => {
               <div className="text-center">
                 <div className="font-medium">WhatsApp</div>
                 <div className="text-sm text-muted-foreground">Conectar e configurar</div>
+              </div>
+            </Button>
+            <Button 
+              className="h-auto p-4 flex flex-col items-center gap-2 bg-gradient-to-br from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 border-0" 
+              onClick={() => window.dispatchEvent(new CustomEvent('openCampaignTest'))}
+            >
+              <Zap className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-medium">🧪 Testar Campanha</div>
+                <div className="text-sm opacity-90">Evolution + N8N + CRM</div>
               </div>
             </Button>
             <Button 
