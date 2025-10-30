@@ -51,7 +51,9 @@ serve(async (req) => {
 
     // Verificar se a instância realmente existe na Evolution API
     try {
-      const statusUrl = `${instance.instance_url}/instance/connectionState/${instance.instance_name}`;
+      // Limpar base URL
+      let baseUrl = instance.instance_url.trim().replace(/\/$/, '').replace(/\/manager$/, '');
+      const statusUrl = `${baseUrl}/instance/connectionState/${instance.instance_name}`;
       console.log('🔍 Verificando status da instância:', statusUrl);
       
       const statusResponse = await fetch(statusUrl, {
@@ -168,7 +170,14 @@ serve(async (req) => {
     }
 
     // Enviar para Evolution API
-    const evolutionUrl = `${instance.instance_url}${endpoint}/${instance.instance_name}`;
+    // Limpar base URL removendo paths desnecessários
+    let baseUrl = instance.instance_url.trim();
+    // Remover trailing slash
+    baseUrl = baseUrl.replace(/\/$/, '');
+    // Remover /manager se existir no final
+    baseUrl = baseUrl.replace(/\/manager$/, '');
+    
+    const evolutionUrl = `${baseUrl}${endpoint}/${instance.instance_name}`;
     console.log('🔗 Evolution URL:', evolutionUrl);
     console.log('📦 Payload:', JSON.stringify(payload, null, 2));
     
