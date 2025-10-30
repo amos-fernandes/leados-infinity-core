@@ -56,7 +56,7 @@ const CampaignTestPanel = () => {
       addLog('🔍 Carregando dados...', 'info');
       console.log('👤 User ID:', user.id);
 
-      // Carregar TODAS as instâncias (não apenas conectadas)
+      // Carregar TODAS as instâncias
       const { data: instancesData, error: instancesError } = await supabase
         .from('evolution_instances')
         .select('*')
@@ -64,11 +64,10 @@ const CampaignTestPanel = () => {
         .eq('is_active', true);
 
       console.log('📱 Instâncias encontradas:', instancesData);
-      console.log('❌ Erro ao carregar instâncias:', instancesError);
 
       if (instancesError) {
         addLog(`❌ Erro ao carregar instâncias: ${instancesError.message}`, 'error');
-        throw instancesError;
+        console.error('❌ Erro instâncias:', instancesError);
       }
       
       setInstances(instancesData || []);
@@ -76,28 +75,45 @@ const CampaignTestPanel = () => {
       const connectedCount = instancesData?.filter(i => i.status === 'connected').length || 0;
       addLog(`✅ ${instancesData?.length || 0} instâncias encontradas (${connectedCount} conectadas)`, 'success');
 
-      // Carregar leads com WhatsApp
-      const { data: leadsData, error: leadsError } = await supabase
+      // Buscar TODOS os leads com WhatsApp que ainda não receberam mensagem
+      // Primeiro, pegar IDs de leads que já receberam mensagens
+      const { data: sentMessages } = await supabase
+        .from('evolution_messages')
+        .select('lead_id')
+        .eq('user_id', user.id)
+        .not('lead_id', 'is', null);
+
+      const sentLeadIds = sentMessages?.map(m => m.lead_id) || [];
+      console.log('📤 Leads que já receberam mensagens:', sentLeadIds);
+
+      // Carregar TODOS os leads com WhatsApp que NÃO receberam mensagem
+      let query = supabase
         .from('leads')
         .select('*')
         .eq('user_id', user.id)
-        .not('whatsapp', 'is', null)
-        .limit(10);
+        .neq('whatsapp', '')
+        .not('whatsapp', 'is', null);
 
-      console.log('👥 Leads encontrados:', leadsData);
-      console.log('❌ Erro ao carregar leads:', leadsError);
+      // Filtrar leads que já receberam mensagem
+      if (sentLeadIds.length > 0) {
+        query = query.not('id', 'in', `(${sentLeadIds.join(',')})`);
+      }
+
+      const { data: leadsData, error: leadsError } = await query;
+
+      console.log('👥 Leads não enviados:', leadsData);
 
       if (leadsError) {
         addLog(`❌ Erro ao carregar leads: ${leadsError.message}`, 'error');
-        throw leadsError;
+        console.error('❌ Erro leads:', leadsError);
       }
       
       setLeads(leadsData || []);
-      addLog(`✅ ${leadsData?.length || 0} leads com WhatsApp no CRM`, 'success');
+      addLog(`✅ ${leadsData?.length || 0} leads PENDENTES de envio`, leadsData?.length ? 'success' : 'info');
 
     } catch (error) {
       console.error('Error loading data:', error);
-      addLog('❌ Erro ao carregar dados', 'error');
+      addLog(`❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
       toast({
         title: 'Erro',
         description: 'Erro ao carregar dados',
@@ -214,12 +230,24 @@ const CampaignTestPanel = () => {
       return;
     }
 
-    if (leads.length === 0) {
+    const instance = instances.find(i => i.id === selectedInstance);
+    if (instance?.status !== 'connected') {
       toast({
         title: 'Erro',
-        description: 'Nenhum lead disponível',
+        description: 'A instância selecionada não está conectada',
         variant: 'destructive'
       });
+      addLog(`⚠️ Instância ${instance?.instance_name} está ${instance?.status}`, 'error');
+      return;
+    }
+
+    if (leads.length === 0) {
+      toast({
+        title: 'Aviso',
+        description: 'Todos os leads já receberam mensagem!',
+        variant: 'default'
+      });
+      addLog('✅ Todos os leads já foram contactados', 'success');
       return;
     }
 
@@ -234,40 +262,72 @@ const CampaignTestPanel = () => {
 
     setTesting(true);
     setLogs([]);
-    addLog('🔗 TESTE N8N: Iniciando fluxo via webhook N8N', 'info');
+    addLog('🚀 ENVIO EM MASSA: Iniciando disparo para TODOS os leads pendentes', 'info');
+    addLog(`📊 Total de leads a enviar: ${leads.length}`, 'info');
+
+    let successCount = 0;
+    let errorCount = 0;
 
     try {
-      addLog(`📤 Enviando para ${leads.length} leads via N8N`, 'info');
+      // Enviar lead por lead com progresso
+      for (let i = 0; i < leads.length; i++) {
+        const lead = leads[i];
+        const progress = i + 1;
+        
+        addLog(`📱 [${progress}/${leads.length}] Enviando para: ${lead.empresa} (${lead.whatsapp})`, 'info');
 
-      const { data, error } = await supabase.functions.invoke('n8n-webhook', {
-        body: {
-          action: 'send_campaign',
-          data: {
-            instanceId: selectedInstance,
-            leads: leads,
-            message: message
+        try {
+          const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+            body: {
+              instanceId: selectedInstance,
+              number: lead.whatsapp,
+              text: message
+            }
+          });
+
+          if (error) throw error;
+
+          if (data && data.success) {
+            successCount++;
+            addLog(`✅ [${progress}/${leads.length}] Enviado para ${lead.empresa}`, 'success');
+          } else {
+            throw new Error(data?.error || 'Erro desconhecido');
           }
+
+          // Pequeno delay entre envios para não sobrecarregar
+          if (i < leads.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+        } catch (sendError) {
+          errorCount++;
+          const errorMsg = sendError instanceof Error ? sendError.message : 'Erro desconhecido';
+          addLog(`❌ [${progress}/${leads.length}] Falha para ${lead.empresa}: ${errorMsg}`, 'error');
         }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        addLog(`✅ Campanha executada! ${data.sent} mensagens enviadas`, 'success');
-        toast({
-          title: 'Sucesso!',
-          description: `${data.sent} mensagens enviadas via N8N`
-        });
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
       }
 
+      addLog(`\n📊 RESUMO FINAL:`, 'info');
+      addLog(`✅ Enviados com sucesso: ${successCount}`, 'success');
+      if (errorCount > 0) {
+        addLog(`❌ Falharam: ${errorCount}`, 'error');
+      }
+      addLog(`📈 Taxa de sucesso: ${((successCount / leads.length) * 100).toFixed(1)}%`, 'info');
+
+      toast({
+        title: 'Campanha Concluída!',
+        description: `${successCount} enviados, ${errorCount} falharam`,
+        variant: successCount > 0 ? 'default' : 'destructive'
+      });
+
+      // Recarregar dados para atualizar lista de pendentes
+      await loadData();
+
     } catch (error) {
-      console.error('N8N test error:', error);
-      addLog(`❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
+      console.error('Mass send error:', error);
+      addLog(`❌ Erro crítico: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
       toast({
         title: 'Erro',
-        description: 'Falha no fluxo N8N',
+        description: 'Falha no envio em massa',
         variant: 'destructive'
       });
     } finally {
@@ -404,16 +464,20 @@ const CampaignTestPanel = () => {
 
             <Button
               onClick={testN8NFlow}
-              disabled={testing || !selectedInstance || leads.length === 0}
-              variant="outline"
+              disabled={testing || !selectedInstance}
+              variant="default"
               className="flex-1"
+              size="lg"
             >
               {testing ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Play className="h-4 w-4 mr-2" />
               )}
-              Teste via N8N ({leads.length} leads)
+              {leads.length === 0 
+                ? '✅ Todos Enviados!' 
+                : `🚀 Enviar TODOS (${leads.length} pendentes)`
+              }
             </Button>
           </div>
 
@@ -444,31 +508,42 @@ const CampaignTestPanel = () => {
           </Card>
 
           {/* Detalhes dos Leads */}
-          {leads.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Leads Disponíveis para Teste</CardTitle>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {leads.length > 0 
+                  ? `Leads Pendentes de Envio (${leads.length} total)` 
+                  : '✅ Nenhum Lead Pendente - Todos Enviados!'
+                }
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {leads.length > 0 ? (
                 <div className="space-y-2">
-                  {leads.slice(0, 5).map((lead, index) => (
+                  {leads.slice(0, 10).map((lead, index) => (
                     <div key={lead.id} className="flex items-center justify-between border-b pb-2">
                       <div>
                         <p className="font-medium">{lead.empresa}</p>
                         <p className="text-sm text-muted-foreground">{lead.whatsapp}</p>
                       </div>
-                      <Badge variant="outline">{lead.status}</Badge>
+                      <Badge variant="secondary">Pendente</Badge>
                     </div>
                   ))}
-                  {leads.length > 5 && (
-                    <p className="text-sm text-muted-foreground text-center pt-2">
-                      + {leads.length - 5} leads adicionais
+                  {leads.length > 10 && (
+                    <p className="text-sm text-muted-foreground text-center pt-2 font-medium">
+                      + {leads.length - 10} leads adicionais serão enviados
                     </p>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    Todos os leads com WhatsApp já receberam mensagens via Evolution API
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
     </div>
