@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +25,13 @@ interface TestLog {
   message: string;
 }
 
+interface CampaignConfig {
+  minDelay: number;
+  maxDelay: number;
+  batchSize: number;
+  rotateInstances: boolean;
+}
+
 const CampaignTestPanel = () => {
   const [instances, setInstances] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
@@ -31,6 +39,13 @@ const CampaignTestPanel = () => {
   const [message, setMessage] = useState('');
   const [logs, setLogs] = useState<TestLog[]>([]);
   const [testing, setTesting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [config, setConfig] = useState<CampaignConfig>({
+    minDelay: 3,
+    maxDelay: 8,
+    batchSize: 50,
+    rotateInstances: true
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -221,23 +236,24 @@ const CampaignTestPanel = () => {
   };
 
   const testN8NFlow = async () => {
-    if (!selectedInstance) {
+    if (instances.length === 0) {
       toast({
         title: 'Erro',
-        description: 'Selecione uma instância',
+        description: 'Nenhuma instância disponível',
         variant: 'destructive'
       });
       return;
     }
 
-    const instance = instances.find(i => i.id === selectedInstance);
-    if (instance?.status !== 'connected') {
+    // Filtrar apenas instâncias conectadas
+    const connectedInstances = instances.filter(i => i.status === 'connected');
+    
+    if (connectedInstances.length === 0) {
       toast({
         title: 'Erro',
-        description: 'A instância selecionada não está conectada',
+        description: 'Nenhuma instância conectada. Conecte pelo menos uma instância.',
         variant: 'destructive'
       });
-      addLog(`⚠️ Instância ${instance?.instance_name} está ${instance?.status}`, 'error');
       return;
     }
 
@@ -262,65 +278,105 @@ const CampaignTestPanel = () => {
 
     setTesting(true);
     setLogs([]);
-    addLog('🚀 ENVIO EM MASSA: Iniciando disparo para TODOS os leads pendentes', 'info');
-    addLog(`📊 Total de leads a enviar: ${leads.length}`, 'info');
+    addLog('🚀 CAMPANHA INTELIGENTE: Iniciando disparo otimizado', 'info');
+    addLog(`📊 Total de leads: ${leads.length}`, 'info');
+    addLog(`📱 Instâncias ativas: ${connectedInstances.length}`, 'info');
+    addLog(`⏱️ Delay entre envios: ${config.minDelay}-${config.maxDelay}s`, 'info');
+    addLog(`📦 Tamanho do lote: ${config.batchSize}`, 'info');
+    addLog(`🔄 Rotação de instâncias: ${config.rotateInstances ? 'SIM' : 'NÃO'}`, 'info');
 
     let successCount = 0;
     let errorCount = 0;
+    let currentInstanceIndex = 0;
+
+    const getRandomDelay = () => {
+      return (Math.random() * (config.maxDelay - config.minDelay) + config.minDelay) * 1000;
+    };
+
+    const getNextInstance = () => {
+      if (!config.rotateInstances) {
+        return connectedInstances[0];
+      }
+      const instance = connectedInstances[currentInstanceIndex];
+      currentInstanceIndex = (currentInstanceIndex + 1) % connectedInstances.length;
+      return instance;
+    };
 
     try {
-      // Enviar lead por lead com progresso
-      for (let i = 0; i < leads.length; i++) {
-        const lead = leads[i];
-        const progress = i + 1;
+      // Dividir em lotes
+      const totalBatches = Math.ceil(leads.length / config.batchSize);
+      
+      for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+        const startIdx = batchNum * config.batchSize;
+        const endIdx = Math.min(startIdx + config.batchSize, leads.length);
+        const batch = leads.slice(startIdx, endIdx);
         
-        addLog(`📱 [${progress}/${leads.length}] Enviando para: ${lead.empresa} (${lead.whatsapp})`, 'info');
+        addLog(`\n📦 Lote ${batchNum + 1}/${totalBatches} (${batch.length} leads)`, 'info');
 
-        try {
-          const { data, error } = await supabase.functions.invoke('evolution-send-message', {
-            body: {
-              instanceId: selectedInstance,
-              number: lead.whatsapp,
-              text: message
-            }
-          });
-
-          if (error) {
-            // Se for erro 404, parar o envio e recarregar instâncias
-            if (error.message?.includes('404') || error.message?.includes('not exist')) {
-              addLog(`❌ Instância não existe mais! Parando envios...`, 'error');
-              toast({
-                title: 'Instância Inválida',
-                description: 'A instância Evolution não existe. Reconecte-a.',
-                variant: 'destructive'
-              });
-              await loadData(); // Recarregar para atualizar status
-              break; // Parar o loop
-            }
-            throw error;
-          }
-
-          if (data && data.success) {
-            successCount++;
-            addLog(`✅ [${progress}/${leads.length}] Enviado para ${lead.empresa}`, 'success');
-          } else {
-            throw new Error(data?.error || 'Erro desconhecido');
-          }
-
-          // Delay entre envios
-          if (i < leads.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-          }
-
-        } catch (sendError) {
-          errorCount++;
-          const errorMsg = sendError instanceof Error ? sendError.message : 'Erro desconhecido';
-          addLog(`❌ [${progress}/${leads.length}] Falha: ${errorMsg}`, 'error');
+        for (let i = 0; i < batch.length; i++) {
+          const lead = batch[i];
+          const globalProgress = startIdx + i + 1;
+          const currentInstance = getNextInstance();
           
-          // Se muitos erros seguidos, sugerir parar
-          if (errorCount >= 3 && successCount === 0) {
-            addLog(`⚠️ Muitos erros. Verifique a instância Evolution.`, 'error');
+          addLog(
+            `📱 [${globalProgress}/${leads.length}] ${lead.empresa} → Instância: ${currentInstance.instance_name}`,
+            'info'
+          );
+
+          try {
+            const { data, error } = await supabase.functions.invoke('evolution-send-message', {
+              body: {
+                instanceId: currentInstance.id,
+                number: lead.whatsapp,
+                text: message
+              }
+            });
+
+            if (error) {
+              if (error.message?.includes('404') || error.message?.includes('not exist')) {
+                addLog(`❌ Instância ${currentInstance.instance_name} inválida. Removendo da rotação...`, 'error');
+                const index = connectedInstances.indexOf(currentInstance);
+                if (index > -1) {
+                  connectedInstances.splice(index, 1);
+                }
+                if (connectedInstances.length === 0) {
+                  throw new Error('Todas as instâncias falharam');
+                }
+                continue;
+              }
+              throw error;
+            }
+
+            if (data && data.success) {
+              successCount++;
+              addLog(`✅ [${globalProgress}/${leads.length}] Enviado`, 'success');
+            } else {
+              throw new Error(data?.error || 'Erro desconhecido');
+            }
+
+            // Delay randômico antes do próximo envio
+            if (globalProgress < leads.length) {
+              const delay = getRandomDelay();
+              addLog(`⏳ Aguardando ${(delay / 1000).toFixed(1)}s...`, 'info');
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+          } catch (sendError) {
+            errorCount++;
+            const errorMsg = sendError instanceof Error ? sendError.message : 'Erro desconhecido';
+            addLog(`❌ [${globalProgress}/${leads.length}] Falha: ${errorMsg}`, 'error');
+            
+            if (errorCount >= 5 && successCount === 0) {
+              addLog(`⚠️ Muitos erros consecutivos. Verifique as instâncias.`, 'error');
+              break;
+            }
           }
+        }
+
+        // Pausa entre lotes
+        if (batchNum < totalBatches - 1) {
+          addLog(`\n💤 Pausa entre lotes (5s)...`, 'info');
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
       }
 
@@ -330,6 +386,10 @@ const CampaignTestPanel = () => {
         addLog(`❌ Falharam: ${errorCount}`, 'error');
       }
       addLog(`📈 Taxa de sucesso: ${((successCount / leads.length) * 100).toFixed(1)}%`, 'info');
+      
+      if (config.rotateInstances && connectedInstances.length > 1) {
+        addLog(`🔄 Rotação usou ${connectedInstances.length} instâncias`, 'info');
+      }
 
       toast({
         title: 'Campanha Concluída!',
@@ -337,15 +397,14 @@ const CampaignTestPanel = () => {
         variant: successCount > 0 ? 'default' : 'destructive'
       });
 
-      // Recarregar dados para atualizar lista de pendentes
       await loadData();
 
     } catch (error) {
-      console.error('Mass send error:', error);
+      console.error('Campaign error:', error);
       addLog(`❌ Erro crítico: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
       toast({
-        title: 'Erro',
-        description: 'Falha no envio em massa',
+        title: 'Erro na Campanha',
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: 'destructive'
       });
     } finally {
@@ -462,6 +521,84 @@ const CampaignTestPanel = () => {
                 placeholder="Digite a mensagem que será enviada..."
                 rows={4}
               />
+            </div>
+
+            {/* Configurações Avançadas */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">⚙️ Configurações Avançadas</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  {showAdvanced ? 'Ocultar' : 'Mostrar'}
+                </Button>
+              </div>
+
+              {showAdvanced && (
+                <div className="space-y-4 pt-2 border-t">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-1 block">
+                        Delay Mínimo (segundos)
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={config.minDelay}
+                        onChange={(e) => setConfig({...config, minDelay: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-1 block">
+                        Delay Máximo (segundos)
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={config.maxDelay}
+                        onChange={(e) => setConfig({...config, maxDelay: Number(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">
+                      Tamanho do Lote
+                    </label>
+                    <Input
+                      type="number"
+                      min="10"
+                      max="500"
+                      step="10"
+                      value={config.batchSize}
+                      onChange={(e) => setConfig({...config, batchSize: Number(e.target.value)})}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Leads por lote com pausa de 5s entre lotes
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium">Rotação de Instâncias</label>
+                      <p className="text-xs text-muted-foreground">
+                        Alterna entre todas as instâncias conectadas
+                      </p>
+                    </div>
+                    <Button
+                      variant={config.rotateInstances ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setConfig({...config, rotateInstances: !config.rotateInstances})}
+                    >
+                      {config.rotateInstances ? '✅ Ativo' : '❌ Inativo'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
