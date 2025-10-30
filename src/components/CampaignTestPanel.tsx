@@ -333,17 +333,41 @@ const CampaignTestPanel = () => {
             });
 
             if (error) {
-              if (error.message?.includes('404') || error.message?.includes('not exist')) {
-                addLog(`❌ Instância ${currentInstance.instance_name} inválida. Removendo da rotação...`, 'error');
+              if (error.message?.includes('404') || error.message?.includes('não existe')) {
+                addLog(`❌ Instância ${currentInstance.instance_name} não existe mais!`, 'error');
+                
+                // Remover da lista de rotação
                 const index = connectedInstances.indexOf(currentInstance);
                 if (index > -1) {
                   connectedInstances.splice(index, 1);
+                  addLog(`🔄 Instância removida da rotação. ${connectedInstances.length} restantes`, 'info');
                 }
+                
+                // Se não há mais instâncias, parar campanha
                 if (connectedInstances.length === 0) {
-                  throw new Error('Todas as instâncias falharam');
+                  addLog(`❌ Nenhuma instância válida restante. Parando campanha.`, 'error');
+                  toast({
+                    title: 'Campanha Interrompida',
+                    description: 'Todas as instâncias falharam. Reconecte-as.',
+                    variant: 'destructive'
+                  });
+                  break;
                 }
                 continue;
               }
+              
+              if (error.message?.includes('400') || error.message?.includes('não está conectada')) {
+                addLog(`⚠️ Instância ${currentInstance.instance_name} desconectada`, 'error');
+                // Remover da lista de rotação
+                const index = connectedInstances.indexOf(currentInstance);
+                if (index > -1) {
+                  connectedInstances.splice(index, 1);
+                  addLog(`🔄 Instância removida da rotação. ${connectedInstances.length} restantes`, 'info');
+                }
+                if (connectedInstances.length === 0) break;
+                continue;
+              }
+              
               throw error;
             }
 
@@ -430,6 +454,18 @@ const CampaignTestPanel = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Botão Recarregar */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              disabled={testing}
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Atualizar Dados
+            </Button>
+          </div>
           {/* Status */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
