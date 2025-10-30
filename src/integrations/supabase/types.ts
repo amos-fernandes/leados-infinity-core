@@ -254,6 +254,171 @@ export type Database = {
           },
         ]
       }
+      daily_companies_stats: {
+        Row: {
+          created_at: string
+          dados_validados: boolean | null
+          data_referencia: string
+          estado: string
+          fonte_dados: string
+          id: string
+          tem_anomalia: boolean | null
+          total_empresas: number
+          total_grande: number | null
+          total_medio: number | null
+          total_mei: number | null
+          total_micro: number | null
+          total_pequeno: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dados_validados?: boolean | null
+          data_referencia: string
+          estado: string
+          fonte_dados?: string
+          id?: string
+          tem_anomalia?: boolean | null
+          total_empresas?: number
+          total_grande?: number | null
+          total_medio?: number | null
+          total_mei?: number | null
+          total_micro?: number | null
+          total_pequeno?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dados_validados?: boolean | null
+          data_referencia?: string
+          estado?: string
+          fonte_dados?: string
+          id?: string
+          tem_anomalia?: boolean | null
+          total_empresas?: number
+          total_grande?: number | null
+          total_medio?: number | null
+          total_mei?: number | null
+          total_micro?: number | null
+          total_pequeno?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_new_companies: {
+        Row: {
+          anomalia_descricao: string | null
+          anomalia_temporal: boolean | null
+          atividade_principal_codigo: string | null
+          atividade_principal_descricao: string | null
+          bairro: string | null
+          capital_social: number | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string
+          cnpj_raiz: string | null
+          codigo_natureza_juridica: string | null
+          contato_email: string | null
+          contato_telefonico: string | null
+          contato_telefonico_tipo: string | null
+          created_at: string
+          dados_validados: boolean | null
+          data_abertura: string
+          data_ingestao: string
+          data_validacao: string | null
+          descricao_natureza_juridica: string | null
+          estado: string
+          fonte_dados: string
+          id: string
+          logradouro: string | null
+          matriz_filial: string | null
+          mei: boolean | null
+          nome_fantasia: string | null
+          numero: string | null
+          porte: string | null
+          raw_data: Json | null
+          razao_social: string
+          situacao_cadastral: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anomalia_descricao?: string | null
+          anomalia_temporal?: boolean | null
+          atividade_principal_codigo?: string | null
+          atividade_principal_descricao?: string | null
+          bairro?: string | null
+          capital_social?: number | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj: string
+          cnpj_raiz?: string | null
+          codigo_natureza_juridica?: string | null
+          contato_email?: string | null
+          contato_telefonico?: string | null
+          contato_telefonico_tipo?: string | null
+          created_at?: string
+          dados_validados?: boolean | null
+          data_abertura: string
+          data_ingestao?: string
+          data_validacao?: string | null
+          descricao_natureza_juridica?: string | null
+          estado: string
+          fonte_dados?: string
+          id?: string
+          logradouro?: string | null
+          matriz_filial?: string | null
+          mei?: boolean | null
+          nome_fantasia?: string | null
+          numero?: string | null
+          porte?: string | null
+          raw_data?: Json | null
+          razao_social: string
+          situacao_cadastral?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anomalia_descricao?: string | null
+          anomalia_temporal?: boolean | null
+          atividade_principal_codigo?: string | null
+          atividade_principal_descricao?: string | null
+          bairro?: string | null
+          capital_social?: number | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string
+          cnpj_raiz?: string | null
+          codigo_natureza_juridica?: string | null
+          contato_email?: string | null
+          contato_telefonico?: string | null
+          contato_telefonico_tipo?: string | null
+          created_at?: string
+          dados_validados?: boolean | null
+          data_abertura?: string
+          data_ingestao?: string
+          data_validacao?: string | null
+          descricao_natureza_juridica?: string | null
+          estado?: string
+          fonte_dados?: string
+          id?: string
+          logradouro?: string | null
+          matriz_filial?: string | null
+          mei?: boolean | null
+          nome_fantasia?: string | null
+          numero?: string | null
+          porte?: string | null
+          raw_data?: Json | null
+          razao_social?: string
+          situacao_cadastral?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       evolution_instances: {
         Row: {
           api_key: string
@@ -880,7 +1045,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      detect_temporal_anomaly: {
+        Args: { abertura_date: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
