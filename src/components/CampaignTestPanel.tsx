@@ -285,7 +285,20 @@ const CampaignTestPanel = () => {
             }
           });
 
-          if (error) throw error;
+          if (error) {
+            // Se for erro 404, parar o envio e recarregar instâncias
+            if (error.message?.includes('404') || error.message?.includes('not exist')) {
+              addLog(`❌ Instância não existe mais! Parando envios...`, 'error');
+              toast({
+                title: 'Instância Inválida',
+                description: 'A instância Evolution não existe. Reconecte-a.',
+                variant: 'destructive'
+              });
+              await loadData(); // Recarregar para atualizar status
+              break; // Parar o loop
+            }
+            throw error;
+          }
 
           if (data && data.success) {
             successCount++;
@@ -294,15 +307,20 @@ const CampaignTestPanel = () => {
             throw new Error(data?.error || 'Erro desconhecido');
           }
 
-          // Pequeno delay entre envios para não sobrecarregar
+          // Delay entre envios
           if (i < leads.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1500));
           }
 
         } catch (sendError) {
           errorCount++;
           const errorMsg = sendError instanceof Error ? sendError.message : 'Erro desconhecido';
-          addLog(`❌ [${progress}/${leads.length}] Falha para ${lead.empresa}: ${errorMsg}`, 'error');
+          addLog(`❌ [${progress}/${leads.length}] Falha: ${errorMsg}`, 'error');
+          
+          // Se muitos erros seguidos, sugerir parar
+          if (errorCount >= 3 && successCount === 0) {
+            addLog(`⚠️ Muitos erros. Verifique a instância Evolution.`, 'error');
+          }
         }
       }
 

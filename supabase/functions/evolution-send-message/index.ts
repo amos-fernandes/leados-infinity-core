@@ -49,10 +49,67 @@ serve(async (req) => {
       });
     }
 
+    // Verificar se a instância realmente existe na Evolution API
+    try {
+      const statusUrl = `${instance.instance_url}/instance/connectionState/${instance.instance_name}`;
+      console.log('🔍 Verificando status da instância:', statusUrl);
+      
+      const statusResponse = await fetch(statusUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': instance.api_key
+        }
+      });
+
+      if (statusResponse.status === 404) {
+        console.error('❌ Instância não existe na Evolution API');
+        
+        // Atualizar status no banco
+        await supabase
+          .from('evolution_instances')
+          .update({ 
+            status: 'disconnected',
+            is_active: false 
+          })
+          .eq('id', instanceId);
+
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: `Instância "${instance.instance_name}" não existe mais na Evolution API. Status atualizado.`
+        }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const statusData = await statusResponse.json();
+      console.log('📊 Status real da instância:', statusData);
+
+      // Se não estiver conectada, atualizar banco
+      if (statusData.state !== 'open') {
+        await supabase
+          .from('evolution_instances')
+          .update({ status: 'disconnected' })
+          .eq('id', instanceId);
+
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: `Instância está ${statusData.state}. Conecte novamente.`
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (statusError) {
+      console.error('⚠️ Erro ao verificar status:', statusError);
+      // Continuar mesmo com erro de verificação
+    }
+
     if (instance.status !== 'connected') {
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Instância não está conectada'
+        error: 'Instância não está conectada. Verifique a conexão.'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
