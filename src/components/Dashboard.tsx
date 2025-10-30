@@ -6,6 +6,7 @@ import InAppCommunication from "./InAppCommunication";
 import UpgradeModal from "./UpgradeModal";
 import LeadQualificationEngine from "./LeadQualificationEngine";
 import { CampaignScheduler } from "./CampaignScheduler";
+import { DailyCompaniesManager } from "./CRM/DailyCompaniesManager";
 import { useUserPlan } from "./UserPlanProvider";
 import { 
   Users, 
@@ -21,7 +22,8 @@ import {
   Smartphone,
   Search,
   Zap,
-  Clock
+  Clock,
+  Building2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +48,7 @@ const Dashboard = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showQualificationEngine, setShowQualificationEngine] = useState(false);
   const [showScheduler, setShowScheduler] = useState(false);
+  const [showDailyCompanies, setShowDailyCompanies] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -386,6 +389,19 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Daily Companies Section */}
+      {showDailyCompanies && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Novas Empresas - Ingestão Diária</h2>
+            <Button variant="outline" onClick={() => setShowDailyCompanies(false)}>
+              Fechar
+            </Button>
+          </div>
+          <DailyCompaniesManager />
+        </div>
+      )}
+
       {/* Quick Actions */}
       <Card className="shadow-soft">
         <CardHeader>
@@ -395,7 +411,7 @@ const Dashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <Button 
               className="h-auto p-4 flex flex-col items-center gap-2" 
               variant="outline"
@@ -405,6 +421,17 @@ const Dashboard = () => {
               <div className="text-center">
                 <div className="font-medium">Motor de Qualificação</div>
                 <div className="text-sm text-muted-foreground">Enriquecer e qualificar leads</div>
+              </div>
+            </Button>
+            <Button 
+              className="h-auto p-4 flex flex-col items-center gap-2" 
+              variant="outline"
+              onClick={() => setShowDailyCompanies(!showDailyCompanies)}
+            >
+              <Building2 className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-medium">Novas Empresas</div>
+                <div className="text-sm text-muted-foreground">Ingestão diária</div>
               </div>
             </Button>
             <Button 

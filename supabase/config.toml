@@ -147,3 +147,6 @@ verify_jwt = false
 
 [functions.ai]
 verify_jwt = false
+
+[functions.daily-companies-ingestion]
+verify_jwt = true
