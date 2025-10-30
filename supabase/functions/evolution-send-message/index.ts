@@ -36,13 +36,24 @@ serve(async (req) => {
       .from('evolution_instances')
       .select('*')
       .eq('id', instanceId)
-      .eq('is_active', true)
       .single();
 
     if (instanceError || !instance) {
+      console.error('❌ Instância não encontrada:', { instanceId, error: instanceError });
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'Instância não encontrada ou inativa'
+        error: 'Instância não encontrada no banco de dados'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!instance.is_active) {
+      console.error('❌ Instância está inativa:', instance.instance_name);
+      return new Response(JSON.stringify({ 
+        success: false,
+        error: `Instância "${instance.instance_name}" está inativa`
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -93,7 +104,23 @@ serve(async (req) => {
       
       if (!instanceState) {
         console.error('⚠️ Resposta da API sem campo state:', statusData);
-        // Se não conseguir verificar, continuar e deixar o envio tentar
+        
+        // Marcar como desconectada se não conseguir verificar o estado
+        await supabase
+          .from('evolution_instances')
+          .update({ 
+            status: 'disconnected',
+            is_active: false 
+          })
+          .eq('id', instanceId);
+
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: `Não foi possível verificar o estado da instância "${instance.instance_name}". Ela pode não existir mais na Evolution API.`
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       } else if (instanceState !== 'open') {
         console.log(`⚠️ Instância não está aberta: ${instanceState}`);
         await supabase

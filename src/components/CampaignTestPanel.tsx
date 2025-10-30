@@ -333,38 +333,39 @@ const CampaignTestPanel = () => {
             });
 
             if (error) {
-              if (error.message?.includes('404') || error.message?.includes('não existe')) {
-                addLog(`❌ Instância ${currentInstance.instance_name} não existe mais!`, 'error');
+              const errorMsg = error.message || '';
+              
+              // Erros que removem a instância da rotação
+              if (errorMsg.includes('404') || 
+                  errorMsg.includes('não existe') || 
+                  errorMsg.includes('não encontrada') ||
+                  errorMsg.includes('inativa') ||
+                  errorMsg.includes('400') || 
+                  errorMsg.includes('undefined') ||
+                  errorMsg.includes('não está conectada')) {
+                
+                addLog(`❌ Instância ${currentInstance.instance_name} falhou: ${errorMsg}`, 'error');
                 
                 // Remover da lista de rotação
                 const index = connectedInstances.indexOf(currentInstance);
                 if (index > -1) {
                   connectedInstances.splice(index, 1);
-                  addLog(`🔄 Instância removida da rotação. ${connectedInstances.length} restantes`, 'info');
+                  addLog(`🔄 Instância removida. ${connectedInstances.length} restantes`, 'info');
                 }
                 
                 // Se não há mais instâncias, parar campanha
                 if (connectedInstances.length === 0) {
-                  addLog(`❌ Nenhuma instância válida restante. Parando campanha.`, 'error');
+                  addLog(`❌ Nenhuma instância válida. Parando campanha.`, 'error');
                   toast({
                     title: 'Campanha Interrompida',
-                    description: 'Todas as instâncias falharam. Reconecte-as.',
+                    description: 'Todas as instâncias falharam. Atualize e reconecte-as.',
                     variant: 'destructive'
                   });
+                  
+                  // Recarregar dados automaticamente
+                  await loadData();
                   break;
                 }
-                continue;
-              }
-              
-              if (error.message?.includes('400') || error.message?.includes('não está conectada')) {
-                addLog(`⚠️ Instância ${currentInstance.instance_name} desconectada`, 'error');
-                // Remover da lista de rotação
-                const index = connectedInstances.indexOf(currentInstance);
-                if (index > -1) {
-                  connectedInstances.splice(index, 1);
-                  addLog(`🔄 Instância removida da rotação. ${connectedInstances.length} restantes`, 'info');
-                }
-                if (connectedInstances.length === 0) break;
                 continue;
               }
               
