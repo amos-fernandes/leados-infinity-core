@@ -272,8 +272,8 @@ class EmailService {
           errors.push({ script: script.empresa, error: error instanceof Error ? error.message : 'Erro desconhecido' });
         }
 
-        // Delay entre envios
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Delay entre envios (email demora mais)
+      await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       console.log(`\n📧 === RESUMO DO ENVIO DE E-MAILS ===`);
@@ -299,8 +299,8 @@ class EmailService {
       const msg = {
         to: to,
         from: {
-          email: 'contato@infinity-leads.com',
-          name: 'Escritório Infinity'
+          email: 'noreply@isf.net.br',
+          name: 'Escritório Infinity Leads'
         },
         subject: subject,
         html: html,
@@ -308,13 +308,13 @@ class EmailService {
       };
 
       const result = await sgMail.send(msg);
-      console.log(`✅ E-mail enviado via SendGrid para ${leadName}`);
+      console.log(`✅ E-mail enviado via SendGrid para ${leadName} (${to})`);
       return true;
 
     } catch (error: any) {
       console.error(`❌ Falha ao enviar e-mail via SendGrid para ${leadName}:`, error);
       if (error.response) {
-        console.error('SendGrid Error Details:', error.response.body);
+        console.error('SendGrid Error Details:', JSON.stringify(error.response.body, null, 2));
       }
       throw error;
     }
@@ -389,7 +389,7 @@ class EmailService {
             
             <div class="footer">
                 <p><strong>Escritório Infinity - C6 Bank PJ</strong></p>
-                <p>📞 (62) 99179-2303 | 📧 contato@infinity-leads.com</p>
+                <p>📞 (62) 99179-2303 | 📧 noreply@isf.net.br</p>
                 <p>Escritório autorizado para abertura de contas PJ C6 Bank</p>
             </div>
         </div>
