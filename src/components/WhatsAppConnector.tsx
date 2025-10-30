@@ -115,7 +115,7 @@ const WhatsAppConnector = () => {
     }
 
     const projectId = 'rcfmbjkolnzjhrlgrtda';
-    const wsUrl = `wss://${projectId}.functions.supabase.co/whatsapp-websocket`;
+    const wsUrl = `wss://${projectId}.supabase.co/functions/v1/whatsapp-websocket`;
     
     console.log('Conectando WebSocket:', wsUrl);
     addLog('🔌 Estabelecendo conexão com servidor...', 'info');
@@ -260,16 +260,6 @@ const WhatsAppConnector = () => {
         userId: user.id
       });
     }, 1000);
-
-    // Make REST call to initialize connection
-    try {
-      await supabase.functions.invoke('whatsapp-websocket', {
-        body: { action: 'initialize', userId: user.id }
-      });
-      console.log('✅ Chamada REST enviada com sucesso');
-    } catch (error) {
-      console.error('❌ Erro na API REST:', error);
-    }
   };
 
   const handleDisconnect = () => {
