@@ -113,21 +113,44 @@ serve(async (req) => {
     // Enviar para Evolution API
     const evolutionUrl = `${instance.instance_url}${endpoint}/${instance.instance_name}`;
     console.log('🔗 Evolution URL:', evolutionUrl);
+    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
     
-    const evolutionResponse = await fetch(evolutionUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': instance.api_key
-      },
-      body: JSON.stringify(payload)
-    });
+    let evolutionResponse;
+    let evolutionData;
+    
+    try {
+      evolutionResponse = await fetch(evolutionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': instance.api_key
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const evolutionData = await evolutionResponse.json();
-    console.log('📥 Evolution response:', evolutionData);
+      const responseText = await evolutionResponse.text();
+      console.log('📥 Evolution raw response:', responseText);
+      
+      try {
+        evolutionData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ Failed to parse Evolution response:', parseError);
+        throw new Error(`Invalid JSON response from Evolution API: ${responseText}`);
+      }
+      
+      console.log('📥 Evolution parsed response:', evolutionData);
 
-    if (!evolutionResponse.ok) {
-      throw new Error(`Evolution API error: ${JSON.stringify(evolutionData)}`);
+      if (!evolutionResponse.ok) {
+        console.error('❌ Evolution API returned error:', {
+          status: evolutionResponse.status,
+          statusText: evolutionResponse.statusText,
+          data: evolutionData
+        });
+        throw new Error(`Evolution API error (${evolutionResponse.status}): ${JSON.stringify(evolutionData)}`);
+      }
+    } catch (fetchError) {
+      console.error('❌ Network error calling Evolution API:', fetchError);
+      throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
     }
 
     // Salvar mensagem enviada no banco
