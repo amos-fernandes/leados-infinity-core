@@ -48,21 +48,33 @@ const CampaignTestPanel = () => {
   const loadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        addLog('❌ Usuário não autenticado', 'error');
+        return;
+      }
 
       addLog('🔍 Carregando dados...', 'info');
+      console.log('👤 User ID:', user.id);
 
-      // Carregar instâncias conectadas
+      // Carregar TODAS as instâncias (não apenas conectadas)
       const { data: instancesData, error: instancesError } = await supabase
         .from('evolution_instances')
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'connected')
         .eq('is_active', true);
 
-      if (instancesError) throw instancesError;
+      console.log('📱 Instâncias encontradas:', instancesData);
+      console.log('❌ Erro ao carregar instâncias:', instancesError);
+
+      if (instancesError) {
+        addLog(`❌ Erro ao carregar instâncias: ${instancesError.message}`, 'error');
+        throw instancesError;
+      }
+      
       setInstances(instancesData || []);
-      addLog(`✅ ${instancesData?.length || 0} instâncias conectadas encontradas`, 'success');
+      
+      const connectedCount = instancesData?.filter(i => i.status === 'connected').length || 0;
+      addLog(`✅ ${instancesData?.length || 0} instâncias encontradas (${connectedCount} conectadas)`, 'success');
 
       // Carregar leads com WhatsApp
       const { data: leadsData, error: leadsError } = await supabase
@@ -72,7 +84,14 @@ const CampaignTestPanel = () => {
         .not('whatsapp', 'is', null)
         .limit(10);
 
-      if (leadsError) throw leadsError;
+      console.log('👥 Leads encontrados:', leadsData);
+      console.log('❌ Erro ao carregar leads:', leadsError);
+
+      if (leadsError) {
+        addLog(`❌ Erro ao carregar leads: ${leadsError.message}`, 'error');
+        throw leadsError;
+      }
+      
       setLeads(leadsData || []);
       addLog(`✅ ${leadsData?.length || 0} leads com WhatsApp no CRM`, 'success');
 
@@ -91,9 +110,21 @@ const CampaignTestPanel = () => {
     if (!selectedInstance) {
       toast({
         title: 'Erro',
-        description: 'Selecione uma instância',
+        description: 'Selecione uma instância Evolution conectada',
         variant: 'destructive'
       });
+      addLog('⚠️ Nenhuma instância selecionada', 'error');
+      return;
+    }
+
+    const instance = instances.find(i => i.id === selectedInstance);
+    if (instance?.status !== 'connected') {
+      toast({
+        title: 'Erro',
+        description: 'A instância selecionada não está conectada',
+        variant: 'destructive'
+      });
+      addLog(`⚠️ Instância ${instance?.instance_name} está ${instance?.status}`, 'error');
       return;
     }
 
@@ -302,16 +333,31 @@ const CampaignTestPanel = () => {
               <label className="text-sm font-medium mb-2 block">Instância Evolution</label>
               <Select value={selectedInstance} onValueChange={setSelectedInstance}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma instância" />
+                  <SelectValue placeholder={instances.length > 0 ? "Selecione uma instância" : "Nenhuma instância disponível"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {instances.map((instance) => (
-                    <SelectItem key={instance.id} value={instance.id}>
-                      {instance.instance_name} - {instance.phone_number || 'Sem número'}
-                    </SelectItem>
-                  ))}
+                  {instances.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma instância Evolution encontrada.<br />
+                      Configure uma instância no menu Evolution API.
+                    </div>
+                  ) : (
+                    instances.map((instance) => (
+                      <SelectItem key={instance.id} value={instance.id}>
+                        {instance.instance_name} - {instance.phone_number || 'Sem número'} 
+                        <Badge variant={instance.status === 'connected' ? 'default' : 'secondary'} className="ml-2">
+                          {instance.status}
+                        </Badge>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              {instances.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  💡 Acesse <strong>Evolution API</strong> no dashboard para configurar instâncias
+                </p>
+              )}
             </div>
 
             <div>
