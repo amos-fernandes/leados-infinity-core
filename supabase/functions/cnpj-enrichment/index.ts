@@ -43,16 +43,51 @@ serve(async (req) => {
 
     console.log(`🔍 Consultando dados do CNPJ: ${cleanCnpj}`);
 
-    // Try BrasilAPI first (free)
+    // Try CnpjJA first (mais completo e atualizado)
     let companyData: any = null;
     
     try {
-      const brasilApiUrl = `https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`;
-      const brasilResponse = await fetch(brasilApiUrl);
+      console.log('🔍 Tentando CnpjJA...');
+      const cnpjJaUrl = `https://api.cnpja.com/office/${cleanCnpj}`;
+      const cnpjJaResponse = await fetch(cnpjJaUrl, {
+        headers: {
+          'Authorization': Deno.env.get('CNPJA_API_KEY') || ''
+        }
+      });
       
-      if (brasilResponse.ok) {
-        const data = await brasilResponse.json();
-        console.log('✅ Dados obtidos da BrasilAPI');
+      if (cnpjJaResponse.ok) {
+        const data = await cnpjJaResponse.json();
+        console.log('✅ Dados obtidos da CnpjJA');
+        
+        companyData = {
+          cnpj: cleanCnpj,
+          razao_social: data.company?.name,
+          nome_fantasia: data.alias,
+          cnae_principal: data.mainActivity?.text,
+          codigo_cnae: data.mainActivity?.id,
+          situacao: data.status?.text,
+          cidade: `${data.address?.city}/${data.address?.state}`,
+          uf: data.address?.state,
+          capital_social: parseFloat(data.company?.equity) || 0,
+          porte: data.company?.size?.text,
+          natureza_juridica: data.company?.nature?.text,
+          data_abertura: data.founded
+        };
+      } else {
+        throw new Error(`CnpjJA retornou status ${cnpjJaResponse.status}`);
+      }
+    } catch (cnpjJaError) {
+      console.error('❌ Erro na CnpjJA:', (cnpjJaError as Error).message);
+      
+      // Fallback to BrasilAPI
+      try {
+        console.log('🔄 Tentando BrasilAPI como fallback...');
+        const brasilApiUrl = `https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`;
+        const brasilResponse = await fetch(brasilApiUrl);
+        
+        if (brasilResponse.ok) {
+          const data = await brasilResponse.json();
+          console.log('✅ Dados obtidos da BrasilAPI');
         
         companyData = {
           cnpj: cleanCnpj,
@@ -132,7 +167,7 @@ serve(async (req) => {
         tech_stack: {
           ...companyData,
           enrichment_date: new Date().toISOString(),
-          source: 'brasil_api_receita_ws'
+          source: companyData.cnpj ? 'cnpja_brasil_api_receita_ws' : 'unknown'
         }
       })
       .eq('id', leadId);
