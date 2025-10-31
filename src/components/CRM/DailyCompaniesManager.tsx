@@ -235,7 +235,8 @@ export function DailyCompaniesManager() {
 
       <Tabs defaultValue="import" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="import">Importação</TabsTrigger>
+          <TabsTrigger value="import">Importação CSV</TabsTrigger>
+          <TabsTrigger value="public-sources">Fontes Públicas</TabsTrigger>
           <TabsTrigger value="companies">Empresas</TabsTrigger>
           <TabsTrigger value="stats">Estatísticas</TabsTrigger>
         </TabsList>
@@ -323,6 +324,174 @@ export function DailyCompaniesManager() {
                   <br />
                   <strong>⚠️ Detecção de Anomalias:</strong><br />
                   Empresas com data de abertura futura serão marcadas automaticamente como anomalias temporais.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab de Fontes Públicas */}
+        <TabsContent value="public-sources" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Captação Ética de Leads - Fontes Públicas</CardTitle>
+              <CardDescription>
+                Busque empresas abertas recentemente usando apenas fontes públicas oficiais (RFB e Juntas Comerciais).
+                Sistema 100% ético e em conformidade com LGPD.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Controles de busca */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="search-date">Data de Abertura</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "Selecione uma data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="search-state">Estado (UF)</Label>
+                  <select
+                    id="search-state"
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={selectedState}
+                    onChange={(e) => setSelectedState(e.target.value)}
+                  >
+                    <option value="all">Todos</option>
+                    <option value="SP">São Paulo</option>
+                    <option value="RJ">Rio de Janeiro</option>
+                    <option value="MG">Minas Gerais</option>
+                    <option value="BA">Bahia</option>
+                    <option value="PR">Paraná</option>
+                    <option value="RS">Rio Grande do Sul</option>
+                    {/* Adicionar mais estados conforme necessário */}
+                  </select>
+                </div>
+              </div>
+
+              {/* Botões de busca */}
+              <div className="grid gap-3 md:grid-cols-3">
+                <Button
+                  variant="outline"
+                  disabled={isImporting || !selectedDate || selectedState === 'all'}
+                  onClick={async () => {
+                    if (!selectedDate || selectedState === 'all') return;
+                    setIsImporting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('rfb-data-sync', {
+                        body: { 
+                          date: format(selectedDate, 'yyyy-MM-dd'),
+                          estado: selectedState
+                        }
+                      });
+                      if (error) throw error;
+                      toast.success(`RFB: ${data.companies?.length || 0} empresas encontradas`);
+                      if (data.companies?.length > 0) loadCompanies();
+                    } catch (error: any) {
+                      toast.error(`Erro RFB: ${error.message}`);
+                    } finally {
+                      setIsImporting(false);
+                    }
+                  }}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Buscar RFB (Oficial)
+                </Button>
+
+                <Button
+                  variant="outline"
+                  disabled={isImporting || !selectedDate || selectedState !== 'SP'}
+                  onClick={async () => {
+                    if (!selectedDate || selectedState !== 'SP') return;
+                    setIsImporting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('jucesp-scraper', {
+                        body: { 
+                          date: format(selectedDate, 'yyyy-MM-dd'),
+                          estado: selectedState
+                        }
+                      });
+                      if (error) throw error;
+                      toast.success(`JUCESP: ${data.companies?.length || 0} empresas encontradas`);
+                      if (data.companies?.length > 0) loadCompanies();
+                    } catch (error: any) {
+                      toast.error(`Erro JUCESP: ${error.message}`);
+                    } finally {
+                      setIsImporting(false);
+                    }
+                  }}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Buscar JUCESP (SP)
+                </Button>
+
+                <Button
+                  disabled={isImporting || !selectedDate || selectedState === 'all'}
+                  onClick={async () => {
+                    if (!selectedDate || selectedState === 'all') return;
+                    setIsImporting(true);
+                    try {
+                      const { data, error } = await supabase.functions.invoke('cross-validate-companies', {
+                        body: { 
+                          date: format(selectedDate, 'yyyy-MM-dd'),
+                          estado: selectedState
+                        }
+                      });
+                      if (error) throw error;
+                      toast.success(`Validação Cruzada: ${data.companies?.length || 0} empresas validadas`);
+                      if (data.companies?.length > 0) loadCompanies();
+                    } catch (error: any) {
+                      toast.error(`Erro Validação: ${error.message}`);
+                    } finally {
+                      setIsImporting(false);
+                    }
+                  }}
+                >
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Validação Cruzada
+                </Button>
+              </div>
+
+              {/* Avisos importantes */}
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  <strong>📋 Fontes de Dados Legítimas:</strong>
+                  <ul className="mt-2 space-y-1 ml-4 list-disc">
+                    <li><strong>RFB (Receita Federal):</strong> Base oficial pública. Delay esperado: 60-90 dias. Alta confiabilidade.</li>
+                    <li><strong>JUCESP (SP):</strong> Junta Comercial de São Paulo. Dados preliminares com scraping ético (5s rate-limit).</li>
+                    <li><strong>Validação Cruzada:</strong> Combina múltiplas fontes para maior confiança.</li>
+                  </ul>
+                  <p className="mt-3 text-xs">
+                    ⚖️ <strong>Compliance LGPD:</strong> Todas as buscas usam apenas dados públicos (Art. 7º, §3º).
+                    Logs de acesso são mantidos para auditoria.
+                  </p>
+                </AlertDescription>
+              </Alert>
+
+              <Alert>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-sm text-green-600">
+                  <strong>✅ Sistema 100% Ético:</strong><br />
+                  • Sem simulação de dados futuros<br />
+                  • Sem promessas de dados em tempo real<br />
+                  • Sem scraping agressivo (rate-limiting implementado)<br />
+                  • Fonte e timestamp sempre exibidos<br />
+                  • Conformidade total com termos de uso das fontes
                 </AlertDescription>
               </Alert>
             </CardContent>
