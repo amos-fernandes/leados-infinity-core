@@ -59,67 +59,80 @@ serve(async (req) => {
     if (sources.includes('rfb')) {
       console.log('\n🏛️ Capturando da Receita Federal...');
       try {
-        // Buscar empresas do cache RFB (dados reais)
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        const dateStr = yesterday.toISOString().split('T')[0];
-        const estados = qualificationCriteria.requiredUfs || ['SP', 'RJ', 'MG', 'PR', 'RS'];
-        
-        let rfbTotal = 0;
-        for (const estado of estados) {
-          try {
-            // Buscar diretamente do cache RFB
-            const { data: rfbCompanies, error: rfbError } = await supabase
-              .from('rfb_companies_cache')
-              .select('*')
-              .eq('estado', estado)
-              .gte('data_abertura', dateStr)
-              .eq('mei', false)
-              .limit(Math.ceil(targetPerSource / estados.length));
+        // Verificar se há dados no cache
+        const { count: cacheCount } = await supabase
+          .from('rfb_companies_cache')
+          .select('*', { count: 'exact', head: true });
 
-            if (rfbError) {
-              console.error(`❌ Erro ao buscar RFB (${estado}):`, rfbError);
-              continue;
-            }
+        console.log(`📊 Cache RFB tem ${cacheCount || 0} registros`);
 
-            if (rfbCompanies && rfbCompanies.length > 0) {
-              const leadsToInsert = rfbCompanies.map(company => ({
-                user_id: userId,
-                empresa: company.nome_fantasia || company.razao_social,
-                cnpj: company.cnpj,
-                setor: company.atividade_principal || 'Não especificado',
-                status: 'novo',
-                gancho_prospeccao: `Empresa identificada via RFB - ${company.porte || 'Porte não informado'}`,
-                cidade: company.cidade,
-                uf: company.estado,
-                capital_social: company.capital_social,
-                cnae_principal: company.atividade_principal,
-                regime_tributario: company.natureza_juridica
-              }));
+        if (!cacheCount || cacheCount === 0) {
+          console.log('⚠️ Cache RFB vazio, pulando captura da RFB');
+          console.log('💡 Dica: Use a função rfb-data-sync para popular o cache');
+          results.bySource['rfb'] = 0;
+        } else {
+          // Buscar empresas do cache RFB (dados reais)
+          const today = new Date();
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 7); // Buscar últimos 7 dias
+          
+          const dateStr = yesterday.toISOString().split('T')[0];
+          const estados = qualificationCriteria.requiredUfs || ['SP', 'RJ', 'MG', 'PR', 'RS'];
+          
+          let rfbTotal = 0;
+          for (const estado of estados) {
+            try {
+              // Buscar diretamente do cache RFB
+              const { data: rfbCompanies, error: rfbError } = await supabase
+                .from('rfb_companies_cache')
+                .select('*')
+                .eq('estado', estado)
+                .gte('data_abertura', dateStr)
+                .eq('mei', false)
+                .limit(Math.ceil(targetPerSource / estados.length));
 
-              const { data: insertedLeads, error: insertError } = await supabase
-                .from('leads')
-                .upsert(leadsToInsert, { 
-                  onConflict: 'cnpj',
-                  ignoreDuplicates: true 
-                })
-                .select();
-
-              if (!insertError && insertedLeads) {
-                rfbTotal += insertedLeads.length;
-                console.log(`✅ RFB (${estado}): ${insertedLeads.length} leads capturados`);
+              if (rfbError) {
+                console.error(`❌ Erro ao buscar RFB (${estado}):`, rfbError);
+                continue;
               }
-            }
-          } catch (err) {
-            console.error(`❌ Erro no estado ${estado}:`, err);
-          }
-        }
 
-        results.bySource['rfb'] = rfbTotal;
-        results.totalCaptured += rfbTotal;
-        console.log(`✅ RFB Total: ${rfbTotal} leads capturados`);
+              if (rfbCompanies && rfbCompanies.length > 0) {
+                const leadsToInsert = rfbCompanies.map(company => ({
+                  user_id: userId,
+                  empresa: company.nome_fantasia || company.razao_social,
+                  cnpj: company.cnpj,
+                  setor: company.atividade_principal || 'Não especificado',
+                  status: 'novo',
+                  gancho_prospeccao: `Empresa identificada via RFB - ${company.porte || 'Porte não informado'}`,
+                  cidade: company.cidade,
+                  uf: company.estado,
+                  capital_social: company.capital_social,
+                  cnae_principal: company.atividade_principal,
+                  regime_tributario: company.natureza_juridica
+                }));
+
+                const { data: insertedLeads, error: insertError } = await supabase
+                  .from('leads')
+                  .upsert(leadsToInsert, { 
+                    onConflict: 'cnpj',
+                    ignoreDuplicates: true 
+                  })
+                  .select();
+
+                if (!insertError && insertedLeads) {
+                  rfbTotal += insertedLeads.length;
+                  console.log(`✅ RFB (${estado}): ${insertedLeads.length} leads capturados`);
+                }
+              }
+            } catch (err) {
+              console.error(`❌ Erro no estado ${estado}:`, err);
+            }
+          }
+
+          results.bySource['rfb'] = rfbTotal;
+          results.totalCaptured += rfbTotal;
+          console.log(`✅ RFB Total: ${rfbTotal} leads capturados`);
+        }
       } catch (error) {
         console.error('❌ Erro na captura RFB:', error);
         results.errors.push(`RFB: ${error.message}`);

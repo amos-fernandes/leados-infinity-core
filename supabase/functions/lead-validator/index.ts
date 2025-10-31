@@ -178,7 +178,7 @@ serve(async (req) => {
     const finalScore = maxScore > 0 ? Math.round((qualificationScore / maxScore) * 100) : 0;
     
     // Update lead with qualification results
-    const newStatus = isQualified && finalScore >= 70 ? 'QUALIFIED' : 'UNQUALIFIED';
+    const newStatus = isQualified && finalScore >= 70 ? 'qualificado' : 'desqualificado';
     
     console.log(`📋 Resultado da qualificação: ${newStatus} (${finalScore}%)`);
 
