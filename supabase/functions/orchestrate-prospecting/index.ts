@@ -59,52 +59,67 @@ serve(async (req) => {
     if (sources.includes('rfb')) {
       console.log('\n🏛️ Capturando da Receita Federal...');
       try {
-        // Gerar leads simulados da RFB para teste
-        const simulatedRfbCompanies = [];
-        for (let i = 0; i < Math.min(targetPerSource, 100); i++) {
-          const cnpj = `${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}0001${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
-          simulatedRfbCompanies.push({
-            cnpj: cnpj,
-            razao_social: `EMPRESA RFB ${i + 1} LTDA`,
-            nome_fantasia: `RFB Empresa ${i + 1}`,
-            atividade_principal: '6201-5/00 - Desenvolvimento de programas de computador sob encomenda',
-            cidade: ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre'][i % 5],
-            estado: ['SP', 'RJ', 'MG', 'PR', 'RS'][i % 5],
-            capital_social: 50000 + (i * 5000),
-            porte: 'PEQUENA',
-            natureza_juridica: 'Sociedade Empresária Limitada'
-          });
-        }
+        // Buscar empresas do cache RFB (dados reais)
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        const dateStr = yesterday.toISOString().split('T')[0];
+        const estados = qualificationCriteria.requiredUfs || ['SP', 'RJ', 'MG', 'PR', 'RS'];
+        
+        let rfbTotal = 0;
+        for (const estado of estados) {
+          try {
+            // Buscar diretamente do cache RFB
+            const { data: rfbCompanies, error: rfbError } = await supabase
+              .from('rfb_companies_cache')
+              .select('*')
+              .eq('estado', estado)
+              .gte('data_abertura', dateStr)
+              .eq('mei', false)
+              .limit(Math.ceil(targetPerSource / estados.length));
 
-        if (simulatedRfbCompanies.length > 0) {
-          const leadsToInsert = simulatedRfbCompanies.map(company => ({
-            user_id: userId,
-            empresa: company.nome_fantasia || company.razao_social,
-            cnpj: company.cnpj,
-            setor: company.atividade_principal || 'Não especificado',
-            status: 'novo',
-            gancho_prospeccao: `Empresa identificada via RFB - ${company.porte || 'Porte não informado'}`,
-            cidade: company.cidade,
-            uf: company.estado,
-            capital_social: company.capital_social,
-            cnae_principal: company.atividade_principal,
-            regime_tributario: company.natureza_juridica
-          }));
+            if (rfbError) {
+              console.error(`❌ Erro ao buscar RFB (${estado}):`, rfbError);
+              continue;
+            }
 
-          const { data: insertedLeads, error: insertError } = await supabase
-            .from('leads')
-            .upsert(leadsToInsert, { 
-              onConflict: 'cnpj',
-              ignoreDuplicates: true 
-            })
-            .select();
+            if (rfbCompanies && rfbCompanies.length > 0) {
+              const leadsToInsert = rfbCompanies.map(company => ({
+                user_id: userId,
+                empresa: company.nome_fantasia || company.razao_social,
+                cnpj: company.cnpj,
+                setor: company.atividade_principal || 'Não especificado',
+                status: 'novo',
+                gancho_prospeccao: `Empresa identificada via RFB - ${company.porte || 'Porte não informado'}`,
+                cidade: company.cidade,
+                uf: company.estado,
+                capital_social: company.capital_social,
+                cnae_principal: company.atividade_principal,
+                regime_tributario: company.natureza_juridica
+              }));
 
-          if (!insertError && insertedLeads) {
-            results.bySource['rfb'] = insertedLeads.length;
-            results.totalCaptured += insertedLeads.length;
-            console.log(`✅ RFB: ${insertedLeads.length} leads capturados`);
+              const { data: insertedLeads, error: insertError } = await supabase
+                .from('leads')
+                .upsert(leadsToInsert, { 
+                  onConflict: 'cnpj',
+                  ignoreDuplicates: true 
+                })
+                .select();
+
+              if (!insertError && insertedLeads) {
+                rfbTotal += insertedLeads.length;
+                console.log(`✅ RFB (${estado}): ${insertedLeads.length} leads capturados`);
+              }
+            }
+          } catch (err) {
+            console.error(`❌ Erro no estado ${estado}:`, err);
           }
         }
+
+        results.bySource['rfb'] = rfbTotal;
+        results.totalCaptured += rfbTotal;
+        console.log(`✅ RFB Total: ${rfbTotal} leads capturados`);
       } catch (error) {
         console.error('❌ Erro na captura RFB:', error);
         results.errors.push(`RFB: ${error.message}`);
@@ -156,48 +171,21 @@ serve(async (req) => {
       }
     }
 
-    // 1.3 - Base Dos Dados (simulado por enquanto)
+    // 1.3 - Base Dos Dados (dados reais)
     if (sources.includes('basededados')) {
-      console.log('\n📊 Capturando do Base Dos Dados (simulado)...');
+      console.log('\n📊 Capturando do Base Dos Dados...');
       try {
-        // Gerar leads simulados para teste
-        const simulatedBddCompanies = [];
-        for (let i = 0; i < Math.min(targetPerSource, 50); i++) {
-          const cnpj = `${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}0001${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
-          simulatedBddCompanies.push({
-            cnpj: cnpj,
-            razao_social: `STARTUP INOVADORA ${i + 1} LTDA`,
-            setor: 'Tecnologia da Informação',
-            cidade: ['São Paulo', 'Campinas', 'Santos'][i % 3],
-            uf: 'SP',
-            capital_social: 100000 + (i * 10000)
-          });
-        }
+        const { data: bddData, error: bddError } = await supabase.functions.invoke('basededados-import', {
+          body: { userId }
+        });
 
-        const leadsToInsert = simulatedBddCompanies.map(company => ({
-          user_id: userId,
-          empresa: company.razao_social,
-          cnpj: company.cnpj,
-          setor: company.setor,
-          status: 'novo',
-          gancho_prospeccao: 'Startup identificada via Base Dos Dados',
-          cidade: company.cidade,
-          uf: company.uf,
-          capital_social: company.capital_social
-        }));
-
-        const { data: insertedLeads, error: insertError } = await supabase
-          .from('leads')
-          .upsert(leadsToInsert, { 
-            onConflict: 'cnpj',
-            ignoreDuplicates: true 
-          })
-          .select();
-
-        if (!insertError && insertedLeads) {
-          results.bySource['basededados'] = insertedLeads.length;
-          results.totalCaptured += insertedLeads.length;
-          console.log(`✅ Base Dos Dados: ${insertedLeads.length} leads capturados`);
+        if (!bddError && bddData?.leads) {
+          results.bySource['basededados'] = bddData.leads.length;
+          results.totalCaptured += bddData.leads.length;
+          console.log(`✅ Base Dos Dados: ${bddData.leads.length} leads capturados`);
+        } else {
+          console.error('❌ Erro Base Dos Dados:', bddError);
+          results.errors.push(`BaseDados: ${bddError?.message || 'Erro desconhecido'}`);
         }
       } catch (error) {
         console.error('❌ Erro na captura Base Dos Dados:', error);
@@ -205,48 +193,50 @@ serve(async (req) => {
       }
     }
 
-    // 1.4 - JUCESP (simulado por enquanto)
+    // 1.4 - JUCESP (dados reais)
     if (sources.includes('jucesp')) {
-      console.log('\n🏢 Capturando da JUCESP (simulado)...');
+      console.log('\n🏢 Capturando da JUCESP...');
       try {
-        // Gerar leads simulados da JUCESP
-        const simulatedJucespCompanies = [];
-        for (let i = 0; i < Math.min(targetPerSource, 30); i++) {
-          const cnpj = `${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}0001${String(Math.floor(Math.random() * 100)).padStart(2, '0')}`;
-          simulatedJucespCompanies.push({
-            cnpj: cnpj,
-            razao_social: `EMPRESA JUCESP ${i + 1} EIRELI`,
-            cidade: ['São Paulo', 'Guarulhos', 'Osasco', 'Campinas'][i % 4],
-            uf: 'SP',
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const dateStr = yesterday.toISOString().split('T')[0];
+
+        const { data: jucespData, error: jucespError } = await supabase.functions.invoke('jucesp-scraper', {
+          body: { 
+            date: dateStr,
+            estado: 'SP'
+          }
+        });
+
+        if (!jucespError && jucespData?.companies && jucespData.companies.length > 0) {
+          const leadsToInsert = jucespData.companies.map((company: any) => ({
+            user_id: userId,
+            empresa: company.nomeFantasia || company.razaoSocial,
+            cnpj: company.cnpj,
             setor: 'Comércio e Serviços',
-            capital_social: 80000 + (i * 8000)
-          });
-        }
+            status: 'novo',
+            gancho_prospeccao: 'Empresa registrada recentemente na JUCESP',
+            cidade: company.municipio,
+            uf: company.uf,
+            capital_social: null
+          }));
 
-        const leadsToInsert = simulatedJucespCompanies.map(company => ({
-          user_id: userId,
-          empresa: company.razao_social,
-          cnpj: company.cnpj,
-          setor: company.setor,
-          status: 'novo',
-          gancho_prospeccao: 'Empresa registrada recentemente na JUCESP',
-          cidade: company.cidade,
-          uf: company.uf,
-          capital_social: company.capital_social
-        }));
+          const { data: insertedLeads, error: insertError } = await supabase
+            .from('leads')
+            .upsert(leadsToInsert, { 
+              onConflict: 'cnpj',
+              ignoreDuplicates: true 
+            })
+            .select();
 
-        const { data: insertedLeads, error: insertError } = await supabase
-          .from('leads')
-          .upsert(leadsToInsert, { 
-            onConflict: 'cnpj',
-            ignoreDuplicates: true 
-          })
-          .select();
-
-        if (!insertError && insertedLeads) {
-          results.bySource['jucesp'] = insertedLeads.length;
-          results.totalCaptured += insertedLeads.length;
-          console.log(`✅ JUCESP: ${insertedLeads.length} leads capturados`);
+          if (!insertError && insertedLeads) {
+            results.bySource['jucesp'] = insertedLeads.length;
+            results.totalCaptured += insertedLeads.length;
+            console.log(`✅ JUCESP: ${insertedLeads.length} leads capturados`);
+          }
+        } else {
+          console.log('⚠️ JUCESP: Nenhuma empresa encontrada');
+          results.bySource['jucesp'] = 0;
         }
       } catch (error) {
         console.error('❌ Erro na captura JUCESP:', error);
