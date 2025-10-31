@@ -83,17 +83,67 @@ class WhatsAppRAGResponder {
     console.log('🤖 Gerando resposta RAG para:', userMessage);
     
     try {
-      // Formatar histórico para contexto
+      // Detectar interesse em abertura de contas
+      const aberturaContasKeywords = [
+        'abertura', 'abrir conta', 'abrir', 'conta', 'quero abrir',
+        'como faço', 'preciso abrir', 'documentos', 'conta pj'
+      ];
+      
+      const isAberturaContas = aberturaContasKeywords.some(keyword => 
+        userMessage.toLowerCase().includes(keyword)
+      );
+
+      if (isAberturaContas) {
+        console.log('🎯 Detectado interesse em ABERTURA DE CONTAS');
+        
+        const passoAPasso = `📋 *PASSO A PASSO PARA ABERTURA DE CONTA PJ C6 BANK*
+
+*Documentos Necessários:*
+1️⃣ CNH ou RG (foto legível)
+2️⃣ Comprovante de residência (máx. 90 dias)
+3️⃣ Cartão CNPJ atualizado
+4️⃣ Contrato Social ou REQUERIMENTO DE EMPRESÁRIO
+
+*Processo Simplificado:*
+✅ Envie os documentos via WhatsApp: (62) 99179-2303
+✅ Nossa equipe analisa em até 24h
+✅ Conta aberta 100% digital e GRATUITA
+✅ Sem mensalidade, sem taxa de manutenção
+
+*Benefícios da Conta C6 PJ:*
+💰 Pix ilimitado e GRATUITO
+💳 Cartão de crédito sem anuidade
+📱 App completo e moderno
+🔐 Segurança bancária de primeiro nível
+
+*Pronto para começar?*
+Envie seus documentos agora ou tire suas dúvidas! 🚀`;
+
+        return passoAPasso;
+      }
+
+      // Para outras perguntas, usar AI com contexto
       const historyContext = conversationHistory
-        .slice(-10) // Últimas 10 mensagens para contexto
+        .slice(-10)
         .map(msg => `${msg.message_type === 'USER' ? 'Cliente' : 'Assistente'}: ${msg.content}`)
         .join('\n');
 
-      const contextualMessage = historyContext ? 
-        `Histórico da conversa:\n${historyContext}\n\nNova pergunta do cliente: ${userMessage}` :
-        userMessage;
+      const systemPrompt = `Você é o assistente do Escritório Infinity, especializado em abertura de contas PJ do C6 Bank.
 
-      // Chamar function AI do Lovable
+Informações importantes:
+- Conta PJ 100% GRATUITA (sem mensalidade)
+- Pix ilimitado grátis
+- Cartão sem anuidade
+- Abertura 100% digital
+- Documentos: CNH/RG, Comprovante residência, CNPJ, Contrato Social
+- Contato WhatsApp: (62) 99179-2303
+
+Seja prestativo, claro e objetivo. Se o cliente perguntar sobre abertura de conta, forneça o passo a passo completo.`;
+
+      const contextualMessage = `${systemPrompt}
+
+${historyContext ? `Histórico:\n${historyContext}\n\n` : ''}Pergunta: ${userMessage}`;
+
       const { data: aiResult, error: aiError } = await this.supabase.functions.invoke('ai', {
         body: { message: contextualMessage }
       });
@@ -105,15 +155,12 @@ class WhatsAppRAGResponder {
 
       const response = aiResult?.response || 'Desculpe, não consegui processar sua solicitação no momento.';
       
-      // Adicionar assinatura do escritório
-      const formattedResponse = `${response}
+      return `${response}
 
 ---
 *Escritório Infinity - C6 Bank PJ*
 📞 (62) 99179-2303
 ✅ Abertura de conta PJ 100% gratuita`;
-
-      return formattedResponse;
 
     } catch (error) {
       console.error('❌ Erro na geração RAG:', error);
