@@ -80,6 +80,9 @@ serve(async (req) => {
         // Criar oportunidade no CRM a partir de mensagem WhatsApp
         const { userId: oppUserId, leadName, phone, message: oppMessage, valor, probabilidade } = data;
         
+        // Detectar se é resposta "1" = Abertura de contas
+        const isAberturaContas = oppMessage?.trim() === '1';
+        
         // Criar ou atualizar lead
         const { data: existingLead } = await supabase
           .from('leads')
@@ -107,17 +110,22 @@ serve(async (req) => {
           leadId = newLead.id;
         }
 
+        // Calcular data limite: 30 dias a partir de hoje
+        const deadlineDate = new Date();
+        deadlineDate.setDate(deadlineDate.getDate() + 30);
+
         // Criar oportunidade
         const { data: opportunity, error: oppError } = await supabase
           .from('opportunities')
           .insert({
             user_id: oppUserId,
-            titulo: `Abertura de Conta - ${leadName || phone}`,
+            titulo: isAberturaContas ? 'Abertura de Conta C6 Bank' : `Abertura de Conta - ${leadName || phone}`,
             empresa: leadName || `Cliente ${phone.slice(-4)}`,
             valor: valor || 5000,
             probabilidade: probabilidade || 70,
             status: 'aberta',
-            estagio: 'contato_inicial'
+            estagio: 'contato_inicial',
+            data_fechamento_prevista: deadlineDate.toISOString()
           })
           .select()
           .single();
@@ -132,15 +140,79 @@ serve(async (req) => {
             lead_id: leadId,
             opportunity_id: opportunity.id,
             tipo: 'whatsapp',
-            assunto: 'Interesse em Abertura de Conta',
+            assunto: isAberturaContas ? 'Cliente solicitou Abertura de Conta (opção 1)' : 'Interesse em Abertura de Conta',
             descricao: `Mensagem recebida: ${oppMessage}`,
             data_interacao: new Date().toISOString()
           });
 
+        // Se for abertura de contas (resposta "1"), enviar passo a passo
+        if (isAberturaContas) {
+          const passoAPasso = `📋 *PASSO A PASSO PARA ABERTURA DE CONTA C6 BANK*
+
+*Como abrir sua conta:*
+
+1️⃣ *Baixe o aplicativo*
+   Instale o app do C6 Bank na Google Play Store ou App Store
+
+2️⃣ *Inicie a abertura*
+   Abra o aplicativo e toque em "Abrir conta"
+
+3️⃣ *Informações iniciais*
+   Digite seu CPF e escolha como deseja ser chamado
+
+4️⃣ *Escolha o tipo de conta*
+   Selecione o tipo de conta (corrente, MEI, etc.)
+
+5️⃣ *Aceite os termos*
+   Leia e concorde com os Termos de Uso e Política de Privacidade
+
+6️⃣ *Preencha seus dados*
+   Insira nome completo, CEP e telefone
+
+7️⃣ *Envie os documentos*
+   Tire fotos de um documento com foto (RG ou CNH) e uma selfie
+   💡 *Dica:* A CNH pode agilizar o processo
+
+8️⃣ *Confirme as informações*
+   Verifique se todos os dados estão corretos e legíveis
+
+9️⃣ *Aguarde a análise*
+   O banco analisará as informações. Você receberá um e-mail com a resposta
+
+⏰ *Se o e-mail não chegar em 15 minutos:*
+   Acesse o app, toque em "Já tenho conta" e siga os passos para login
+
+---
+*Escritório Infinity - C6 Bank PJ*
+📞 (62) 99179-2303
+✅ Conta 100% gratuita, sem mensalidade`;
+
+          try {
+            const { error: sendError } = await supabase.functions.invoke('whatsapp-rag-responder', {
+              body: {
+                action: 'quickResponse',
+                userId: oppUserId,
+                phone: phone,
+                message: passoAPasso
+              }
+            });
+
+            if (sendError) {
+              console.error('❌ Erro ao enviar passo a passo:', sendError);
+            } else {
+              console.log('✅ Passo a passo enviado com sucesso');
+            }
+          } catch (error) {
+            console.error('❌ Erro ao invocar whatsapp-rag-responder:', error);
+          }
+        }
+
         response = { 
           success: true, 
           opportunityId: opportunity.id,
-          leadId 
+          leadId,
+          deadline: deadlineDate.toISOString(),
+          passoAPassoEnviado: isAberturaContas
         };
         break;
 
