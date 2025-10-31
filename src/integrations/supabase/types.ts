@@ -177,6 +177,36 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          legal_basis: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          legal_basis: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          legal_basis?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           cargo: string | null
@@ -415,6 +445,36 @@ export type Database = {
           razao_social?: string
           situacao_cadastral?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_source_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          data: Json
+          expires_at: string
+          id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          data: Json
+          expires_at?: string
+          id?: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          data?: Json
+          expires_at?: string
+          id?: string
+          source?: string
           user_id?: string
         }
         Relationships: []
@@ -830,6 +890,99 @@ export type Database = {
         }
         Relationships: []
       }
+      rfb_companies_cache: {
+        Row: {
+          atividade_principal: string | null
+          capital_social: number | null
+          cidade: string | null
+          cnpj: string
+          cnpj_raiz: string | null
+          created_at: string
+          dados_completos: Json | null
+          data_abertura: string
+          estado: string
+          id: string
+          mei: boolean | null
+          natureza_juridica: string | null
+          nome_fantasia: string | null
+          porte: string | null
+          razao_social: string
+          situacao_cadastral: string | null
+          synced_at: string
+        }
+        Insert: {
+          atividade_principal?: string | null
+          capital_social?: number | null
+          cidade?: string | null
+          cnpj: string
+          cnpj_raiz?: string | null
+          created_at?: string
+          dados_completos?: Json | null
+          data_abertura: string
+          estado: string
+          id?: string
+          mei?: boolean | null
+          natureza_juridica?: string | null
+          nome_fantasia?: string | null
+          porte?: string | null
+          razao_social: string
+          situacao_cadastral?: string | null
+          synced_at?: string
+        }
+        Update: {
+          atividade_principal?: string | null
+          capital_social?: number | null
+          cidade?: string | null
+          cnpj?: string
+          cnpj_raiz?: string | null
+          created_at?: string
+          dados_completos?: Json | null
+          data_abertura?: string
+          estado?: string
+          id?: string
+          mei?: boolean | null
+          natureza_juridica?: string | null
+          nome_fantasia?: string | null
+          porte?: string | null
+          razao_social?: string
+          situacao_cadastral?: string | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      rfb_sync_metadata: {
+        Row: {
+          created_at: string
+          dataset_version: string
+          error_message: string | null
+          file_size_mb: number | null
+          id: string
+          last_sync: string
+          records_count: number | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          dataset_version: string
+          error_message?: string | null
+          file_size_mb?: number | null
+          id?: string
+          last_sync?: string
+          records_count?: number | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          dataset_version?: string
+          error_message?: string | null
+          file_size_mb?: number | null
+          id?: string
+          last_sync?: string
+          records_count?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
       scheduled_messages: {
         Row: {
           campaign_id: string | null
@@ -1045,6 +1198,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clean_expired_cache: { Args: never; Returns: undefined }
       detect_temporal_anomaly: {
         Args: { abertura_date: string }
         Returns: boolean
