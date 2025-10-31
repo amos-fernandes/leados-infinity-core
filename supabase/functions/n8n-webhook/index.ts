@@ -76,6 +76,74 @@ serve(async (req) => {
         response = { success: true };
         break;
 
+      case 'create_opportunity':
+        // Criar oportunidade no CRM a partir de mensagem WhatsApp
+        const { userId: oppUserId, leadName, phone, message: oppMessage, valor, probabilidade } = data;
+        
+        // Criar ou atualizar lead
+        const { data: existingLead } = await supabase
+          .from('leads')
+          .select('id')
+          .eq('whatsapp', phone)
+          .eq('user_id', oppUserId)
+          .single();
+
+        let leadId = existingLead?.id;
+
+        if (!leadId) {
+          const { data: newLead, error: leadError } = await supabase
+            .from('leads')
+            .insert({
+              user_id: oppUserId,
+              empresa: leadName || `Lead WhatsApp ${phone.slice(-4)}`,
+              whatsapp: phone,
+              status: 'novo',
+              gancho_prospeccao: oppMessage
+            })
+            .select()
+            .single();
+
+          if (leadError) throw leadError;
+          leadId = newLead.id;
+        }
+
+        // Criar oportunidade
+        const { data: opportunity, error: oppError } = await supabase
+          .from('opportunities')
+          .insert({
+            user_id: oppUserId,
+            titulo: `Abertura de Conta - ${leadName || phone}`,
+            empresa: leadName || `Cliente ${phone.slice(-4)}`,
+            valor: valor || 5000,
+            probabilidade: probabilidade || 70,
+            status: 'aberta',
+            estagio: 'contato_inicial'
+          })
+          .select()
+          .single();
+
+        if (oppError) throw oppError;
+
+        // Criar interação
+        await supabase
+          .from('interactions')
+          .insert({
+            user_id: oppUserId,
+            lead_id: leadId,
+            opportunity_id: opportunity.id,
+            tipo: 'whatsapp',
+            assunto: 'Interesse em Abertura de Conta',
+            descricao: `Mensagem recebida: ${oppMessage}`,
+            data_interacao: new Date().toISOString()
+          });
+
+        response = { 
+          success: true, 
+          opportunityId: opportunity.id,
+          leadId 
+        };
+        break;
+
       default:
         response = { success: false, error: 'Unknown action' };
     }
