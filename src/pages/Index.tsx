@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { ProspectCollector } from "@/components/ProspectCollector";
+import { ProspectingOrchestrator } from "@/components/ProspectingOrchestrator";
 import LandingPage from "@/components/LandingPage";
 import Dashboard from "@/components/Dashboard";
 import RAGChat from "@/components/RAGChat";
@@ -127,6 +128,7 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <main className="container mx-auto px-6 py-8 space-y-8">
           <Dashboard />
+          <ProspectingOrchestrator />
           <ProspectCollector />
           <CRMDashboard />
           <RAGAttendanceMonitor />

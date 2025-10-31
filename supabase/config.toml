@@ -150,3 +150,39 @@ verify_jwt = false
 
 [functions.daily-companies-ingestion]
 verify_jwt = true
+
+[functions.orchestrate-prospecting]
+verify_jwt = false
+
+[functions.basededados-import]
+verify_jwt = false
+
+[functions.rfb-data-sync]
+verify_jwt = false
+
+[functions.jucesp-scraper]
+verify_jwt = false
+
+[functions.message-dispatcher]
+verify_jwt = false
+
+[functions.n8n-webhook]
+verify_jwt = false
+
+[functions.evolution-manage-instance]
+verify_jwt = false
+
+[functions.evolution-send-message]
+verify_jwt = false
+
+[functions.evolution-webhook]
+verify_jwt = false
+
+[functions.cross-validate-companies]
+verify_jwt = false
+
+[functions.test-email]
+verify_jwt = false
+
+[functions.message-scheduler]
+verify_jwt = false
