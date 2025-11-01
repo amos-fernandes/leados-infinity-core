@@ -8,6 +8,10 @@ import { UserPlanProvider } from "@/components/UserPlanProvider";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import CRMPage from "./pages/CRMPage";
+import ColetarLeadsPage from "./pages/ColetarLeadsPage";
+import DisparadorPage from "./pages/DisparadorPage";
+import MonitorConsultivoPage from "./pages/MonitorConsultivoPage";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +27,10 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/crm" element={<CRMPage />} />
+                <Route path="/coletar-leads" element={<ColetarLeadsPage />} />
+                <Route path="/disparador" element={<DisparadorPage />} />
+                <Route path="/monitor-consultivo" element={<MonitorConsultivoPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
