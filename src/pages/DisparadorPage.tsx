@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Megaphone, Loader2, Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Megaphone, Loader2, Send, Settings, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +22,9 @@ export default function DisparadorPage() {
   const [isSending, setIsSending] = useState(false);
   const [history, setHistory] = useState<CampaignHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://seu-dominio.hostinger.com.br");
+  const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/disparar-campanha");
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -52,19 +57,54 @@ export default function DisparadorPage() {
     }
   };
 
+  const handleTestarConexao = async () => {
+    setIsTesting(true);
+    
+    try {
+      const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
+      const response = await fetch(fullUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          test: true,
+          user_id: user?.id,
+          message: "Teste de conexão Leados Infinity"
+        })
+      });
+
+      if (response.ok) {
+        toast.success("Conexão com n8n estabelecida com sucesso!");
+      } else {
+        toast.error(`Erro na conexão: ${response.status} ${response.statusText}`);
+      }
+    } catch (error: any) {
+      console.error("Erro ao testar conexão:", error);
+      toast.error("Erro ao testar conexão com n8n");
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   const handleDispararCampanha = async () => {
     setIsSending(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke("n8n-webhook", {
-        body: { 
+      const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
+      const response = await fetch(fullUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
           action: "disparar_campanha",
-          webhook: "/webhook/disparar-campanha",
-          user_id: user?.id
-        }
+          user_id: user?.id,
+          timestamp: new Date().toISOString()
+        })
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       toast.success("Campanha disparada com sucesso!");
       loadHistory();
@@ -87,6 +127,71 @@ export default function DisparadorPage() {
         </div>
 
         <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Configuração n8n (Hostinger)
+              </CardTitle>
+              <CardDescription>
+                Configure a URL base do seu n8n hospedado na Hostinger
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="n8n-url">URL Base n8n</Label>
+                <Input
+                  id="n8n-url"
+                  placeholder="https://seu-dominio.hostinger.com.br"
+                  value={n8nBaseUrl}
+                  onChange={(e) => setN8nBaseUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  URL do seu servidor n8n na Hostinger
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="webhook-path">Caminho do Webhook</Label>
+                <Input
+                  id="webhook-path"
+                  placeholder="/webhook/disparar-campanha"
+                  value={n8nWebhookPath}
+                  onChange={(e) => setN8nWebhookPath(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Caminho do webhook configurado no n8n
+                </p>
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm font-medium mb-2">URL Completa:</p>
+                <code className="text-xs bg-muted p-2 rounded block">
+                  {n8nBaseUrl}{n8nWebhookPath}
+                </code>
+              </div>
+
+              <Button
+                onClick={handleTestarConexao}
+                disabled={isTesting}
+                variant="outline"
+                className="w-full"
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Testando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Testar Conexão
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

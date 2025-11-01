@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Activity, CheckCircle, Clock, AlertCircle, Settings, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface MonitorLog {
   id: string;
@@ -17,6 +21,9 @@ export default function MonitorConsultivoPage() {
   const { user } = useAuth();
   const [logs, setLogs] = useState<MonitorLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://seu-dominio.hostinger.com.br");
+  const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/monitor-consultivo");
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     loadLogs();
@@ -82,6 +89,36 @@ export default function MonitorConsultivoPage() {
     }
   };
 
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    
+    try {
+      const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
+      const response = await fetch(fullUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          test: true,
+          user_id: user?.id,
+          message: "Teste de conexão - Monitor Consultivo"
+        })
+      });
+
+      if (response.ok) {
+        toast.success("Conexão com n8n estabelecida com sucesso!");
+      } else {
+        toast.error(`Erro na conexão: ${response.status} ${response.statusText}`);
+      }
+    } catch (error: any) {
+      console.error("Erro ao testar conexão:", error);
+      toast.error("Erro ao testar conexão com n8n");
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="container mx-auto px-6 py-8">
@@ -93,6 +130,65 @@ export default function MonitorConsultivoPage() {
         </div>
 
         <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Configuração n8n (Hostinger)
+              </CardTitle>
+              <CardDescription>
+                Configure a URL do seu n8n hospedado na Hostinger para receber notificações
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="n8n-url">URL Base n8n</Label>
+                <Input
+                  id="n8n-url"
+                  placeholder="https://seu-dominio.hostinger.com.br"
+                  value={n8nBaseUrl}
+                  onChange={(e) => setN8nBaseUrl(e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="webhook-path">Caminho do Webhook</Label>
+                <Input
+                  id="webhook-path"
+                  placeholder="/webhook/monitor-consultivo"
+                  value={n8nWebhookPath}
+                  onChange={(e) => setN8nWebhookPath(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm font-medium mb-2">URL Completa:</p>
+                <code className="text-xs bg-muted p-2 rounded block">
+                  {n8nBaseUrl}{n8nWebhookPath}
+                </code>
+              </div>
+
+              <Button
+                onClick={handleTestConnection}
+                disabled={isTesting}
+                variant="outline"
+                className="w-full"
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Testando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Testar Conexão
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
