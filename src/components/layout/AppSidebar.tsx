@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, Megaphone, TrendingUp, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Megaphone, TrendingUp, Activity, MessageCircle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ const menuItems = [
   { title: "Coletar Leads", url: "/coletar-leads", icon: TrendingUp },
   { title: "Disparador", url: "/disparador", icon: Megaphone },
   { title: "Monitor Consultivo", url: "/monitor-consultivo", icon: Activity },
+  { title: "WhatsApp RAG", url: "/whatsapp-rag", icon: MessageCircle },
 ];
 
 export function AppSidebar() {

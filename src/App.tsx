@@ -12,6 +12,7 @@ import CRMPage from "./pages/CRMPage";
 import ColetarLeadsPage from "./pages/ColetarLeadsPage";
 import DisparadorPage from "./pages/DisparadorPage";
 import MonitorConsultivoPage from "./pages/MonitorConsultivoPage";
+import WhatsAppRAGPage from "./pages/WhatsAppRAGPage";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ function App() {
                 <Route path="/coletar-leads" element={<ColetarLeadsPage />} />
                 <Route path="/disparador" element={<DisparadorPage />} />
                 <Route path="/monitor-consultivo" element={<MonitorConsultivoPage />} />
+                <Route path="/whatsapp-rag" element={<WhatsAppRAGPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
