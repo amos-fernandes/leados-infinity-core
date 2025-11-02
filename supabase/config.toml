@@ -189,3 +189,6 @@ verify_jwt = false
 
 [functions.n8n-proxy]
 verify_jwt = false
+
+[functions.leados-webhook]
+verify_jwt = false
