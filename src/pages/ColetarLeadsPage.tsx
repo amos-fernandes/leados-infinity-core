@@ -10,8 +10,8 @@ import { toast } from "sonner";
 export default function ColetarLeadsPage() {
   const [isCollecting, setIsCollecting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; count: number; message: string } | null>(null);
-  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://seu-dominio.hostinger.com.br");
-  const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/coletar-leads");
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://n8n-n8n.hrrtqk.easypanel.host");
+  const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/Lead_Machine_Legal");
   const [isTesting, setIsTesting] = useState(false);
 
   const handleTestConnection = async () => {
