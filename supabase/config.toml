@@ -186,3 +186,6 @@ verify_jwt = false
 
 [functions.message-scheduler]
 verify_jwt = false
+
+[functions.n8n-proxy]
+verify_jwt = false
