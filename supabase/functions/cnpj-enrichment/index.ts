@@ -110,41 +110,42 @@ serve(async (req) => {
         console.error('❌ Erro na BrasilAPI:', (error as Error).message);
         
         // Fallback to ReceitaWS
-      try {
-        console.log('🔄 Tentando ReceitaWS como fallback...');
-        const receitaUrl = `https://www.receitaws.com.br/v1/cnpj/${cleanCnpj}`;
-        const receitaResponse = await fetch(receitaUrl);
-        
-        if (receitaResponse.ok) {
-          const data = await receitaResponse.json();
+        try {
+          console.log('🔄 Tentando ReceitaWS como fallback...');
+          const receitaUrl = `https://www.receitaws.com.br/v1/cnpj/${cleanCnpj}`;
+          const receitaResponse = await fetch(receitaUrl);
           
-          if (data.status === 'OK') {
-            console.log('✅ Dados obtidos da ReceitaWS');
+          if (receitaResponse.ok) {
+            const data = await receitaResponse.json();
             
-            companyData = {
-              cnpj: cleanCnpj,
-              razao_social: data.nome,
-              nome_fantasia: data.fantasia,
-              cnae_principal: data.atividade_principal?.[0]?.text,
-              codigo_cnae: data.atividade_principal?.[0]?.code,
-              situacao: data.situacao,
-              cidade: `${data.municipio}/${data.uf}`,
-              uf: data.uf,
-              capital_social: parseFloat(data.capital_social?.replace(/\D/g, '') || '0') / 100,
-              porte: data.porte,
-              natureza_juridica: data.natureza_juridica,
-              data_abertura: data.abertura
-            };
+            if (data.status === 'OK') {
+              console.log('✅ Dados obtidos da ReceitaWS');
+              
+              companyData = {
+                cnpj: cleanCnpj,
+                razao_social: data.nome,
+                nome_fantasia: data.fantasia,
+                cnae_principal: data.atividade_principal?.[0]?.text,
+                codigo_cnae: data.atividade_principal?.[0]?.code,
+                situacao: data.situacao,
+                cidade: `${data.municipio}/${data.uf}`,
+                uf: data.uf,
+                capital_social: parseFloat(data.capital_social?.replace(/\D/g, '') || '0') / 100,
+                porte: data.porte,
+                natureza_juridica: data.natureza_juridica,
+                data_abertura: data.abertura
+              };
+            } else {
+              throw new Error('CNPJ não encontrado na ReceitaWS');
+            }
           } else {
-            throw new Error('CNPJ não encontrado na ReceitaWS');
+            throw new Error(`ReceitaWS retornou status ${receitaResponse.status}`);
           }
-        } else {
-          throw new Error(`ReceitaWS retornou status ${receitaResponse.status}`);
-        }
         } catch (receitaError) {
           console.error('❌ Erro na ReceitaWS:', (receitaError as Error).message);
           throw new Error('Não foi possível obter dados do CNPJ em nenhuma API');
         }
+      }
     }
 
     if (!companyData) {
