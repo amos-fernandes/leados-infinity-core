@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 export default function ColetarLeadsPage() {
   const [isCollecting, setIsCollecting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; count: number; message: string } | null>(null);
-  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://n8n-n8n.hrrtqk.easypanel.host");
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://neurocapital.cloud:5678");
   const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/Lead_Machine_Legal");
   const [isTesting, setIsTesting] = useState(false);
 
