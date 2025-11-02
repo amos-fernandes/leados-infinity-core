@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TrendingUp, Loader2, CheckCircle, AlertCircle, Settings } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function ColetarLeadsPage() {
   const [isCollecting, setIsCollecting] = useState(false);
@@ -19,21 +20,24 @@ export default function ColetarLeadsPage() {
     
     try {
       const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
-      const response = await fetch(fullUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          test: true,
-          message: "Teste de conexão Leados Infinity"
-        })
+      
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          url: fullUrl,
+          method: "POST",
+          body: { 
+            test: true,
+            message: "Teste de conexão Leados Infinity"
+          }
+        }
       });
 
-      if (response.ok) {
+      if (error) throw error;
+
+      if (data?.success) {
         toast.success("Conexão com n8n estabelecida com sucesso!");
       } else {
-        toast.error(`Erro na conexão: ${response.status} ${response.statusText}`);
+        toast.error(`Erro na conexão: ${data?.status || 'Erro desconhecido'}`);
       }
     } catch (error: any) {
       console.error("Erro ao testar conexão:", error);
@@ -49,28 +53,32 @@ export default function ColetarLeadsPage() {
     
     try {
       const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
-      const response = await fetch(fullUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          action: "collect_leads",
-          timestamp: new Date().toISOString()
-        })
+      
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          url: fullUrl,
+          method: "POST",
+          body: { 
+            action: "collect_leads",
+            timestamp: new Date().toISOString()
+          }
+        }
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      
-      const data = await response.json();
+      if (error) throw error;
 
-      setResult({
-        success: true,
-        count: data?.leadsCollected || 0,
-        message: data?.message || "Leads coletados com sucesso!"
-      });
-      
-      toast.success(`${data?.leadsCollected || 0} leads coletados com sucesso!`);
+      if (data?.success) {
+        const responseData = data.data || {};
+        setResult({
+          success: true,
+          count: responseData?.leadsCollected || 0,
+          message: responseData?.message || "Leads coletados com sucesso!"
+        });
+        
+        toast.success(`${responseData?.leadsCollected || 0} leads coletados com sucesso!`);
+      } else {
+        throw new Error(data?.error || 'Erro ao coletar leads');
+      }
     } catch (error: any) {
       console.error("Erro ao coletar leads:", error);
       setResult({
