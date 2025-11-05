@@ -62,22 +62,24 @@ export default function DisparadorPage() {
     
     try {
       const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
-      const response = await fetch(fullUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          test: true,
-          user_id: user?.id,
-          message: "Teste de conexão Leados Infinity"
-        })
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          url: fullUrl,
+          method: 'POST',
+          body: { 
+            test: true,
+            user_id: user?.id,
+            message: "Teste de conexão Leados Infinity"
+          }
+        }
       });
 
-      if (response.ok) {
+      if (error) throw error;
+
+      if (data?.success) {
         toast.success("Conexão com n8n estabelecida com sucesso!");
       } else {
-        toast.error(`Erro na conexão: ${response.status} ${response.statusText}`);
+        toast.error(`Erro na conexão: ${data?.status || 'Erro desconhecido'}`);
       }
     } catch (error: any) {
       console.error("Erro ao testar conexão:", error);
@@ -92,19 +94,21 @@ export default function DisparadorPage() {
     
     try {
       const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
-      const response = await fetch(fullUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ 
-          action: "disparar_campanha",
-          user_id: user?.id,
-          timestamp: new Date().toISOString()
-        })
+      const { data, error } = await supabase.functions.invoke('n8n-proxy', {
+        body: {
+          url: fullUrl,
+          method: 'POST',
+          body: { 
+            action: "disparar_campanha",
+            user_id: user?.id,
+            timestamp: new Date().toISOString()
+          }
+        }
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) throw error;
+
+      if (!data?.success) throw new Error(`HTTP error! status: ${data?.status}`);
 
       toast.success("Campanha disparada com sucesso!");
       loadHistory();
