@@ -216,12 +216,76 @@ serve(async (req) => {
 
     console.log(`🎉 Qualificação concluída: ${qualifiedLeads.length}/${leads.length} qualificados`);
 
+    // 5. Enriquecer com validação WhatsApp e dados de sócios
+    console.log("🔄 Enriquecendo contatos com validadores DonoDoZap e ConsultaSocio...");
+    
+    let enrichedCount = 0;
+    let whatsappValidated = 0;
+    let partnersFound = 0;
+    
+    for (const lead of qualifiedLeads) {
+      try {
+        // Enriquecer WhatsApp se tiver telefone
+        if (lead.telefone) {
+          console.log(`📱 Validando WhatsApp para lead ${lead.id}...`);
+          
+          const whatsappResponse = await supabaseClient.functions.invoke('enrich-contact-whatsapp', {
+            body: {
+              phone: lead.telefone,
+              contactId: null,
+              userId: userId
+            }
+          });
+
+          if (whatsappResponse.data?.success) {
+            console.log(`✅ WhatsApp validado para ${lead.nome_empresa}`);
+            whatsappValidated++;
+            enrichedCount++;
+          }
+        }
+
+        // Enriquecer sócios/decisores se tiver CNPJ
+        if (lead.cnpj) {
+          console.log(`🏢 Buscando sócios/decisores para lead ${lead.id}...`);
+          
+          const partnersResponse = await supabaseClient.functions.invoke('enrich-contact-partners', {
+            body: {
+              cnpj: lead.cnpj,
+              leadId: lead.id,
+              contactId: null,
+              userId: userId
+            }
+          });
+
+          if (partnersResponse.data?.success && partnersResponse.data.decisionMakersCount > 0) {
+            console.log(`✅ ${partnersResponse.data.decisionMakersCount} decisores encontrados para ${lead.nome_empresa}`);
+            partnersFound += partnersResponse.data.decisionMakersCount;
+            enrichedCount++;
+          }
+        }
+
+        // Aguardar um pouco entre requisições para não sobrecarregar
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (enrichError) {
+        console.error(`⚠️ Erro ao enriquecer lead ${lead.id}:`, enrichError);
+        // Continuar com próximo lead mesmo se houver erro
+      }
+    }
+
+    console.log(`✅ Enriquecimento concluído: ${enrichedCount} leads enriquecidos`);
+    console.log(`📱 WhatsApp: ${whatsappValidated} validados`);
+    console.log(`🏢 Decisores: ${partnersFound} encontrados`);
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: `${qualifiedLeads.length} leads qualificados de ${leads.length} processados`,
+        message: `${qualifiedLeads.length} leads qualificados, ${enrichedCount} enriquecidos (${whatsappValidated} WhatsApp validados, ${partnersFound} decisores encontrados)`,
         processed: leads.length,
         qualified: qualifiedLeads.length,
+        enriched: enrichedCount,
+        whatsappValidated,
+        partnersFound,
         enrichmentResults
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
