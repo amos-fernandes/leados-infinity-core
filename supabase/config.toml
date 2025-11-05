@@ -192,3 +192,12 @@ verify_jwt = false
 
 [functions.leados-webhook]
 verify_jwt = false
+
+[functions.sync-to-n8n-postgres]
+verify_jwt = false
+
+[functions.phantombuster-collect-leads]
+verify_jwt = false
+
+[functions.phantombuster-qualify-leads]
+verify_jwt = false

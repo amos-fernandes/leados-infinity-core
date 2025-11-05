@@ -46,6 +46,10 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     perdidos: 0
   });
   const [loading, setLoading] = useState(false);
+  const [phantomCollecting, setPhantomCollecting] = useState(false);
+  const [phantomQualifying, setPhantomQualifying] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSource, setSearchSource] = useState<'google-maps' | 'linkedin' | 'linkedin-company'>('google-maps');
 
   useEffect(() => {
     if (user) {
@@ -301,6 +305,108 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     }
   };
 
+  const collectWithPhantomBuster = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    if (!user) return;
+
+    if (!searchQuery) {
+      toast.error('Digite um termo de busca primeiro!');
+      return;
+    }
+
+    try {
+      setPhantomCollecting(true);
+      console.log('🤖 Iniciando coleta com PhantomBuster...', { searchQuery, searchSource });
+
+      const { data, error } = await supabase.functions.invoke('phantombuster-collect-leads', {
+        body: {
+          source: searchSource,
+          query: searchQuery,
+          userId: user.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        // Sincronizar com n8n
+        const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
+          body: {
+            tables: ['leads', 'contacts'],
+            userId: user.id
+          }
+        });
+
+        const syncMsg = syncResponse.error ? "" : " - Sincronizado!";
+        
+        toast.success(`🤖 ${data.message}${syncMsg}\n📊 ${data.leads} leads | ${data.contacts} contatos`);
+        
+        loadFunnelStats();
+        onStatsUpdate();
+        setSearchQuery("");
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error: any) {
+      console.error('Erro no PhantomBuster:', error);
+      toast.error(`Erro ao coletar leads: ${error.message}`);
+    } finally {
+      setPhantomCollecting(false);
+    }
+  };
+
+  const qualifyWithPhantomBuster = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    if (!user) return;
+
+    try {
+      setPhantomQualifying(true);
+      console.log('🎯 Iniciando qualificação com PhantomBuster...');
+
+      const { data, error } = await supabase.functions.invoke('phantombuster-qualify-leads', {
+        body: {
+          userId: user.id,
+          enrichmentLevel: 'full' // máximo potencial
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        // Sincronizar com n8n
+        const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
+          body: {
+            tables: ['leads', 'opportunities', 'interactions'],
+            userId: user.id
+          }
+        });
+
+        const syncMsg = syncResponse.error ? "" : " - Sincronizado!";
+        
+        toast.success(
+          `🎯 ${data.message}${syncMsg}\n` +
+          `✅ ${data.qualified} leads qualificados\n` +
+          `📊 ${data.processed} processados\n` +
+          `🤖 Enriquecimento completo: emails, WhatsApp, LinkedIn, dados empresariais`
+        );
+        
+        loadFunnelStats();
+        onStatsUpdate();
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error: any) {
+      console.error('Erro na qualificação PhantomBuster:', error);
+      toast.error(`Erro ao qualificar leads: ${error.message}`);
+    } finally {
+      setPhantomQualifying(false);
+    }
+  };
+
   const total = stats.leads + stats.contatados + stats.qualificados + stats.reunioes + stats.propostas + stats.fechamentos;
   const conversionRate = total > 0 ? ((stats.fechamentos / total) * 100).toFixed(1) : '0';
 
@@ -348,6 +454,69 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
               <MapPin className="h-4 w-4 mr-2" />
               Coletar Google Maps
             </Button>
+          </div>
+        </div>
+        
+        {/* PhantomBuster Integration Section */}
+        <div className="mt-6 p-4 bg-gradient-subtle rounded-lg border border-primary/20">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full">
+              <span className="text-sm font-bold text-primary">🤖 PhantomBuster</span>
+              <Badge variant="secondary" className="text-xs">Máximo Potencial</Badge>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Coleta de Leads */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold">Coletar Leads Avançado</h4>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Digite busca (empresa, nicho, LinkedIn URL...)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
+                />
+                <select
+                  value={searchSource}
+                  onChange={(e) => setSearchSource(e.target.value as any)}
+                  className="px-3 py-2 border rounded-md bg-background"
+                >
+                  <option value="google-maps">Google Maps</option>
+                  <option value="linkedin">LinkedIn Sales Nav</option>
+                  <option value="linkedin-company">LinkedIn Company</option>
+                </select>
+              </div>
+              <Button 
+                onClick={collectWithPhantomBuster}
+                disabled={phantomCollecting || !searchQuery}
+                className="w-full"
+                variant="default"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                {phantomCollecting ? 'Coletando...' : 'Coletar com AI'}
+              </Button>
+            </div>
+
+            {/* Qualificação Inteligente */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold">Qualificação Inteligente</h4>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>✅ Email Discovery (Hunter API)</div>
+                <div>✅ WhatsApp Validation</div>
+                <div>✅ LinkedIn Enrichment</div>
+                <div>✅ Company Data Mining</div>
+              </div>
+              <Button 
+                onClick={qualifyWithPhantomBuster}
+                disabled={phantomQualifying}
+                className="w-full"
+                variant="secondary"
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                {phantomQualifying ? 'Qualificando...' : 'Qualificar com AI'}
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
