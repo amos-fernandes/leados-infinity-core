@@ -22,9 +22,10 @@ export default function DisparadorPage() {
   const [isSending, setIsSending] = useState(false);
   const [history, setHistory] = useState<CampaignHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://seu-dominio.hostinger.com.br");
-  const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/disparar-campanha");
+  const [n8nBaseUrl, setN8nBaseUrl] = useState("https://n8n-n8n.hrrtqk.easypanel.host");
+  const [n8nWebhookPath, setN8nWebhookPath] = useState("/webhook/disparar-campanha-infinity");
   const [isTesting, setIsTesting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -86,6 +87,38 @@ export default function DisparadorPage() {
       toast.error("Erro ao testar conexão com n8n");
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleSyncToN8n = async () => {
+    if (!user) {
+      toast.error("Você precisa estar logado");
+      return;
+    }
+    
+    setIsSyncing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-to-n8n-postgres', {
+        body: {
+          tables: ['leads', 'opportunities', 'interactions', 'campaigns', 'contacts'],
+          userId: user.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success("Dados sincronizados com sucesso para o PostgreSQL do n8n!");
+        console.log("Resultados da sincronização:", data.results);
+      } else {
+        toast.error("Erro na sincronização");
+      }
+    } catch (error: any) {
+      console.error("Erro ao sincronizar:", error);
+      toast.error(`Erro ao sincronizar: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -191,6 +224,42 @@ export default function DisparadorPage() {
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Testar Conexão
                   </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>🔄 Sincronização de Dados</CardTitle>
+              <CardDescription>
+                Replica dados do Lovable Cloud para o PostgreSQL do n8n
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                <p className="font-medium mb-2">Tabelas sincronizadas:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Leads</li>
+                  <li>Oportunidades</li>
+                  <li>Interações</li>
+                  <li>Campanhas</li>
+                  <li>Contatos</li>
+                </ul>
+              </div>
+              <Button 
+                onClick={handleSyncToN8n} 
+                disabled={isSyncing}
+                variant="outline"
+                className="w-full"
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  "Sincronizar Dados com n8n"
                 )}
               </Button>
             </CardContent>
