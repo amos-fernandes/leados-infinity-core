@@ -201,3 +201,9 @@ verify_jwt = false
 
 [functions.phantombuster-qualify-leads]
 verify_jwt = false
+
+[functions.enrich-contact-whatsapp]
+verify_jwt = false
+
+[functions.enrich-contact-partners]
+verify_jwt = false
