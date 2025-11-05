@@ -143,7 +143,21 @@ export default function DisparadorPage() {
 
       if (!data?.success) throw new Error(`HTTP error! status: ${data?.status}`);
 
-      toast.success("Campanha disparada com sucesso!");
+      // Replicar dados automaticamente para PostgreSQL do n8n após disparar
+      const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
+        body: {
+          tables: ['leads', 'opportunities', 'interactions', 'campaigns', 'contacts'],
+          userId: user?.id
+        }
+      });
+
+      if (syncResponse.error) {
+        console.error("Erro na sincronização automática:", syncResponse.error);
+        toast.warning("Campanha disparada, mas houve erro na sincronização de dados");
+      } else {
+        toast.success("Campanha disparada e dados sincronizados com sucesso!");
+      }
+      
       loadHistory();
     } catch (error: any) {
       console.error("Erro ao disparar campanha:", error);
