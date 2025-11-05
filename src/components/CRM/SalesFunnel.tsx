@@ -146,7 +146,21 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
       if (error) throw error;
 
       if (data.success) {
-        toast.success(data.message);
+        // Replicar dados automaticamente para PostgreSQL do n8n
+        const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
+          body: {
+            tables: ['leads', 'opportunities', 'campaigns'],
+            userId: user.id
+          }
+        });
+
+        if (syncResponse.error) {
+          console.error("Erro na sincronização automática:", syncResponse.error);
+          toast.warning("Campanha criada, mas houve erro na sincronização");
+        } else {
+          toast.success(data.message + " - Dados sincronizados!");
+        }
+        
         loadFunnelStats();
         onStatsUpdate();
       } else {
@@ -192,7 +206,21 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
       if (error) throw error;
 
       if (data.success) {
-        toast.success(data.message);
+        // Replicar dados automaticamente para PostgreSQL do n8n
+        const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
+          body: {
+            tables: ['leads', 'contacts'],
+            userId: user.id
+          }
+        });
+
+        if (syncResponse.error) {
+          console.error("Erro na sincronização automática:", syncResponse.error);
+          toast.warning("Leads coletados, mas houve erro na sincronização");
+        } else {
+          toast.success(data.message + " - Dados sincronizados!");
+        }
+        
         loadFunnelStats();
         onStatsUpdate();
       } else {
@@ -239,11 +267,25 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
       console.log('✅ Qualificação concluída:', data);
 
       if (data.processed > 0) {
+        // Replicar dados automaticamente para PostgreSQL do n8n
+        const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
+          body: {
+            tables: ['leads', 'opportunities', 'interactions'],
+            userId: user.id
+          }
+        });
+
+        if (syncResponse.error) {
+          console.error("Erro na sincronização automática:", syncResponse.error);
+        }
+
+        const syncMessage = syncResponse.error ? "" : " - Sincronizado!";
+        
         toast.success(
           `${data.qualified} leads qualificados de ${data.processed} processados!\n` +
           `✅ WhatsApp validado\n` +
           `🌐 Websites analisados\n` +
-          `🏢 Dados enriquecidos`
+          `🏢 Dados enriquecidos${syncMessage}`
         );
       } else {
         toast.info('Nenhum lead novo encontrado para processar.');
