@@ -42,6 +42,36 @@ interface LeadQualification {
   nextSteps: string[];
 }
 
+// Base de conhecimento especializada - PhD em Contabilidade e Finanças
+const KNOWLEDGE_BASE = `
+# EXPERTISE DO AGENTE IA
+Especialização em planejamento tributário para grandes empresas
+Expertise em regimes Lucro Real, Lucro Presumido e multinacionais
+Conhecimento avançado em ICMS, PIS/COFINS, IRPJ/CSLL
+Experiência em recuperação de créditos tributários
+
+# SETORES PRIORITÁRIOS
+Agroindústria, Logística, Construção Civil, Energia, Saúde, Tecnologia, Atacado
+
+# METODOLOGIA BANT ADAPTADA
+- Budget: Faturamento R$ 30M+/ano, regime tributário complexo
+- Authority: CFO, Diretor Financeiro, Contador-Chefe, Sócios
+- Need: Sinais de otimização fiscal ou compliance
+- Timing: Mudanças, expansões, auditorias, multas recentes
+
+# GANCHOS DE PROSPECÇÃO
+1. Fiscal: Mudanças em regimes especiais, autuações, incentivos expirando
+2. Financeiro: Alta carga tributária, margens apertadas, perdas recorrentes
+3. Operacional: M&A, expansão, recuperação judicial, novos investimentos
+4. Regulatório: Problemas com fiscalizadores, mudanças em compliance
+
+# ROI ESPERADO POR SETOR
+- Agroindústria: 15-25% economia fiscal
+- Logística: 8-15% redução de custos
+- Manufatura: 12-20% otimização tributária
+- Energia: 10-18% recuperação de créditos
+`;
+
 async function qualifyWithAI(leadData: any): Promise<LeadQualification | null> {
   if (!lovableApiKey) {
     console.error('--- ERRO DETALHADO DA API DE IA ---');
@@ -51,9 +81,11 @@ async function qualifyWithAI(leadData: any): Promise<LeadQualification | null> {
     return null;
   }
 
-  const prompt = `Você é um especialista em qualificação de leads B2B para consultoria tributária.
+  const prompt = `Você é um PhD em Contabilidade e Finanças especializado em consultoria tributária B2B para grandes empresas.
 
-Analise o seguinte lead e forneça uma qualificação BANT completa:
+${KNOWLEDGE_BASE}
+
+Analise o seguinte lead aplicando ESFORÇO MÁXIMO para identificar decisores financeiros e suas informações de contato:
 
 DADOS DO LEAD:
 - Empresa: ${leadData.empresa}
@@ -321,7 +353,70 @@ serve(async (req) => {
       });
     }
 
-    // Tentar qualificação com IA primeiro
+    // PREMISSA #1: EXCLUIR MEI E CONTADORES
+    console.log('🔍 Verificando premissas de exclusão...');
+    
+    // Verificar se é MEI
+    const isMei = leadData.mei === true || 
+                  leadData.porte?.toLowerCase() === 'mei' ||
+                  leadData.regime_tributario?.toLowerCase() === 'mei';
+    
+    if (isMei) {
+      console.log('❌ Lead excluído: MEI detectado');
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      await supabase
+        .from('leads')
+        .update({ 
+          status: 'excluido',
+          qualification_score: '0',
+          approach_strategy: 'Excluído: MEI não faz parte do perfil ideal'
+        })
+        .eq('id', leadId)
+        .eq('user_id', userId);
+      
+      return new Response(JSON.stringify({ 
+        success: false,
+        excluded: true,
+        reason: 'MEI',
+        message: 'Lead excluído: MEI não faz parte do perfil ideal'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verificar se é contador/contabilidade
+    const isContador = leadData.setor?.toLowerCase().includes('contabil') ||
+                       leadData.setor?.toLowerCase().includes('contador') ||
+                       leadData.cnae?.includes('69.20-6') || // CNAE de contabilidade
+                       leadData.empresa?.toLowerCase().includes('contabil') ||
+                       leadData.empresa?.toLowerCase().includes('escritorio');
+    
+    if (isContador) {
+      console.log('❌ Lead excluído: Contador/Contabilidade detectado');
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      await supabase
+        .from('leads')
+        .update({ 
+          status: 'excluido',
+          qualification_score: '0',
+          approach_strategy: 'Excluído: Contadores não são prospects válidos'
+        })
+        .eq('id', leadId)
+        .eq('user_id', userId);
+      
+      return new Response(JSON.stringify({ 
+        success: false,
+        excluded: true,
+        reason: 'Contador',
+        message: 'Lead excluído: Contadores não são prospects válidos'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('✅ Lead aprovado nas premissas de exclusão');
+
+    // Tentar qualificação com IA primeiro (com foco máximo em decisores)
     let qualification = await qualifyWithAI(leadData);
     
     // Se falhou, usar qualificação de fallback

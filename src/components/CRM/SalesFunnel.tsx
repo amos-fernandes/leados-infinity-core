@@ -149,10 +149,24 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
       if (error) throw error;
 
       if (data.success) {
-        toast.success(`✅ Concluído! ${data.fase1_qualificacao?.qualificados || 0} leads qualificados, ${data.fase4_crm?.oportunidades_criadas || 0} oportunidades criadas`);
+        // Extrair métricas das fases
+        const fase1 = data.phases?.find(p => p.phase === 1);
+        const fase4 = data.phases?.find(p => p.phase === 4);
+        
+        const qualificados = fase1?.details?.qualificados || 0;
+        const excluidos = fase1?.details?.excluidos || 0;
+        const oportunidades = fase4?.details?.oportunidades_criadas || 0;
+        
+        toast.success(
+          `✅ Concluído!\n\n` +
+          `📊 Fase 1: ${qualificados} qualificados (${excluidos} excluídos)\n` +
+          `🎯 Fase 4: ${oportunidades} oportunidades criadas no CRM`,
+          { duration: 8000 }
+        );
 
+        // Sincronizar com n8n
         await supabase.functions.invoke('sync-to-n8n-postgres', {
-          body: { tables: ['leads', 'opportunities'], userId: user.id }
+          body: { tables: ['leads', 'opportunities', 'contacts'], userId: user.id }
         });
         
         await loadFunnelStats();
