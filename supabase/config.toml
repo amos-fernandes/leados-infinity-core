@@ -202,6 +202,12 @@ verify_jwt = false
 [functions.phantombuster-qualify-leads]
 verify_jwt = false
 
+[functions.automated-campaign-flow]
+verify_jwt = false
+
+[functions.qualify-lead-with-ai]
+verify_jwt = false
+
 [functions.enrich-contact-whatsapp]
 verify_jwt = false
 

@@ -136,13 +136,12 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
     e?.preventDefault();
     e?.stopPropagation();
     
-    console.log('🔵 createAutoLeadCampaign called');
     if (!user) return;
+    setLoading(true);
 
     try {
-      setLoading(true);
+      toast.info("🚀 Fluxo Automatizado - 4 Fases: Qualificação IA + Multi-canal + CRM");
       
-      // Usar fluxo completo automatizado de 4 fases
       const { data, error } = await supabase.functions.invoke('automated-campaign-flow', {
         body: { userId: user.id }
       });
@@ -150,29 +149,18 @@ const SalesFunnel = ({ onStatsUpdate }: SalesFunnelProps) => {
       if (error) throw error;
 
       if (data.success) {
-        // Replicar dados automaticamente para PostgreSQL do n8n
-        const syncResponse = await supabase.functions.invoke('sync-to-n8n-postgres', {
-          body: {
-            tables: ['leads', 'opportunities', 'campaigns'],
-            userId: user.id
-          }
-        });
+        toast.success(`✅ Concluído! ${data.fase1_qualificacao?.qualificados || 0} leads qualificados, ${data.fase4_crm?.oportunidades_criadas || 0} oportunidades criadas`);
 
-        if (syncResponse.error) {
-          console.error("Erro na sincronização automática:", syncResponse.error);
-          toast.warning("Campanha criada, mas houve erro na sincronização");
-        } else {
-          toast.success(data.message + " - Dados sincronizados!");
-        }
+        await supabase.functions.invoke('sync-to-n8n-postgres', {
+          body: { tables: ['leads', 'opportunities'], userId: user.id }
+        });
         
-        loadFunnelStats();
+        await loadFunnelStats();
         onStatsUpdate();
-      } else {
-        throw new Error(data.error);
       }
     } catch (error) {
-      console.error('Erro ao criar campanha completa:', error);
-      toast.error('Erro ao criar campanha automatizada');
+      console.error('Erro:', error);
+      toast.error(`Erro: ${error.message}`);
     } finally {
       setLoading(false);
     }
