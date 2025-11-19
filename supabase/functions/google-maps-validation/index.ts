@@ -28,35 +28,100 @@ interface ValidationResult {
 
 async function validateGoogleMapsPlace(companyName: string, apiKey?: string): Promise<ValidationResult> {
   if (!apiKey) {
-    console.log('🟡 SERPAPI_KEY não configurada - usando validação simulada');
-    // Dados simulados mais realistas
-    const hasPhone = Math.random() > 0.3; // 70% chance de ter telefone
-    const hasValidWebsite = hasPhone && Math.random() > 0.4; // 60% chance se tiver telefone
+    console.log('🟡 SERPAPI_KEY não configurada - usando Gemini AI para busca inteligente');
+    
+    try {
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (lovableApiKey) {
+        console.log('🤖 Usando Gemini AI para encontrar informações da empresa...');
+        
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [{
+              role: 'user',
+              content: `Pesquise informações públicas sobre a empresa "${companyName}" no Brasil.
+              Se encontrar, retorne APENAS um JSON válido com:
+              {
+                "found": true/false,
+                "name": "nome oficial",
+                "address": "endereço completo",
+                "phone": "telefone com DDD",
+                "hasWhatsApp": true/false,
+                "website": "site oficial",
+                "verified": true/false,
+                "confidence": 0-100
+              }
+              Se não encontrar informações confiáveis, retorne {"found": false}`
+            }]
+          })
+        });
+
+        if (aiResponse.ok) {
+          const aiData = await aiResponse.json();
+          const content = aiData.choices?.[0]?.message?.content || '';
+          
+          try {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const analysis = JSON.parse(jsonMatch[0]);
+              
+              if (analysis.found && analysis.confidence > 60) {
+                console.log(`✅ Gemini encontrou informações com ${analysis.confidence}% confiança`);
+                return {
+                  status: analysis.phone ? 'HAS_WHATSAPP' : 'NO_PHONE',
+                  data: {
+                    name: analysis.name || companyName,
+                    address: analysis.address || 'Endereço não encontrado',
+                    phone: analysis.phone,
+                    whatsapp: analysis.hasWhatsApp ? analysis.phone?.replace(/\D/g, '') : undefined,
+                    website: analysis.website,
+                    verified: analysis.verified || false,
+                    rating: null,
+                    reviews: null,
+                    business_type: 'Empresa'
+                  }
+                };
+              }
+            }
+          } catch (parseError) {
+            console.log("⚠️ Erro ao parsear resposta da IA:", parseError);
+          }
+        }
+      }
+    } catch (error) {
+      console.log("⚠️ Gemini AI não disponível:", error);
+    }
+    
+    // Fallback para dados simulados
+    console.log('⚠️ Usando dados simulados como fallback');
+    const hasPhone = Math.random() > 0.3;
+    const hasValidWebsite = hasPhone && Math.random() > 0.4;
     
     if (hasPhone) {
-      console.log(`✅ Validação Google Maps concluída para "${companyName}"! 📱 WhatsApp potencial encontrado!`);
       return {
         status: 'HAS_WHATSAPP',
         data: {
           name: companyName,
-          address: `Endereço encontrado via Google Maps - ${companyName}`,
+          address: `Endereço não verificado - ${companyName}`,
           phone: '62991792303',
           whatsapp: '5562991792303',
           website: hasValidWebsite ? `www.${companyName.toLowerCase().replace(/\s+/g, '')}.com.br` : undefined,
-          rating: 4.2,
-          reviews: 127,
-          verified: true,
-          business_type: 'Empresa',
-          opening_hours: ['Seg-Sex: 8:00-18:00']
+          verified: false,
+          business_type: 'Empresa'
         }
       };
     } else {
-      console.log(`🟡 Validação Google Maps concluída para "${companyName}". ⚠️ Nenhum telefone cadastrado.`);
       return {
         status: 'NO_PHONE',
         data: {
           name: companyName,
-          address: `Endereço encontrado via Google Maps - ${companyName}`,
+          address: `Endereço não verificado - ${companyName}`,
           verified: false,
           business_type: 'Empresa'
         }
