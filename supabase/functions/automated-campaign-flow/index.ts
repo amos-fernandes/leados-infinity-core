@@ -208,20 +208,50 @@ serve(async (req) => {
 
         // Criar oportunidade para cada lead qualificado
         for (const lead of qualifiedLeads) {
-          const { error: oppError } = await supabase
-            .from('opportunities')
-            .insert({
-              user_id: userId,
-              empresa: lead.empresa,
-              titulo: `Proposta Consultoria Tributária - ${lead.empresa}`,
-              estagio: 'prospeccao',
-              status: 'ativo',
-              valor: lead.estimated_revenue ? parseFloat(lead.estimated_revenue.replace(/[^\d,]/g, '').replace(',', '.')) : null,
-              probabilidade: lead.qualification_level === 'Alta' ? 70 : lead.qualification_level === 'Média' ? 40 : 20
-            });
+          try {
+            // Validar dados obrigatórios
+            if (!lead.empresa || lead.empresa.trim() === '') {
+              console.log(`⚠️ Lead ${lead.id} sem nome de empresa válido, pulando...`);
+              continue;
+            }
 
-          if (!oppError) {
+            // Preparar dados da oportunidade com validação
+            const opportunityData: any = {
+              user_id: userId,
+              empresa: lead.empresa.substring(0, 200), // Limitar tamanho
+              titulo: `Proposta Consultoria Tributária - ${lead.empresa}`.substring(0, 200),
+              estagio: 'prospeccao',
+              status: 'aberta',
+              probabilidade: lead.qualification_level === 'alto' ? 70 : lead.qualification_level === 'medio' ? 40 : 20
+            };
+
+            // Adicionar valor se disponível
+            if (lead.estimated_revenue) {
+              try {
+                const valorLimpo = lead.estimated_revenue.replace(/[^\d,]/g, '').replace(',', '.');
+                const valorNum = parseFloat(valorLimpo);
+                if (!isNaN(valorNum) && valorNum > 0) {
+                  opportunityData.valor = valorNum;
+                }
+              } catch (e) {
+                console.log(`⚠️ Erro ao processar valor de ${lead.empresa}`);
+              }
+            }
+
+            // Criar oportunidade
+            const { data: opportunity, error: oppError } = await supabase
+              .from('opportunities')
+              .insert(opportunityData)
+              .select()
+              .single();
+
+            if (oppError) {
+              console.error(`❌ Erro ao criar oportunidade para ${lead.empresa}:`, oppError.message);
+              continue;
+            }
+
             oportunidadesCriadas++;
+            console.log(`✅ Oportunidade criada: ${opportunity.id} - ${lead.empresa}`);
             
             // Registrar interação
             await supabase
@@ -229,11 +259,18 @@ serve(async (req) => {
               .insert({
                 user_id: userId,
                 lead_id: lead.id,
+                opportunity_id: opportunity.id,
                 tipo: 'campanha',
-                assunto: 'Campanha Automatizada Multi-canal',
-                descricao: `Lead incluído em campanha automatizada. Canal recomendado: ${lead.recommended_channel || 'WhatsApp'}`,
+                assunto: 'Campanha Automatizada Multi-canal'.substring(0, 200),
+                descricao: `Lead incluído em campanha automatizada.
+
+Qualificação: ${lead.qualification_level || 'N/A'}
+Score: ${lead.qualification_score || 0}
+Canal recomendado: ${lead.recommended_channel || 'WhatsApp'}`,
                 data_interacao: new Date().toISOString()
               });
+          } catch (leadError) {
+            console.error(`❌ Erro ao processar lead ${lead.empresa}:`, leadError);
           }
         }
 
