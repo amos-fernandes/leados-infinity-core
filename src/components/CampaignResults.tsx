@@ -618,11 +618,11 @@ const CampaignResults = () => {
                               <TabsContent value="whatsapp" className="space-y-3">
                                 <div>
                                   <h5 className="font-medium text-sm text-muted-foreground">Mensagem WhatsApp:</h5>
-                                  <div className="text-sm bg-muted/50 p-3 rounded whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                   <div className="text-sm bg-muted/50 p-3 rounded whitespace-pre-wrap max-h-40 overflow-y-auto">
                                     {interactions
                                       .filter(i => i.tipo === 'whatsapp' && i.assunto.includes(script.empresa))
                                       .map(i => i.descricao.split('Mensagem enviada:\n\n')[1]?.split('\n\nTelefone:')[0])
-                                      .find(msg => msg) || 'Mensagem WhatsApp baseada no template padrão C6 Bank'}
+                                      .find(msg => msg) || 'Mensagem WhatsApp baseada no template padrão Única Disparos'}
                                   </div>
                                 </div>
                               </TabsContent>

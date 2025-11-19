@@ -42,25 +42,25 @@ export function MetricsCards() {
         .eq("user_id", user.id)
         .eq("status", "ativa");
 
-      // Conversões (oportunidades fechadas)
+      // Conversões CRM (oportunidades fechadas)
       const { count: conversionsCount } = await supabase
         .from("opportunities")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("status", "fechada");
 
-      // Aberturas de Conta (oportunidades com título específico)
-      const { count: accountsCount } = await supabase
+      // Propostas Enviadas (oportunidades ativas)
+      const { count: proposalsCount } = await supabase
         .from("opportunities")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .ilike("titulo", "%Abertura de Conta%");
+        .eq("status", "aberta");
 
       setMetrics({
         leadsAtivos: leadsCount || 0,
         campanhasAtivas: campaignsCount || 0,
         conversoes: conversionsCount || 0,
-        aberturasContas: accountsCount || 0
+        aberturasContas: proposalsCount || 0
       });
     } catch (error) {
       console.error("Erro ao carregar métricas:", error);
@@ -81,13 +81,13 @@ export function MetricsCards() {
       color: "text-purple-500"
     },
     {
-      title: "Conversões Salesforce",
+      title: "Conversões CRM",
       value: metrics.conversoes,
       icon: TrendingUp,
       color: "text-green-500"
     },
     {
-      title: "Aberturas de Conta (C6)",
+      title: "Propostas Única Disparos",
       value: metrics.aberturasContas,
       icon: Building2,
       color: "text-orange-500"

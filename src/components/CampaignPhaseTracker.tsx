@@ -124,7 +124,7 @@ const CampaignPhaseTracker: React.FC<CampaignPhaseTrackerProps> = ({ phases, cla
             <ul className="text-xs text-blue-700 space-y-1">
               <li>🔍 <strong>Fase 1:</strong> Identificação IA com exclusão MEI/terceiro setor</li>
               <li>📞 <strong>Fase 2:</strong> WhatsApp (foco) + E-mail (reforço) + Ligação (apoio)</li>
-              <li>🎯 <strong>Fase 3:</strong> Qualificação C6 Bank com proposta imediata</li>
+              <li>🎯 <strong>Fase 3:</strong> Qualificação Única com proposta imediata</li>
               <li>📊 <strong>Fase 4:</strong> CRM integrado + Follow-ups + Tracking conversões</li>
             </ul>
           </div>

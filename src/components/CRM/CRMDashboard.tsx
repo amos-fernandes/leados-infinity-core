@@ -185,7 +185,7 @@ const CRMDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">CRM Dashboard</h1>
           <p className="text-muted-foreground">
-            Fluxo automatizado de 4 fases: Identificação IA → Abordagem Multi-canal → Qualificação C6 Bank → Acompanhamento CRM
+            Fluxo automatizado de 4 fases: Identificação IA → Abordagem Multi-canal → Qualificação Única → Acompanhamento CRM
           </p>
         </div>
         <div className="flex gap-2">
