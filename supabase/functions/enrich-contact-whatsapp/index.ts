@@ -116,14 +116,58 @@ serve(async (req) => {
       console.log("⚠️ Evolution API não disponível:", error);
     }
 
-    // 2. Se Evolution falhou, tentar validação básica
+    // 2. Se Evolution falhou, usar Gemini AI para validação inteligente
     if (!validationResult.isValid) {
-      console.log("🔍 Fazendo validação básica de formato...");
+      console.log("🤖 Usando Gemini AI para validação inteligente de WhatsApp...");
       
-      // Validação básica de formato brasileiro
-      const brazilianPattern = /^55\d{10,11}$/;
-      validationResult.isValid = brazilianPattern.test(formattedPhone);
-      validationResult.hasWhatsApp = validationResult.isValid; // Assumir que números válidos podem ter WhatsApp
+      try {
+        const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+        if (lovableApiKey) {
+          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [{
+                role: 'user',
+                content: `Analise se o número de telefone "${formattedPhone}" é um número válido de WhatsApp brasileiro. 
+                Considere: formato brasileiro (55 + DDD + número), se é celular (9 dígitos após DDD), se é provável ter WhatsApp.
+                Responda apenas com um JSON: {"valid": true/false, "hasWhatsApp": true/false, "confidence": 0-100, "reason": "explicação curta"}`
+              }]
+            })
+          });
+
+          if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            const content = aiData.choices?.[0]?.message?.content || '';
+            
+            try {
+              const jsonMatch = content.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const analysis = JSON.parse(jsonMatch[0]);
+                validationResult.isValid = analysis.valid || false;
+                validationResult.hasWhatsApp = analysis.hasWhatsApp || false;
+                console.log(`✅ Gemini AI validação: ${analysis.reason} (confiança: ${analysis.confidence}%)`);
+              }
+            } catch (parseError) {
+              console.log("⚠️ Erro ao parsear resposta da IA:", parseError);
+            }
+          }
+        }
+      } catch (error) {
+        console.log("⚠️ Gemini AI não disponível:", error);
+      }
+      
+      // 3. Fallback: validação básica de formato
+      if (!validationResult.isValid) {
+        console.log("🔍 Fazendo validação básica de formato...");
+        const brazilianPattern = /^55\d{10,11}$/;
+        validationResult.isValid = brazilianPattern.test(formattedPhone);
+        validationResult.hasWhatsApp = validationResult.isValid;
+      }
     }
 
     // 3. Atualizar contato no banco de dados
