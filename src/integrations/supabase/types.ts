@@ -216,10 +216,12 @@ export type Database = {
           id: string
           linkedin: string | null
           nome: string
+          observacoes: string | null
           status: string | null
           telefone: string | null
           updated_at: string
           user_id: string
+          website: string | null
         }
         Insert: {
           cargo?: string | null
@@ -229,10 +231,12 @@ export type Database = {
           id?: string
           linkedin?: string | null
           nome: string
+          observacoes?: string | null
           status?: string | null
           telefone?: string | null
           updated_at?: string
           user_id: string
+          website?: string | null
         }
         Update: {
           cargo?: string | null
@@ -242,10 +246,12 @@ export type Database = {
           id?: string
           linkedin?: string | null
           nome?: string
+          observacoes?: string | null
           status?: string | null
           telefone?: string | null
           updated_at?: string
           user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
