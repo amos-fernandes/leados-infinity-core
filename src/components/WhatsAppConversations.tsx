@@ -267,7 +267,7 @@ const WhatsAppConversations = () => {
               ) : (
                 <div className="flex items-center gap-2">
                   <Bot className="h-5 w-5 text-primary" />
-                  Atendimento RAG - C6 Bank
+                  Atendimento RAG - Única Disparos
                 </div>
               )}
             </CardTitle>
@@ -343,7 +343,7 @@ const WhatsAppConversations = () => {
                     <Bot className="h-12 w-12 text-primary mx-auto mb-4" />
                     <h3 className="text-lg font-semibold">Teste do Chatbot RAG</h3>
                     <p className="text-sm text-muted-foreground">
-                      Simule uma conversa com o assistente C6 Bank
+                      Simule uma conversa com o assistente Única Disparos
                     </p>
                   </div>
 
