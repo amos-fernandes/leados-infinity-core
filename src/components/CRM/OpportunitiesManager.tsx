@@ -143,12 +143,18 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
       setLoading(true);
 
       const opportunityData = {
-        ...data,
+        titulo: data.titulo,
+        empresa: data.empresa,
+        contato_id: data.contato_id || null,
         valor: data.valor ? parseFloat(data.valor) : null,
         probabilidade: parseInt(data.probabilidade),
-        contato_id: data.contato_id || null,
+        estagio: data.estagio,
+        data_fechamento_esperada: data.data_fechamento_esperada || null,
+        observacoes: data.observacoes || null,
         user_id: user.id
       };
+
+      console.log('Salvando oportunidade:', opportunityData);
 
       if (editingOpportunity) {
         // Atualizar oportunidade existente
@@ -158,19 +164,23 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
           .eq('id', editingOpportunity.id)
           .eq('user_id', user.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro no update:', error);
+          throw error;
+        }
         toast.success('Oportunidade atualizada com sucesso!');
       } else {
         // Criar nova oportunidade
-        const { error } = await supabase
+        const { data: insertedData, error } = await supabase
           .from('opportunities')
-          .insert({ 
-            ...opportunityData,
-            empresa: opportunityData.empresa || 'Nova Oportunidade',
-            titulo: opportunityData.titulo || 'Oportunidade',
-          });
+          .insert(opportunityData)
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro no insert:', error);
+          throw error;
+        }
+        console.log('Oportunidade criada:', insertedData);
         toast.success('Oportunidade criada com sucesso!');
       }
 
@@ -179,9 +189,9 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
       setEditingOpportunity(null);
       loadOpportunities();
       onStatsUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar oportunidade:', error);
-      toast.error('Erro ao salvar oportunidade');
+      toast.error(`Erro ao salvar oportunidade: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
