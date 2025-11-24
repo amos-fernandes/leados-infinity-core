@@ -50,8 +50,40 @@ serve(async (req) => {
     }
 
     const qualifiedLeads = [];
+    let enrichedCount = 0;
 
     for (const lead of leads) {
+      // PASSO 1: Enriquecer com OpenAI (se API key configurada)
+      try {
+        const { data: enrichResult, error: enrichError } = await supabase.functions.invoke('enrich-lead-with-ai', {
+          body: {
+            leadId: lead.id,
+            userId: userId,
+            leadData: lead
+          }
+        });
+
+        if (!enrichError && enrichResult?.success) {
+          enrichedCount++;
+          console.log(`Lead ${lead.empresa} enriquecido: ${enrichResult.fieldsUpdated} campos atualizados`);
+          
+          // Atualizar dados locais do lead com os enriquecidos
+          if (enrichResult.data) {
+            lead.website = lead.website || enrichResult.data.website;
+            lead.linkedin = lead.linkedin || enrichResult.data.linkedin;
+            lead.email = lead.email || enrichResult.data.email;
+            lead.telefone = lead.telefone || enrichResult.data.telefone;
+            lead.whatsapp = lead.whatsapp || enrichResult.data.whatsapp;
+            lead.setor = lead.setor || enrichResult.data.setor;
+            lead.contato_decisor = lead.contato_decisor || enrichResult.data.decisor;
+          }
+        }
+      } catch (enrichmentError) {
+        console.log(`Erro ao enriquecer lead ${lead.empresa}:`, enrichmentError);
+        // Continuar mesmo se enriquecimento falhar
+      }
+
+      // PASSO 2: Qualificar com IA
       if (!googleGeminiApiKey) {
         console.error('Google Gemini API key não configurada. Pulando qualificação.');
         continue;
@@ -210,8 +242,12 @@ Tarefas e Fontes de Dados
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: `${qualifiedLeads.length} leads qualificados com sucesso!`,
-      qualifiedLeads
+      message: `${qualifiedLeads.length} leads qualificados com sucesso! ${enrichedCount} leads enriquecidos com IA.`,
+      qualifiedLeads,
+      stats: {
+        qualified: qualifiedLeads.length,
+        enriched: enrichedCount
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

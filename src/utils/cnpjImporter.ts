@@ -85,12 +85,67 @@ export async function parseCNPJCSV(fileContent: string): Promise<CNPJRecord[]> {
   
   // Detectar formato pelo número de colunas
   // Formato simplificado: 4 colunas (CNPJ;Razão Social;socio;celular)
+  // Formato odontologia: 13 colunas (razao_social;cnpj;matriz_filial;natureza;porte;data_abertura;cnae_principal;estado;municipio;socio;telefone1;telefone2;email)
   // Formato completo: 30+ colunas
   const isSimpleFormat = firstLineColumns <= 5;
+  const isOdontologiaFormat = firstLineColumns >= 12 && firstLineColumns <= 14;
   
-  console.log(`✅ Formato detectado: ${isSimpleFormat ? 'SIMPLIFICADO (4 colunas)' : 'COMPLETO (30+ colunas)'}`);
+  const formatName = isSimpleFormat ? 'SIMPLIFICADO (4 colunas)' : 
+                     isOdontologiaFormat ? 'ODONTOLOGIA (13 colunas)' : 
+                     'COMPLETO (30+ colunas)';
+  console.log(`✅ Formato detectado: ${formatName}`);
   
-  if (isSimpleFormat) {
+  if (isOdontologiaFormat) {
+    // Formato: razao_social;cnpj;matriz_filial;natureza;porte;data_abertura;cnae_principal;estado;municipio;socio;telefone1;telefone2;email
+    const dataLines = lines.slice(1);
+    console.log(`📦 Processando ${dataLines.length} linhas de dados (formato odontologia)...`);
+    
+    for (let i = 0; i < dataLines.length; i++) {
+      const line = dataLines[i];
+      const values = line.split(';').map(v => v.trim().replace(/^"|"$/g, ''));
+      
+      if (i === 0) {
+        console.log(`🔎 Primeira linha de dados tem ${values.length} valores:`, values);
+      }
+      
+      if (values.length < 13) {
+        console.log(`⚠️  Linha ${i + 2} ignorada: apenas ${values.length} colunas`);
+        continue;
+      }
+      
+      if (!values[1] || values[1].length < 14 || !values[0] || values[0].length < 3) {
+        console.log(`⚠️  Linha ${i + 2} ignorada: CNPJ ou razão social inválidos`);
+        continue;
+      }
+      
+      records.push({
+        cnpj: values[1], // CNPJ na coluna 2
+        razao_social: values[0], // Razão Social na coluna 1
+        socio: values[9] || '', // Sócio na coluna 10
+        porte: values[4] || 'Não informado', // Porte na coluna 5
+        capital_social: '0',
+        natureza_juridica: values[3] || 'Não informado', // Natureza jurídica na coluna 4
+        data_abertura: values[5] || '', // Data abertura na coluna 6
+        nome_fantasia: values[0], // Usar razão social como nome fantasia
+        situacao_cadastral: 'Ativa',
+        telefone_principal: values[10] || '', // Telefone 1 na coluna 11
+        telefone_secundario: values[11] || '', // Telefone 2 na coluna 12
+        email: values[12] || '', // Email na coluna 13
+        logradouro: '',
+        numero: '',
+        complemento: '',
+        bairro: '',
+        cidade: values[8] || '', // Município na coluna 9
+        estado: values[7] || '', // Estado na coluna 8
+        cep: '',
+        atividade_principal: values[6] || 'Não informado' // CNAE principal na coluna 7
+      });
+      
+      if ((i + 1) % 100 === 0) {
+        console.log(`✅ Processados ${i + 1} registros...`);
+      }
+    }
+  } else if (isSimpleFormat) {
     // Pula cabeçalho (primeira linha)
     const dataLines = lines.slice(1);
     console.log(`📦 Processando ${dataLines.length} linhas de dados...`);

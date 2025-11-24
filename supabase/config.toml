@@ -213,3 +213,6 @@ verify_jwt = false
 
 [functions.enrich-contact-partners]
 verify_jwt = false
+
+[functions.enrich-lead-with-ai]
+verify_jwt = false
