@@ -203,7 +203,7 @@ const CRMDashboard = () => {
             disabled={isQualifying || isGenerating}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            {isQualifying ? 'Qualificando...' : 'Qualificar Leads IA'}
+            {isQualifying ? 'Qualificando e Enriquecendo...' : 'Qualificar e Enriquecer Todos'}
           </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
