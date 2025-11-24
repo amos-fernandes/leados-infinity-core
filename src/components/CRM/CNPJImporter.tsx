@@ -109,6 +109,10 @@ export function CNPJImporter() {
         <p className="text-sm text-muted-foreground">
           Importe uma base de dados CNPJ em formato CSV. Os leads serão importados como <strong>qualificados</strong> com o telefone principal configurado como <strong>WhatsApp</strong>.
         </p>
+        
+        <div className="text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 p-3 rounded border border-blue-200 dark:border-blue-800">
+          <strong>✨ Novo formato suportado!</strong> Agora aceita CSVs no formato: razao_social;cnpj;matriz_filial;natureza;porte;data_abertura;cnae_principal;estado;municipio;socio;telefone1;telefone2;email
+        </div>
 
         <div className="space-y-4">
           <div className="flex items-center gap-4">
@@ -165,7 +169,12 @@ export function CNPJImporter() {
         </div>
 
         <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
-          <strong>Formato esperado:</strong> Arquivo CSV com colunas: CNPJ, Razão Social, Porte, Capital Social, Nome Fantasia, Telefone Principal, E-mail, Cidade, Estado, Atividade Principal, etc.
+          <strong>Formatos aceitos:</strong>
+          <ul className="list-disc list-inside mt-1 space-y-1">
+            <li>CSV Odontologia (13 colunas): razao_social;cnpj;matriz_filial;natureza;porte;data_abertura;cnae_principal;estado;municipio;socio;telefone1;telefone2;email</li>
+            <li>CSV Simplificado (4 colunas): CNPJ;Razão Social;Sócio;Celular</li>
+            <li>CSV Completo (30+ colunas): formato padrão CNPJ com todos os dados</li>
+          </ul>
         </div>
       </div>
     </Card>
