@@ -835,10 +835,13 @@ export type Database = {
       }
       opportunities: {
         Row: {
+          contato_id: string | null
           created_at: string
+          data_fechamento_esperada: string | null
           empresa: string
           estagio: string | null
           id: string
+          observacoes: string | null
           probabilidade: number | null
           status: string | null
           titulo: string
@@ -847,10 +850,13 @@ export type Database = {
           valor: number | null
         }
         Insert: {
+          contato_id?: string | null
           created_at?: string
+          data_fechamento_esperada?: string | null
           empresa: string
           estagio?: string | null
           id?: string
+          observacoes?: string | null
           probabilidade?: number | null
           status?: string | null
           titulo: string
@@ -859,10 +865,13 @@ export type Database = {
           valor?: number | null
         }
         Update: {
+          contato_id?: string | null
           created_at?: string
+          data_fechamento_esperada?: string | null
           empresa?: string
           estagio?: string | null
           id?: string
+          observacoes?: string | null
           probabilidade?: number | null
           status?: string | null
           titulo?: string
@@ -870,7 +879,15 @@ export type Database = {
           user_id?: string
           valor?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
