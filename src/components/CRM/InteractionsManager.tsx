@@ -32,7 +32,6 @@ interface Interaction {
   assunto: string;
   descricao: string;
   data_interacao: string;
-  resultado?: string;
   created_at: string;
   // Dados do contato
   contact?: {
@@ -64,8 +63,7 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
     tipo: "",
     assunto: "",
     descricao: "",
-    data_interacao: "",
-    resultado: ""
+    data_interacao: ""
   });
 
   const interactionTypes = [
@@ -197,8 +195,7 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
       tipo: "",
       assunto: "",
       descricao: "",
-      data_interacao: "",
-      resultado: ""
+      data_interacao: ""
     });
     setEditingInteraction(null);
     setIsDialogOpen(false);
@@ -210,8 +207,7 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
       tipo: interaction.tipo,
       assunto: interaction.assunto,
       descricao: interaction.descricao,
-      data_interacao: interaction.data_interacao,
-      resultado: interaction.resultado
+      data_interacao: interaction.data_interacao
     });
     setEditingInteraction(interaction);
     setIsDialogOpen(true);
@@ -371,18 +367,7 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
                     value={formData.descricao}
                     onChange={(e) => setFormData({...formData, descricao: e.target.value})}
                     placeholder="Descreva os detalhes da interação..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="resultado">Resultado</Label>
-                  <Textarea
-                    id="resultado"
-                    value={formData.resultado}
-                    onChange={(e) => setFormData({...formData, resultado: e.target.value})}
-                    placeholder="Qual foi o resultado desta interação?"
-                    rows={2}
+                    rows={4}
                   />
                 </div>
 
@@ -474,12 +459,6 @@ const InteractionsManager = ({ onStatsUpdate }: InteractionsManagerProps) => {
                 {interaction.descricao && (
                   <p className="text-sm text-muted-foreground mb-2">
                     {interaction.descricao}
-                  </p>
-                )}
-                
-                {interaction.resultado && (
-                  <p className="text-sm font-medium mb-2">
-                    <strong>Resultado:</strong> {interaction.resultado}
                   </p>
                 )}
                 
