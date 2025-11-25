@@ -34,7 +34,7 @@ const opportunitySchema = z.object({
   contato_id: z.string().optional(),
   valor: z.string().optional(),
   probabilidade: z.string().default("25"),
-  estagio: z.string().default("lead"),
+  estagio: z.string().default("prospeccao"),
   data_fechamento_esperada: z.string().optional(),
   observacoes: z.string().optional()
 });
@@ -85,7 +85,7 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
       contato_id: "",
       valor: "",
       probabilidade: "25",
-      estagio: "lead",
+      estagio: "prospeccao",
       data_fechamento_esperada: "",
       observacoes: ""
     }
@@ -287,12 +287,11 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
 
   const getEstagioColor = (estagio: string) => {
     switch (estagio) {
-      case 'lead': return 'bg-blue-100 text-blue-800';
-      case 'contato': return 'bg-yellow-100 text-yellow-800';
-      case 'reuniao': return 'bg-purple-100 text-purple-800';
+      case 'prospeccao': return 'bg-blue-100 text-blue-800';
+      case 'qualificacao': return 'bg-yellow-100 text-yellow-800';
       case 'proposta': return 'bg-orange-100 text-orange-800';
+      case 'negociacao': return 'bg-purple-100 text-purple-800';
       case 'fechamento': return 'bg-green-100 text-green-800';
-      case 'perdido': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -421,12 +420,11 @@ const OpportunitiesManager = ({ onStatsUpdate }: OpportunitiesManagerProps) => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="lead">Lead</SelectItem>
-                                <SelectItem value="contato">Contato</SelectItem>
-                                <SelectItem value="reuniao">Reunião</SelectItem>
+                                <SelectItem value="prospeccao">Prospecção</SelectItem>
+                                <SelectItem value="qualificacao">Qualificação</SelectItem>
                                 <SelectItem value="proposta">Proposta</SelectItem>
+                                <SelectItem value="negociacao">Negociação</SelectItem>
                                 <SelectItem value="fechamento">Fechamento</SelectItem>
-                                <SelectItem value="perdido">Perdido</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
