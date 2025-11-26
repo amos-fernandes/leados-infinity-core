@@ -216,3 +216,6 @@ verify_jwt = false
 
 [functions.enrich-lead-with-ai]
 verify_jwt = false
+
+[functions.crm-ai-insights]
+verify_jwt = false
