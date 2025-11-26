@@ -893,16 +893,6 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleValidateWithGoogleMaps(lead)}
-                        disabled={validatingMapsLead === lead.id}
-                        className="text-green-600 hover:text-green-800"
-                        title="Validar com Google Maps"
-                      >
-                        {validatingMapsLead === lead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
                         onClick={() => handleEdit(lead)}
                       >
                         <Edit className="h-4 w-4" />
