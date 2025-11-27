@@ -56,6 +56,7 @@ interface Lead extends LeadFormData {
   id: string;
   created_at: string;
   updated_at: string;
+  cnpj?: string;
   qualification_score?: string;
   qualification_level?: string;
   approach_strategy?: string;
@@ -834,7 +835,14 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
                 <TableRow key={lead.id}>
                   <TableCell className="font-medium">
                     <div>
-                      <div className="font-semibold">{lead.empresa}</div>
+                      <div className="font-semibold">
+                        {lead.empresa}
+                        {lead.cnpj && (
+                          <span className="text-muted-foreground font-normal text-sm ml-2">
+                            ({lead.cnpj})
+                          </span>
+                        )}
+                      </div>
                       {lead.website && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Globe className="h-3 w-3" />
