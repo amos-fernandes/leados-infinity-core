@@ -291,9 +291,9 @@ const Dashboard = () => {
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Atividades Recentes */}
-        <Card className="lg:col-span-2 shadow-soft">
+        <Card className="shadow-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -322,42 +322,6 @@ const Dashboard = () => {
                   <p className="text-sm text-muted-foreground">Comece criando interações com seus contatos</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* RAG Chat IA */}
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-accent" />
-              RAG Assistant IA
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-gradient-success text-white">
-                <p className="text-sm font-medium mb-2">🤖 LEADOS Consultor Inteligente</p>
-                <p className="text-sm text-white/90">
-                  LEADOS Consultor inteligente via WhatsApp.
-                </p>
-              </div>
-              <Button 
-                className="w-full mb-2" 
-                variant="outline"
-                onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppConnector'))}
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                Conectar WhatsApp
-              </Button>
-              <Button 
-                className="w-full" 
-                variant="outline"
-                onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppDashboard'))}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Iniciar Atendimento WhatsApp
-              </Button>
             </div>
           </CardContent>
         </Card>
