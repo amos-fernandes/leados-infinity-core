@@ -36,6 +36,7 @@ serve(async (req) => {
     switch (flowType) {
       case 'lead_collection':
       case 'collect_leads':
+      case 'create_contact':
         result = await processLeadCollection(supabase, payload);
         break;
       
@@ -49,6 +50,15 @@ serve(async (req) => {
       
       case 'data_enrichment':
         result = await processDataEnrichment(supabase, payload);
+        break;
+      
+      case 'create_opportunity':
+        result = await processCreateOpportunity(supabase, payload);
+        break;
+      
+      case 'create_appointment':
+      case 'create_meeting':
+        result = await processCreateAppointment(supabase, payload);
         break;
       
       default:
@@ -200,6 +210,77 @@ async function processDataEnrichment(supabase: any, payload: any) {
     cnpj,
     fieldsUpdated: Object.keys(enrichedData).length,
     type: 'data_enrichment'
+  };
+}
+
+async function processCreateOpportunity(supabase: any, payload: any) {
+  console.log('💼 Processando criação de oportunidade...');
+  
+  const opportunityData = {
+    user_id: payload.userId || payload.user_id,
+    empresa: payload.empresa || payload.company,
+    titulo: payload.titulo || payload.title || 'Oportunidade via n8n',
+    valor: payload.valor || payload.value || null,
+    estagio: payload.estagio || payload.stage || 'prospeccao',
+    status: payload.status || 'ativa',
+    probabilidade: payload.probabilidade || payload.probability || null,
+    data_fechamento_esperada: payload.data_fechamento_esperada || payload.expected_close_date || null,
+    observacoes: payload.observacoes || payload.notes || null,
+    contato_id: payload.contato_id || payload.contact_id || null,
+    created_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('opportunities')
+    .insert(opportunityData)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Erro ao criar oportunidade:', error);
+    throw error;
+  }
+  
+  console.log('✅ Oportunidade criada:', data);
+  
+  return {
+    opportunity: data,
+    type: 'create_opportunity'
+  };
+}
+
+async function processCreateAppointment(supabase: any, payload: any) {
+  console.log('📅 Processando criação de agendamento...');
+  
+  // Criar interação do tipo agendamento
+  const appointmentData = {
+    user_id: payload.userId || payload.user_id,
+    tipo: 'reuniao',
+    assunto: payload.assunto || payload.subject || 'Reunião agendada via n8n',
+    descricao: payload.descricao || payload.description || null,
+    data_interacao: payload.data_agendamento || payload.scheduled_date || new Date().toISOString(),
+    contact_id: payload.contato_id || payload.contact_id || null,
+    lead_id: payload.lead_id || null,
+    opportunity_id: payload.opportunity_id || null,
+    created_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('interactions')
+    .insert(appointmentData)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Erro ao criar agendamento:', error);
+    throw error;
+  }
+  
+  console.log('✅ Agendamento criado:', data);
+  
+  return {
+    appointment: data,
+    type: 'create_appointment'
   };
 }
 
