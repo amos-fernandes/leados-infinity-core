@@ -4,16 +4,60 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 };
+
+// Secure webhook secret validation
+function validateWebhookSecret(req: Request): boolean {
+  const webhookSecret = Deno.env.get('N8N_WEBHOOK_SECRET');
+  
+  // If no secret is configured, allow access (backward compatibility)
+  // IMPORTANT: Configure N8N_WEBHOOK_SECRET in production!
+  if (!webhookSecret) {
+    console.warn('⚠️ N8N_WEBHOOK_SECRET not configured - webhook is unprotected');
+    return true;
+  }
+  
+  const providedSecret = req.headers.get('x-webhook-secret') || 
+                         req.headers.get('authorization')?.replace('Bearer ', '');
+  
+  if (!providedSecret) {
+    console.error('❌ No webhook secret provided');
+    return false;
+  }
+  
+  // Constant-time comparison to prevent timing attacks
+  if (providedSecret.length !== webhookSecret.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < providedSecret.length; i++) {
+    result |= providedSecret.charCodeAt(i) ^ webhookSecret.charCodeAt(i);
+  }
+  
+  return result === 0;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate webhook secret
+  if (!validateWebhookSecret(req)) {
+    console.error('❌ Unauthorized webhook request');
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: 'Unauthorized - invalid or missing webhook secret' 
+    }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
-    console.log('🔗 N8N webhook received');
+    console.log('🔗 N8N webhook received (authenticated)');
     
     const payload = await req.json();
     const { action, data } = payload;
@@ -49,6 +93,11 @@ serve(async (req) => {
       case 'monitor_consultivo':
         // Processa mensagem do monitor consultivo
         const { message: consultiveMessage, remote_jid, user_id: consultiveUserId } = data;
+        
+        // Validate user_id exists
+        if (!consultiveUserId) {
+          throw new Error('user_id is required for monitor_consultivo');
+        }
         
         // Verifica se a mensagem contém "1" para abertura de conta
         if (consultiveMessage && consultiveMessage.includes("1")) {
@@ -127,6 +176,10 @@ serve(async (req) => {
         // Atualizar lead no CRM
         const { leadId, updates } = data;
         
+        if (!leadId) {
+          throw new Error('leadId is required for update_lead');
+        }
+        
         const { error } = await supabase
           .from('leads')
           .update(updates)
@@ -139,6 +192,10 @@ serve(async (req) => {
       case 'create_interaction':
         // Criar interação no CRM
         const { userId, leadId: interactionLeadId, tipo, assunto, descricao } = data;
+        
+        if (!userId) {
+          throw new Error('userId is required for create_interaction');
+        }
         
         const { error: interactionError } = await supabase
           .from('interactions')
@@ -159,6 +216,10 @@ serve(async (req) => {
         // Criar oportunidade no CRM a partir de mensagem WhatsApp
         const { userId: oppUserId, leadName, phone, message: oppMessage, valor, probabilidade } = data;
         
+        if (!oppUserId) {
+          throw new Error('userId is required for create_opportunity');
+        }
+        
         // Detectar se é resposta "1" = Abertura de contas
         const isAberturaContas = oppMessage?.trim() === '1';
         
@@ -170,9 +231,9 @@ serve(async (req) => {
           .eq('user_id', oppUserId)
           .single();
 
-        let leadId = existingLead?.id;
+        let leadIdForOpp = existingLead?.id;
 
-        if (!leadId) {
+        if (!leadIdForOpp) {
           const { data: newLead, error: leadError } = await supabase
             .from('leads')
             .insert({
@@ -186,7 +247,7 @@ serve(async (req) => {
             .single();
 
           if (leadError) throw leadError;
-          leadId = newLead.id;
+          leadIdForOpp = newLead.id;
         }
 
         // Calcular data limite: 30 dias a partir de hoje
@@ -194,7 +255,7 @@ serve(async (req) => {
         deadlineDate.setDate(deadlineDate.getDate() + 30);
 
         // Criar oportunidade
-        const { data: opportunity, error: oppError } = await supabase
+        const { data: newOpportunity, error: newOppError } = await supabase
           .from('opportunities')
           .insert({
             user_id: oppUserId,
@@ -209,15 +270,15 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (oppError) throw oppError;
+        if (newOppError) throw newOppError;
 
         // Criar interação
         await supabase
           .from('interactions')
           .insert({
             user_id: oppUserId,
-            lead_id: leadId,
-            opportunity_id: opportunity.id,
+            lead_id: leadIdForOpp,
+            opportunity_id: newOpportunity.id,
             tipo: 'whatsapp',
             assunto: isAberturaContas ? 'Cliente solicitou Abertura de Conta (opção 1)' : 'Interesse em Abertura de Conta',
             descricao: `Mensagem recebida: ${oppMessage}`,
@@ -288,8 +349,8 @@ serve(async (req) => {
 
         response = { 
           success: true, 
-          opportunityId: opportunity.id,
-          leadId,
+          opportunityId: newOpportunity.id,
+          leadId: leadIdForOpp,
           deadline: deadlineDate.toISOString(),
           passoAPassoEnviado: isAberturaContas
         };

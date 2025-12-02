@@ -13,7 +13,7 @@ import {
   MessageSquare,
   TrendingUp
 } from "lucide-react";
-import { useUserPlan } from "./UserPlanProvider";
+import { toast } from "sonner";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -25,7 +25,6 @@ const UpgradeModal = ({ isOpen, onClose, currentPlan }: UpgradeModalProps) => {
   const [selectedPlan, setSelectedPlan] = useState<'pro' | 'enterprise'>('pro');
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const { upgradePlan } = useUserPlan();
 
   if (!isOpen) return null;
 
@@ -74,16 +73,22 @@ const UpgradeModal = ({ isOpen, onClose, currentPlan }: UpgradeModalProps) => {
     
     setIsUpgrading(true);
     try {
-      await upgradePlan(selectedPlan);
+      // In production, this would redirect to a payment gateway
+      // Plan upgrades must be handled server-side for security
+      toast.info(
+        `Para fazer upgrade para o plano ${selectedPlan.toUpperCase()}, entre em contato com nossa equipe comercial.`,
+        {
+          duration: 5000,
+          action: {
+            label: "Contato",
+            onClick: () => window.open("https://wa.me/5562991792303", "_blank")
+          }
+        }
+      );
       onClose();
-      
-      // Mostrar mensagem de sucesso
-      // Em produção, aqui redirecionaria para o checkout
-      alert(`Upgrade para ${selectedPlan.toUpperCase()} realizado com sucesso! Em produção, você seria redirecionado para o checkout.`);
-      
     } catch (error) {
       console.error('Erro no upgrade:', error);
-      alert('Erro ao processar upgrade. Tente novamente.');
+      toast.error('Erro ao processar upgrade. Tente novamente.');
     } finally {
       setIsUpgrading(false);
     }
@@ -277,17 +282,17 @@ const UpgradeModal = ({ isOpen, onClose, currentPlan }: UpgradeModalProps) => {
               ) : (
                 <>
                   <Zap className="h-4 w-4 mr-2" />
-                  Upgrade para {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
+                  Solicitar {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </>
               )}
             </Button>
           </div>
 
-          {/* Trial Info */}
+          {/* Contact Info */}
           <div className="mt-4 text-center">
             <p className="text-sm text-muted-foreground">
-              ✨ Teste gratuito de 7 dias • Cancele quando quiser
+              📞 Entre em contato para ativar seu plano: (62) 99179-2303
             </p>
           </div>
         </div>
