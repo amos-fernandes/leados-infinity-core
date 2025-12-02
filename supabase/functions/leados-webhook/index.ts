@@ -3,20 +3,63 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
 };
+
+// Secure webhook secret validation
+function validateWebhookSecret(req: Request): boolean {
+  const webhookSecret = Deno.env.get('LEADOS_WEBHOOK_SECRET');
+  
+  // If no secret is configured, allow access (backward compatibility)
+  // IMPORTANT: Configure LEADOS_WEBHOOK_SECRET in production!
+  if (!webhookSecret) {
+    console.warn('⚠️ LEADOS_WEBHOOK_SECRET not configured - webhook is unprotected');
+    return true;
+  }
+  
+  const providedSecret = req.headers.get('x-webhook-secret') || 
+                         req.headers.get('authorization')?.replace('Bearer ', '');
+  
+  if (!providedSecret) {
+    console.error('❌ No webhook secret provided');
+    return false;
+  }
+  
+  // Constant-time comparison to prevent timing attacks
+  if (providedSecret.length !== webhookSecret.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < providedSecret.length; i++) {
+    result |= providedSecret.charCodeAt(i) ^ webhookSecret.charCodeAt(i);
+  }
+  
+  return result === 0;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate webhook secret
+  if (!validateWebhookSecret(req)) {
+    console.error('❌ Unauthorized webhook request');
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: 'Unauthorized - invalid or missing webhook secret' 
+    }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const payload = await req.json();
     
-    console.log('📨 Webhook LEADOS recebido:', {
+    console.log('📨 Webhook LEADOS recebido (authenticated):', {
       method: req.method,
-      headers: Object.fromEntries(req.headers.entries()),
       payloadPreview: JSON.stringify(payload).substring(0, 200)
     });
 
@@ -85,8 +128,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        stack: error.stack
+        error: error.message
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -102,20 +144,26 @@ async function processLeadCollection(supabase: any, payload: any) {
   const leads = payload.leads || payload.data || [];
   const insertedLeads = [];
   
+  // Validate user_id is provided
+  const userId = payload.userId || payload.user_id;
+  if (!userId) {
+    throw new Error('userId is required for lead collection');
+  }
+  
   for (const lead of leads) {
     try {
       // Insere no CRM (tabela contacts)
       const { data, error } = await supabase
         .from('contacts')
         .upsert({
-          company_name: lead.company_name || lead.name,
+          user_id: userId,
+          nome: lead.company_name || lead.name || lead.nome,
+          empresa: lead.company_name || lead.empresa,
           email: lead.email,
-          phone: lead.phone || lead.telefone,
-          cnpj: lead.cnpj,
-          source: 'n8n_webhook',
-          status: 'new',
+          telefone: lead.phone || lead.telefone,
+          status: 'ativo',
           created_at: new Date().toISOString()
-        }, { onConflict: 'cnpj' });
+        }, { onConflict: 'id' });
       
       if (error) {
         console.error('Erro ao inserir lead:', error);
@@ -141,10 +189,13 @@ async function processLeadQualification(supabase: any, payload: any) {
   const score = payload.score || payload.qualificationScore;
   const status = payload.status || 'qualified';
   
+  if (!leadId) {
+    throw new Error('leadId is required for lead qualification');
+  }
+  
   const { data, error } = await supabase
     .from('contacts')
     .update({
-      qualification_score: score,
       status: status,
       updated_at: new Date().toISOString()
     })
@@ -163,8 +214,13 @@ async function processLeadQualification(supabase: any, payload: any) {
 async function processCampaignDispatch(supabase: any, payload: any) {
   console.log('📢 Processando disparo de campanha...');
   
+  const userId = payload.userId || payload.user_id;
+  if (!userId) {
+    throw new Error('userId is required for campaign dispatch');
+  }
+  
   const campaignData = {
-    user_id: payload.userId,
+    user_id: userId,
     name: payload.campaignName || 'Campanha n8n',
     status: payload.status || 'active',
     type: payload.campaignType || 'whatsapp',
@@ -175,7 +231,7 @@ async function processCampaignDispatch(supabase: any, payload: any) {
   const { data, error } = await supabase
     .from('interactions')
     .insert({
-      user_id: payload.userId,
+      user_id: userId,
       tipo: 'campaign',
       assunto: `Campanha: ${campaignData.name}`,
       descricao: JSON.stringify(payload),
@@ -193,22 +249,35 @@ async function processCampaignDispatch(supabase: any, payload: any) {
 async function processDataEnrichment(supabase: any, payload: any) {
   console.log('📈 Processando enriquecimento de dados...');
   
-  const cnpj = payload.cnpj;
-  const enrichedData = payload.data || payload.enrichment;
+  const contactId = payload.contactId || payload.contact_id;
+  const enrichedData = payload.data || payload.enrichment || {};
+  
+  if (!contactId) {
+    throw new Error('contactId is required for data enrichment');
+  }
+  
+  // Only allow specific fields to be updated
+  const allowedFields = ['empresa', 'cargo', 'telefone', 'linkedin', 'website', 'observacoes'];
+  const safeData: Record<string, any> = {};
+  
+  for (const field of allowedFields) {
+    if (enrichedData[field] !== undefined) {
+      safeData[field] = enrichedData[field];
+    }
+  }
+  
+  safeData.updated_at = new Date().toISOString();
   
   const { data, error } = await supabase
     .from('contacts')
-    .update({
-      ...enrichedData,
-      updated_at: new Date().toISOString()
-    })
-    .eq('cnpj', cnpj);
+    .update(safeData)
+    .eq('id', contactId);
   
   if (error) throw error;
   
   return {
-    cnpj,
-    fieldsUpdated: Object.keys(enrichedData).length,
+    contactId,
+    fieldsUpdated: Object.keys(safeData).length - 1,
     type: 'data_enrichment'
   };
 }
@@ -216,13 +285,18 @@ async function processDataEnrichment(supabase: any, payload: any) {
 async function processCreateOpportunity(supabase: any, payload: any) {
   console.log('💼 Processando criação de oportunidade...');
   
+  const userId = payload.userId || payload.user_id;
+  if (!userId) {
+    throw new Error('userId is required for create_opportunity');
+  }
+  
   const opportunityData = {
-    user_id: payload.userId || payload.user_id,
-    empresa: payload.empresa || payload.company,
+    user_id: userId,
+    empresa: payload.empresa || payload.company || 'Não informado',
     titulo: payload.titulo || payload.title || 'Oportunidade via n8n',
     valor: payload.valor || payload.value || null,
     estagio: payload.estagio || payload.stage || 'prospeccao',
-    status: payload.status || 'ativa',
+    status: payload.status || 'aberta',
     probabilidade: payload.probabilidade || payload.probability || null,
     data_fechamento_esperada: payload.data_fechamento_esperada || payload.expected_close_date || null,
     observacoes: payload.observacoes || payload.notes || null,
@@ -252,9 +326,14 @@ async function processCreateOpportunity(supabase: any, payload: any) {
 async function processCreateAppointment(supabase: any, payload: any) {
   console.log('📅 Processando criação de agendamento...');
   
+  const userId = payload.userId || payload.user_id;
+  if (!userId) {
+    throw new Error('userId is required for create_appointment');
+  }
+  
   // Criar interação do tipo agendamento
   const appointmentData = {
-    user_id: payload.userId || payload.user_id,
+    user_id: userId,
     tipo: 'reuniao',
     assunto: payload.assunto || payload.subject || 'Reunião agendada via n8n',
     descricao: payload.descricao || payload.description || null,
@@ -287,27 +366,9 @@ async function processCreateAppointment(supabase: any, payload: any) {
 async function processGenericWebhook(supabase: any, payload: any) {
   console.log('📦 Processando webhook genérico...');
   
-  // Armazena o webhook completo para análise
-  const { data, error } = await supabase
-    .from('webhook_logs')
-    .insert({
-      payload: payload,
-      source: 'n8n',
-      processed: false,
-      created_at: new Date().toISOString()
-    });
-  
-  if (error) {
-    console.error('Erro ao salvar webhook log:', error);
-    // Se a tabela não existe, apenas retorna sucesso
-    return {
-      message: 'Webhook recebido mas não armazenado (tabela webhook_logs não existe)',
-      type: 'generic'
-    };
-  }
-  
+  // Just log and return - don't store in webhook_logs without proper user context
   return {
-    message: 'Webhook genérico armazenado para análise',
+    message: 'Webhook genérico recebido',
     type: 'generic'
   };
 }

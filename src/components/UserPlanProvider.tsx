@@ -17,7 +17,6 @@ interface UserPlan {
 
 interface UserPlanContextType extends UserPlan {
   updateLeadsUsed: (count: number) => void;
-  upgradePlan: (newPlan: 'pro' | 'enterprise') => Promise<void>;
   resetMonthlyUsage: () => void;
 }
 
@@ -53,6 +52,15 @@ const planConfigs = {
   }
 };
 
+// Map app_role to plan type
+const roleToPlan: Record<string, 'gratuito' | 'pro' | 'enterprise'> = {
+  'free': 'gratuito',
+  'sdr': 'pro',
+  'pro': 'pro',
+  'enterprise': 'enterprise',
+  'admin': 'enterprise',
+};
+
 interface UserPlanProviderProps {
   children: ReactNode;
 }
@@ -72,26 +80,38 @@ export const UserPlanProvider = ({ children }: UserPlanProviderProps) => {
     canUseEnrichedData: false,
   });
 
-  // Load user plan data
+  // Load user plan data from user_roles table (secure)
   useEffect(() => {
     const loadUserPlan = async () => {
       if (!user) return;
 
       try {
-        // Verificar se existe perfil do usuário
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
+        // Fetch user role from the secure user_roles table
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
 
-        // Buscar dados de uso de leads (simulação usando interactions como proxy)
+        // Get the highest priority role
+        let userRole = 'free';
+        if (userRoles && userRoles.length > 0) {
+          // Priority: admin > enterprise > pro > sdr > free
+          const rolePriority = ['admin', 'enterprise', 'pro', 'sdr', 'free'];
+          for (const priority of rolePriority) {
+            if (userRoles.some(r => r.role === priority)) {
+              userRole = priority;
+              break;
+            }
+          }
+        }
+
+        // Fetch leads usage this month
         const { data: interactions } = await supabase
           .from('interactions')
           .select('*')
           .eq('user_id', user.id);
 
-        // Calcular leads usados neste mês
+        // Calculate leads used this month
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         
@@ -101,11 +121,11 @@ export const UserPlanProvider = ({ children }: UserPlanProviderProps) => {
                  interactionDate.getFullYear() === currentYear;
         }).length || 0;
 
-        // Determinar plano do usuário (por enquanto todos começam no gratuito)
-        const userPlanType = (profile?.role === 'admin' ? 'enterprise' : 'gratuito') as 'gratuito' | 'pro' | 'enterprise';
+        // Map role to plan type
+        const userPlanType = roleToPlan[userRole] || 'gratuito';
         const config = planConfigs[userPlanType];
 
-        // Calcular dados de trial (simulação - 7 dias a partir do cadastro)
+        // Calculate trial data (7 days from signup)
         const accountCreated = new Date(user.created_at);
         const trialEndDate = new Date(accountCreated);
         trialEndDate.setDate(trialEndDate.getDate() + 7);
@@ -144,40 +164,6 @@ export const UserPlanProvider = ({ children }: UserPlanProviderProps) => {
     }));
   };
 
-  const upgradePlan = async (newPlan: 'pro' | 'enterprise') => {
-    if (!user) return;
-
-    try {
-      // Aqui seria integrado com sistema de pagamento
-      // Por enquanto, apenas simula o upgrade
-      const config = planConfigs[newPlan];
-      
-      setUserPlan(prev => ({
-        ...prev,
-        plan: newPlan,
-        leadsLimit: config.leadsLimit,
-        canExportToCRM: config.canExportToCRM,
-        canUseWhatsApp: config.canUseWhatsApp,
-        canUseEnrichedData: config.canUseEnrichedData,
-        isTrialActive: newPlan === 'pro' ? true : false,
-        trialDaysLeft: newPlan === 'pro' ? 7 : undefined,
-      }));
-
-      // Atualizar perfil do usuário
-      await supabase
-        .from('profiles')
-        .upsert({
-          user_id: user.id,
-          role: newPlan === 'enterprise' ? 'admin' : 'sdr',
-          display_name: user.email?.split('@')[0],
-        });
-
-    } catch (error) {
-      console.error('Erro ao fazer upgrade:', error);
-      throw error;
-    }
-  };
-
   const resetMonthlyUsage = () => {
     setUserPlan(prev => ({
       ...prev,
@@ -188,7 +174,6 @@ export const UserPlanProvider = ({ children }: UserPlanProviderProps) => {
   const contextValue: UserPlanContextType = {
     ...userPlan,
     updateLeadsUsed,
-    upgradePlan,
     resetMonthlyUsage,
   };
 
