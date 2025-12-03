@@ -122,8 +122,8 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     }
   });
 
-  const [totalLeads, setTotalLeads] = useState(0);
-  const SERVER_PAGE_SIZE = 50; // Carregar apenas 50 leads por vez do servidor
+  const [hasMore, setHasMore] = useState(true);
+  const SERVER_PAGE_SIZE = 50;
 
   useEffect(() => {
     if (user) {
@@ -137,30 +137,26 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     try {
       setLoading(true);
       
-      // Calcular offset baseado na página atual
       const from = (currentPage - 1) * SERVER_PAGE_SIZE;
-      const to = from + SERVER_PAGE_SIZE - 1;
+      const to = from + SERVER_PAGE_SIZE;
       
-      // Query base
       let query = supabase
         .from('leads')
-        .select('*', { count: 'exact' })
+        .select('id, empresa, cnpj, setor, status, telefone, email, website, contato_decisor, qualification_score, qualification_level, created_at, updated_at, gancho_prospeccao, whatsapp, regime_tributario, cnae, approach_strategy, estimated_revenue, recommended_channel, bant_analysis, next_steps, qualified_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
-      // Aplicar filtro de busca se existir (usando debounced)
       if (debouncedSearchTerm.trim()) {
-        query = query.or(`empresa.ilike.%${debouncedSearchTerm}%,cnpj.ilike.%${debouncedSearchTerm}%,email.ilike.%${debouncedSearchTerm}%,telefone.ilike.%${debouncedSearchTerm}%`);
+        query = query.or(`empresa.ilike.%${debouncedSearchTerm}%,cnpj.ilike.%${debouncedSearchTerm}%`);
       }
       
-      // Aplicar paginação
-      const { data, error, count } = await query.range(from, to);
+      const { data, error } = await query.range(from, to);
       
       if (error) throw error;
       
-      console.log(`✅ Leads carregados: ${data?.length || 0} de ${count || 0} total`);
+      console.log(`✅ Leads carregados: ${data?.length || 0}`);
       setLeads(data || []);
-      setTotalLeads(count || 0);
+      setHasMore((data?.length || 0) > SERVER_PAGE_SIZE);
     } catch (error) {
       console.error('Erro ao carregar leads:', error);
       toast.error('Erro ao carregar leads');
@@ -519,42 +515,21 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
 
   // Paginação server-side - leads já vem filtrados e paginados do servidor
   const paginatedLeads = leads;
-  const totalPages = Math.ceil(totalLeads / SERVER_PAGE_SIZE);
   const startIndex = (currentPage - 1) * SERVER_PAGE_SIZE;
-  const endIndex = Math.min(startIndex + SERVER_PAGE_SIZE, totalLeads);
+  const endIndex = startIndex + leads.length;
   
   // Gera números de página limitados para exibição
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-    const maxVisible = 7;
-    
-    if (totalPages <= maxVisible) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    
-    pages.push(1);
-    
-    if (currentPage > 3) {
-      pages.push('...');
-    }
-    
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(totalPages - 1, currentPage + 1);
-    
-    for (let i = start; i <= end; i++) {
+    // Mostrar páginas ao redor da atual
+    for (let i = Math.max(1, currentPage - 2); i <= currentPage + 2; i++) {
       pages.push(i);
     }
-    
-    if (currentPage < totalPages - 2) {
-      pages.push('...');
-    }
-    
-    if (totalPages > 1) {
-      pages.push(totalPages);
-    }
-    
     return pages;
   };
+
+  const canGoNext = hasMore || leads.length === SERVER_PAGE_SIZE + 1;
+  const canGoPrev = currentPage > 1;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -814,7 +789,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
             />
           </div>
           <Badge variant="outline">
-            {totalLeads.toLocaleString('pt-BR')} leads encontrados
+            {leads.length} leads nesta página
           </Badge>
         </div>
       </CardHeader>
@@ -923,50 +898,40 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
             </TableBody>
           </Table>
           
-          {paginatedLeads.length === 0 && totalLeads > 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum lead nesta página
-            </div>
-          )}
-          
-          {totalLeads === 0 && (
+          {paginatedLeads.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               {searchTerm ? 'Nenhum lead encontrado com esse termo' : 'Nenhum lead cadastrado'}
             </div>
           )}
         </div>
         
-        {totalPages > 1 && (
+        {(canGoPrev || canGoNext) && (
           <div className="mt-4 flex justify-center">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious 
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    className={!canGoPrev ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                   />
                 </PaginationItem>
                 
                 {getPageNumbers().map((page, idx) => (
                   <PaginationItem key={`page-${idx}`}>
-                    {page === '...' ? (
-                      <span className="px-4 py-2">...</span>
-                    ) : (
-                      <PaginationLink
-                        onClick={() => setCurrentPage(page as number)}
-                        isActive={currentPage === page}
-                        className="cursor-pointer"
-                      >
-                        {page}
-                      </PaginationLink>
-                    )}
+                    <PaginationLink
+                      onClick={() => setCurrentPage(page as number)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
                   </PaginationItem>
                 ))}
                 
                 <PaginationItem>
                   <PaginationNext 
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    className={!canGoNext ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                   />
                 </PaginationItem>
               </PaginationContent>
@@ -975,7 +940,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
         )}
         
         <div className="mt-4 text-sm text-muted-foreground text-center">
-          Mostrando {totalLeads > 0 ? startIndex + 1 : 0}-{endIndex} de {totalLeads.toLocaleString('pt-BR')} leads
+          Página {currentPage} - Mostrando {leads.length} leads
         </div>
 
         {/* Exibir dados de qualificação se existirem */}
