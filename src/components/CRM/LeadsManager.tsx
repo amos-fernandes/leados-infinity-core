@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,8 +88,23 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   const [scrapingEvents, setScrapingEvents] = useState<string | null>(null);
   const [qualifyingLead, setQualifyingLead] = useState<string | null>(null);
   const [validatingMapsLead, setValidatingMapsLead] = useState<string | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  const LEADS_PER_PAGE = 10;
+  // Debounce search term
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
@@ -106,11 +122,14 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     }
   });
 
+  const [totalLeads, setTotalLeads] = useState(0);
+  const SERVER_PAGE_SIZE = 50; // Carregar apenas 50 leads por vez do servidor
+
   useEffect(() => {
     if (user) {
       loadLeads();
     }
-  }, [user]);
+  }, [user, currentPage, debouncedSearchTerm]);
 
   const loadLeads = async () => {
     if (!user) return;
@@ -118,33 +137,30 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     try {
       setLoading(true);
       
-      // Buscar TODOS os leads usando paginação (Supabase limit máximo ~1000 por query)
-      let allLeads: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      let hasMore = true;
+      // Calcular offset baseado na página atual
+      const from = (currentPage - 1) * SERVER_PAGE_SIZE;
+      const to = from + SERVER_PAGE_SIZE - 1;
       
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .range(from, from + pageSize - 1);
-        
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          allLeads = [...allLeads, ...data];
-          from += pageSize;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
-        }
+      // Query base
+      let query = supabase
+        .from('leads')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      // Aplicar filtro de busca se existir (usando debounced)
+      if (debouncedSearchTerm.trim()) {
+        query = query.or(`empresa.ilike.%${debouncedSearchTerm}%,cnpj.ilike.%${debouncedSearchTerm}%,email.ilike.%${debouncedSearchTerm}%,telefone.ilike.%${debouncedSearchTerm}%`);
       }
       
-      console.log(`✅ Total de leads carregados: ${allLeads.length}`);
-      setLeads(allLeads);
+      // Aplicar paginação
+      const { data, error, count } = await query.range(from, to);
+      
+      if (error) throw error;
+      
+      console.log(`✅ Leads carregados: ${data?.length || 0} de ${count || 0} total`);
+      setLeads(data || []);
+      setTotalLeads(count || 0);
     } catch (error) {
       console.error('Erro ao carregar leads:', error);
       toast.error('Erro ao carregar leads');
@@ -501,35 +517,27 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     }
   };
 
-  const filteredLeads = leads.filter(lead =>
-    lead.empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.setor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.contato_decisor?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const totalPages = Math.ceil(filteredLeads.length / LEADS_PER_PAGE);
-  const startIndex = (currentPage - 1) * LEADS_PER_PAGE;
-  const endIndex = startIndex + LEADS_PER_PAGE;
-  const paginatedLeads = filteredLeads.slice(startIndex, endIndex);
+  // Paginação server-side - leads já vem filtrados e paginados do servidor
+  const paginatedLeads = leads;
+  const totalPages = Math.ceil(totalLeads / SERVER_PAGE_SIZE);
+  const startIndex = (currentPage - 1) * SERVER_PAGE_SIZE;
+  const endIndex = Math.min(startIndex + SERVER_PAGE_SIZE, totalLeads);
   
   // Gera números de página limitados para exibição
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-    const maxVisible = 7; // Número máximo de botões visíveis
+    const maxVisible = 7;
     
     if (totalPages <= maxVisible) {
-      // Se tiver poucas páginas, mostra todas
       return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
     
-    // Sempre mostra primeira página
     pages.push(1);
     
     if (currentPage > 3) {
       pages.push('...');
     }
     
-    // Páginas ao redor da atual
     const start = Math.max(2, currentPage - 1);
     const end = Math.min(totalPages - 1, currentPage + 1);
     
@@ -541,17 +549,12 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
       pages.push('...');
     }
     
-    // Sempre mostra última página
     if (totalPages > 1) {
       pages.push(totalPages);
     }
     
     return pages;
   };
-  
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -811,7 +814,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
             />
           </div>
           <Badge variant="outline">
-            {filteredLeads.length} leads encontrados
+            {totalLeads.toLocaleString('pt-BR')} leads encontrados
           </Badge>
         </div>
       </CardHeader>
@@ -920,13 +923,13 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
             </TableBody>
           </Table>
           
-          {paginatedLeads.length === 0 && filteredLeads.length > 0 && (
+          {paginatedLeads.length === 0 && totalLeads > 0 && (
             <div className="text-center py-8 text-muted-foreground">
               Nenhum lead nesta página
             </div>
           )}
           
-          {filteredLeads.length === 0 && (
+          {totalLeads === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               {searchTerm ? 'Nenhum lead encontrado com esse termo' : 'Nenhum lead cadastrado'}
             </div>
@@ -972,8 +975,7 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
         )}
         
         <div className="mt-4 text-sm text-muted-foreground text-center">
-          Mostrando {startIndex + 1}-{Math.min(endIndex, filteredLeads.length)} de {filteredLeads.length} leads
-          {filteredLeads.length !== leads.length && ` (${leads.length} no total)`}
+          Mostrando {totalLeads > 0 ? startIndex + 1 : 0}-{endIndex} de {totalLeads.toLocaleString('pt-BR')} leads
         </div>
 
         {/* Exibir dados de qualificação se existirem */}
