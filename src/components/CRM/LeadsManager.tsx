@@ -123,6 +123,9 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
   });
 
   const [hasMore, setHasMore] = useState(true);
+  const [totalLeads, setTotalLeads] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [useExternalDb, setUseExternalDb] = useState(true); // Toggle para usar DB externo
   const SERVER_PAGE_SIZE = 50;
 
   useEffect(() => {
@@ -137,29 +140,60 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
     try {
       setLoading(true);
       
-      const from = (currentPage - 1) * SERVER_PAGE_SIZE;
-      const to = from + SERVER_PAGE_SIZE;
-      
-      let query = supabase
-        .from('leads')
-        .select('id, empresa, cnpj, setor, status, telefone, email, website, contato_decisor, qualification_score, qualification_level, created_at, updated_at, gancho_prospeccao, whatsapp, regime_tributario, cnae, approach_strategy, estimated_revenue, recommended_channel, bant_analysis, next_steps, qualified_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (debouncedSearchTerm.trim()) {
-        query = query.or(`empresa.ilike.%${debouncedSearchTerm}%,cnpj.ilike.%${debouncedSearchTerm}%`);
+      if (useExternalDb) {
+        // Usar Edge Function conectando ao PostgreSQL externo
+        const { data: result, error } = await supabase.functions.invoke('external-leads-query', {
+          body: {
+            page: currentPage,
+            pageSize: SERVER_PAGE_SIZE,
+            searchTerm: debouncedSearchTerm,
+            userId: user.id
+          }
+        });
+
+        if (error) throw error;
+        
+        if (result?.success) {
+          console.log(`✅ Leads do PostgreSQL externo: ${result.leads?.length || 0} de ${result.pagination?.totalCount || 0}`);
+          setLeads(result.leads || []);
+          setHasMore(result.pagination?.hasMore || false);
+          setTotalLeads(result.pagination?.totalCount || 0);
+          setTotalPages(result.pagination?.totalPages || 1);
+        } else {
+          throw new Error(result?.error || 'Erro ao carregar leads do PostgreSQL externo');
+        }
+      } else {
+        // Fallback: usar Supabase diretamente
+        const from = (currentPage - 1) * SERVER_PAGE_SIZE;
+        const to = from + SERVER_PAGE_SIZE;
+        
+        let query = supabase
+          .from('leads')
+          .select('id, empresa, cnpj, setor, status, telefone, email, website, contato_decisor, qualification_score, qualification_level, created_at, updated_at, gancho_prospeccao, whatsapp, regime_tributario, cnae, approach_strategy, estimated_revenue, recommended_channel, bant_analysis, next_steps, qualified_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (debouncedSearchTerm.trim()) {
+          query = query.or(`empresa.ilike.%${debouncedSearchTerm}%,cnpj.ilike.%${debouncedSearchTerm}%`);
+        }
+        
+        const { data, error } = await query.range(from, to);
+        
+        if (error) throw error;
+        
+        console.log(`✅ Leads do Supabase: ${data?.length || 0}`);
+        setLeads(data || []);
+        setHasMore((data?.length || 0) > SERVER_PAGE_SIZE);
       }
-      
-      const { data, error } = await query.range(from, to);
-      
-      if (error) throw error;
-      
-      console.log(`✅ Leads carregados: ${data?.length || 0}`);
-      setLeads(data || []);
-      setHasMore((data?.length || 0) > SERVER_PAGE_SIZE);
     } catch (error) {
       console.error('Erro ao carregar leads:', error);
       toast.error('Erro ao carregar leads');
+      
+      // Se falhar com DB externo, tentar com Supabase
+      if (useExternalDb) {
+        console.log('🔄 Tentando fallback para Supabase...');
+        setUseExternalDb(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -515,20 +549,20 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
 
   // Paginação server-side - leads já vem filtrados e paginados do servidor
   const paginatedLeads = leads;
-  const startIndex = (currentPage - 1) * SERVER_PAGE_SIZE;
-  const endIndex = startIndex + leads.length;
+  const startIndex = (currentPage - 1) * SERVER_PAGE_SIZE + 1;
+  const endIndex = startIndex + leads.length - 1;
   
   // Gera números de página limitados para exibição
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
-    // Mostrar páginas ao redor da atual
-    for (let i = Math.max(1, currentPage - 2); i <= currentPage + 2; i++) {
+    const maxPages = totalPages > 0 ? totalPages : Math.max(1, currentPage + 2);
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(maxPages, currentPage + 2); i++) {
       pages.push(i);
     }
     return pages;
   };
 
-  const canGoNext = hasMore || leads.length === SERVER_PAGE_SIZE + 1;
+  const canGoNext = hasMore;
   const canGoPrev = currentPage > 1;
 
   const getStatusColor = (status: string) => {
@@ -940,7 +974,8 @@ const LeadsManager = ({ onStatsUpdate }: LeadsManagerProps) => {
         )}
         
         <div className="mt-4 text-sm text-muted-foreground text-center">
-          Página {currentPage} - Mostrando {leads.length} leads
+          Página {currentPage} de {totalPages} - Mostrando {startIndex} a {endIndex} de {totalLeads.toLocaleString()} leads
+          {useExternalDb && <span className="ml-2 text-xs">(PostgreSQL externo)</span>}
         </div>
 
         {/* Exibir dados de qualificação se existirem */}
