@@ -41,6 +41,60 @@ serve(async (req) => {
     const client = new Client(dbConfig);
     await client.connect();
 
+    // Ensure leads table exists with correct schema
+    await client.queryArray(`
+      DROP TABLE IF EXISTS leads;
+      CREATE TABLE leads (
+        id UUID PRIMARY KEY,
+        user_id UUID NOT NULL,
+        empresa TEXT NOT NULL,
+        setor TEXT,
+        cnpj TEXT,
+        telefone TEXT,
+        whatsapp TEXT,
+        email TEXT,
+        website TEXT,
+        linkedin TEXT,
+        cidade TEXT,
+        uf TEXT,
+        status TEXT DEFAULT 'novo',
+        qualification_score TEXT,
+        qualification_level TEXT,
+        pontuacao_qualificacao INTEGER,
+        gancho_prospeccao TEXT,
+        contato_decisor TEXT,
+        approach_strategy TEXT,
+        capital_social NUMERIC,
+        regime_tributario TEXT,
+        cnae TEXT,
+        cnae_principal TEXT,
+        estimated_employees INTEGER,
+        estimated_revenue TEXT,
+        google_maps_verified BOOLEAN DEFAULT false,
+        google_maps_rating NUMERIC,
+        google_maps_reviews INTEGER,
+        website_validated BOOLEAN DEFAULT false,
+        bright_data_enriched BOOLEAN DEFAULT false,
+        email_encontrado_automaticamente BOOLEAN DEFAULT false,
+        tech_stack JSONB,
+        social_media JSONB,
+        bant_analysis JSONB,
+        next_steps JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        qualified_at TIMESTAMPTZ,
+        validation_completed_at TIMESTAMPTZ,
+        data_qualificacao TIMESTAMPTZ,
+        synced_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_leads_user_id ON leads(user_id);
+      CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+      CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
+      CREATE INDEX IF NOT EXISTS idx_leads_cnpj ON leads(cnpj);
+    `);
+    console.log('✅ Tabela leads recriada no banco externo');
+
     const offset = (page - 1) * pageSize;
 
     // Build query with optional search
