@@ -219,3 +219,9 @@ verify_jwt = false
 
 [functions.crm-ai-insights]
 verify_jwt = false
+
+[functions.sync-leads-to-external]
+verify_jwt = false
+
+[functions.external-leads-query]
+verify_jwt = false
