@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  BarChart3, 
-  Users, 
-  Target, 
+import {
+  BarChart3,
+  Users,
+  Target,
   TrendingUp,
   Calendar,
   DollarSign,
@@ -29,6 +29,7 @@ import KanbanBoard from "./KanbanBoard";
 import BIDashboard from "./BIDashboard";
 import CampaignManager from "../CampaignManager";
 import CampaignResults from "../CampaignResults";
+import LeadQualificationEngine from "../LeadQualificationEngine";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ const CRMDashboard = () => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isQualifying, setIsQualifying] = useState(false);
+  const [showQualificationEngine, setShowQualificationEngine] = useState(false);
   const [viewMode, setViewMode] = useState<'dashboard' | 'kanban' | 'list'>('dashboard');
   const [stats, setStats] = useState({
     totalLeads: 0,
@@ -54,22 +56,22 @@ const CRMDashboard = () => {
 
     try {
       console.log('📊 CRMDashboard: Carregando estatísticas...');
-      
+
       // Load leads with pagination
       let allLeads: any[] = [];
       let from = 0;
       const pageSize = 1000;
       let hasMore = true;
-      
+
       while (hasMore) {
         const { data, error } = await supabase
           .from('leads')
           .select('status, qualification_level')
           .eq('user_id', user.id)
           .range(from, from + pageSize - 1);
-        
+
         if (error) throw error;
-        
+
         if (data && data.length > 0) {
           allLeads = [...allLeads, ...data];
           from += pageSize;
@@ -78,7 +80,7 @@ const CRMDashboard = () => {
           hasMore = false;
         }
       }
-      
+
       const leads = allLeads;
       console.log(`✅ CRMDashboard: ${leads.length} leads carregados`);
 
@@ -123,7 +125,7 @@ const CRMDashboard = () => {
     setIsGenerating(true);
     try {
       console.log('Iniciando fluxo de campanha automatizada:', user?.id);
-      
+
       const { data, error } = await supabase.functions.invoke('automated-campaign-flow', {
         body: { userId: user?.id }
       });
@@ -186,16 +188,9 @@ const CRMDashboard = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">CRM Dashboard</h1>
-            <Badge variant="secondary" className="gap-1">
-              <Sparkles className="h-3 w-3" />
-              AI-Powered
-            </Badge>
           </div>
-          <p className="text-muted-foreground">
-            Business Intelligence com IA Gemini 2.5 Flash
-          </p>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
           {/* View Mode Toggle */}
           <div className="flex rounded-lg border bg-muted p-1">
@@ -228,7 +223,7 @@ const CRMDashboard = () => {
             </Button>
           </div>
 
-          <Button 
+          <Button
             onClick={handleGenerateProspects}
             disabled={isGenerating || isQualifying}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -236,7 +231,7 @@ const CRMDashboard = () => {
             <Brain className="h-4 w-4 mr-2" />
             {isGenerating ? 'Executando...' : 'Nova Campanha IA'}
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={handleQualifyLeads}
             disabled={isQualifying || isGenerating}
@@ -244,123 +239,91 @@ const CRMDashboard = () => {
             <Sparkles className="h-4 w-4 mr-2" />
             {isQualifying ? 'Qualificando...' : 'Qualificar Todos'}
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar
+          <Button
+            variant="outline"
+            onClick={() => setShowQualificationEngine(!showQualificationEngine)}
+            className="gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Motor de Qualificação
           </Button>
         </div>
       </div>
 
-      {/* Quick Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <div className="bg-primary/5 rounded-lg p-3 flex items-center gap-3">
-          <Target className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-xs text-muted-foreground">Total Leads</p>
-            <p className="text-lg font-bold">{stats.totalLeads}</p>
-          </div>
-        </div>
-        <div className="bg-emerald-500/5 rounded-lg p-3 flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-          <div>
-            <p className="text-xs text-muted-foreground">Qualificados</p>
-            <p className="text-lg font-bold">{stats.qualifiedLeads}</p>
-          </div>
-        </div>
-        <div className="bg-amber-500/5 rounded-lg p-3 flex items-center gap-3">
-          <Zap className="h-5 w-5 text-amber-500" />
-          <div>
-            <p className="text-xs text-muted-foreground">Prioritários</p>
-            <p className="text-lg font-bold">{stats.hotLeads}</p>
-          </div>
-        </div>
-        <div className="bg-purple-500/5 rounded-lg p-3 flex items-center gap-3">
-          <TrendingUp className="h-5 w-5 text-purple-500" />
-          <div>
-            <p className="text-xs text-muted-foreground">Oportunidades</p>
-            <p className="text-lg font-bold">{stats.totalOpportunities}</p>
-          </div>
-        </div>
-        <div className="bg-blue-500/5 rounded-lg p-3 flex items-center gap-3">
-          <BarChart3 className="h-5 w-5 text-blue-500" />
-          <div>
-            <p className="text-xs text-muted-foreground">Conversão</p>
-            <p className="text-lg font-bold">{stats.conversionRate}%</p>
-          </div>
-        </div>
-        <div className="bg-green-500/5 rounded-lg p-3 flex items-center gap-3">
-          <DollarSign className="h-5 w-5 text-green-500" />
-          <div>
-            <p className="text-xs text-muted-foreground">Pipeline</p>
-            <p className="text-lg font-bold">R$ {(stats.pipelineValue / 1000).toFixed(0)}k</p>
-          </div>
-        </div>
-      </div>
+      {showQualificationEngine && (
+        <LeadQualificationEngine />
+      )}
 
       {/* Main Content based on View Mode */}
-      {viewMode === 'dashboard' && (
-        <BIDashboard onStatsUpdate={loadStats} />
-      )}
+      {
+        viewMode === 'dashboard' && (
+          <BIDashboard onStatsUpdate={loadStats} />
+        )
+      }
 
-      {viewMode === 'kanban' && (
-        <KanbanBoard onStatsUpdate={loadStats} />
-      )}
+      {
+        viewMode === 'kanban' && (
+          <KanbanBoard onStatsUpdate={loadStats} />
+        )
+      }
 
-      {viewMode === 'list' && (
-        <Tabs defaultValue="leads" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="leads">
-              <Target className="h-4 w-4 mr-2" />
-              Leads
-            </TabsTrigger>
-            <TabsTrigger value="contacts">
-              <Users className="h-4 w-4 mr-2" />
-              Contatos
-            </TabsTrigger>
-            <TabsTrigger value="opportunities">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Oportunidades
-            </TabsTrigger>
-            <TabsTrigger value="interactions">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Interações
-            </TabsTrigger>
-            <TabsTrigger value="campaigns">
-              <Brain className="h-4 w-4 mr-2" />
-              Campanhas
-            </TabsTrigger>
-            <TabsTrigger value="results">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Resultados
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="leads">
-            <LeadsManager onStatsUpdate={loadStats} />
-          </TabsContent>
-          
-          <TabsContent value="contacts">
-            <ContactsManager onStatsUpdate={loadStats} />
-          </TabsContent>
-          
-          <TabsContent value="opportunities">
-            <OpportunitiesManager onStatsUpdate={loadStats} />
-          </TabsContent>
-          
-          <TabsContent value="interactions">
-            <InteractionsManager onStatsUpdate={loadStats} />
-          </TabsContent>
+      {
+        viewMode === 'list' && (
+          <Tabs defaultValue="leads" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-6">
+              <TabsTrigger value="leads">
+                <Target className="h-4 w-4 mr-2" />
+                Leads
+              </TabsTrigger>
+              <TabsTrigger value="contacts">
+                <Users className="h-4 w-4 mr-2" />
+                Contatos
+              </TabsTrigger>
+              <TabsTrigger value="opportunities">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Oportunidades
+              </TabsTrigger>
+              <TabsTrigger value="interactions">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Interações
+              </TabsTrigger>
+              <TabsTrigger value="campaigns">
+                <Brain className="h-4 w-4 mr-2" />
+                Campanhas
+              </TabsTrigger>
+              <TabsTrigger value="results">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Resultados
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="campaigns">
-            <CampaignManager />
-          </TabsContent>
-          
-          <TabsContent value="results">
-            <CampaignResults />
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
+            <TabsContent value="leads">
+              <LeadsManager onStatsUpdate={loadStats} />
+            </TabsContent>
+
+            <TabsContent value="contacts">
+              <ContactsManager onStatsUpdate={loadStats} />
+            </TabsContent>
+
+            <TabsContent value="opportunities">
+              <OpportunitiesManager onStatsUpdate={loadStats} />
+            </TabsContent>
+
+            <TabsContent value="interactions">
+              <InteractionsManager onStatsUpdate={loadStats} />
+            </TabsContent>
+
+            <TabsContent value="campaigns">
+              <CampaignManager />
+            </TabsContent>
+
+            <TabsContent value="results">
+              <CampaignResults />
+            </TabsContent>
+          </Tabs>
+        )
+      }
+    </div >
   );
 };
 

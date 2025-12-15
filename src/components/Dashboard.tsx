@@ -8,12 +8,12 @@ import LeadQualificationEngine from "./LeadQualificationEngine";
 import { CampaignScheduler } from "./CampaignScheduler";
 import { DailyCompaniesManager } from "./CRM/DailyCompaniesManager";
 import { useUserPlan } from "./UserPlanProvider";
-import { 
-  Users, 
-  Calendar, 
-  Target, 
-  TrendingUp, 
-  Phone, 
+import {
+  Users,
+  Calendar,
+  Target,
+  TrendingUp,
+  Phone,
   Mail,
   MessageSquare,
   Bot,
@@ -67,9 +67,9 @@ const Dashboard = () => {
       let from = 0;
       const pageSize = 1000;
       let hasMore = true;
-      
+
       console.log('🔄 Dashboard: Iniciando carregamento paginado de leads...');
-      
+
       while (hasMore) {
         console.log(`📄 Buscando página: from=${from}, até=${from + pageSize - 1}`);
         const { data, error } = await supabase
@@ -77,14 +77,14 @@ const Dashboard = () => {
           .select('*')
           .eq('user_id', user.id)
           .range(from, from + pageSize - 1);
-        
+
         if (error) {
           console.error('❌ Erro ao buscar página de leads:', error);
           throw error;
         }
-        
+
         console.log(`✅ Página carregada: ${data?.length || 0} leads`);
-        
+
         if (data && data.length > 0) {
           allLeads = [...allLeads, ...data];
           from += pageSize;
@@ -95,7 +95,7 @@ const Dashboard = () => {
           console.log('🏁 Não há mais leads para carregar');
         }
       }
-      
+
       const leadsData = allLeads;
       console.log(`\n✅ DASHBOARD FINAL: ${leadsData.length} leads carregados\n`);
 
@@ -123,11 +123,11 @@ const Dashboard = () => {
       // Calcular métricas
       const prospectsAtivos = leadsData?.filter(l => l.status !== 'perdido').length || 0;
       const reunioesAgendadas = opportunitiesData?.filter(o => o.estagio === 'reuniao').length || 0;
-      
+
       const totalOportunidades = opportunitiesData?.length || 0;
       const fechamentos = opportunitiesData?.filter(o => o.estagio === 'fechamento').length || 0;
       const taxaConversao = totalOportunidades > 0 ? (fechamentos / totalOportunidades) * 100 : 0;
-      
+
       const receitaPipeline = opportunitiesData?.reduce((acc, opp) => {
         return acc + (Number(opp.valor) || 0);
       }, 0) || 0;
@@ -152,10 +152,10 @@ const Dashboard = () => {
       // Mapear atividades recentes
       const activities = interactionsData?.map(interaction => {
         const contact = contactsData?.find(c => c.id === interaction.contact_id);
-        const timeAgo = interaction.created_at ? 
-          formatDistanceToNow(new Date(interaction.created_at), { 
-            addSuffix: true, 
-            locale: ptBR 
+        const timeAgo = interaction.created_at ?
+          formatDistanceToNow(new Date(interaction.created_at), {
+            addSuffix: true,
+            locale: ptBR
           }) : 'agora';
 
         return {
@@ -225,17 +225,17 @@ const Dashboard = () => {
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'ligacao':
-      case 'call': 
+      case 'call':
         return <Phone className="h-4 w-4" />;
-      case 'email': 
+      case 'email':
         return <Mail className="h-4 w-4" />;
       case 'reuniao':
-      case 'meeting': 
+      case 'meeting':
         return <Calendar className="h-4 w-4" />;
       case 'whatsapp':
-      case 'message': 
+      case 'message':
         return <MessageSquare className="h-4 w-4" />;
-      default: 
+      default:
         return <MessageSquare className="h-4 w-4" />;
     }
   };
@@ -276,7 +276,7 @@ const Dashboard = () => {
         <div className="relative z-10">
           <h2 className="text-3xl font-bold mb-2">LEADOS AI Pro</h2>
           <p className="text-white/80 mb-6 max-w-2xl">
-            Sua ferramenta de IA para prospecção inteligente e agendamento automático de reuniões. 
+            Sua ferramenta de IA para prospecção inteligente e agendamento automático de reuniões.
             Foque em fechar, não em procurar.
           </p>
         </div>
@@ -366,84 +366,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <Card className="shadow-soft">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Ações Rápidas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <Button 
-              className="h-auto p-4 flex flex-col items-center gap-2" 
-              variant="outline"
-              onClick={() => setShowQualificationEngine(!showQualificationEngine)}
-            >
-              <Search className="h-6 w-6" />
-              <div className="text-center">
-                <div className="font-medium">Motor de Qualificação</div>
-                <div className="text-sm text-muted-foreground">Enriquecer e qualificar leads</div>
-              </div>
-            </Button>
-            <Button 
-              className="h-auto p-4 flex flex-col items-center gap-2" 
-              variant="outline"
-              onClick={() => setShowDailyCompanies(!showDailyCompanies)}
-            >
-              <Building2 className="h-6 w-6" />
-              <div className="text-center">
-                <div className="font-medium">Novas Empresas</div>
-                <div className="text-sm text-muted-foreground">Ingestão diária</div>
-              </div>
-            </Button>
-            <Button 
-              className="h-auto p-4 flex flex-col items-center gap-2" 
-              variant="outline"
-              onClick={() => window.dispatchEvent(new CustomEvent('openWhatsAppConnector'))}
-            >
-              <Smartphone className="h-6 w-6" />
-              <div className="text-center">
-                <div className="font-medium">WhatsApp</div>
-                <div className="text-sm text-muted-foreground">Conectar e configurar</div>
-              </div>
-            </Button>
-            <Button 
-              className="h-auto p-4 flex flex-col items-center gap-2 bg-gradient-to-br from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 border-0" 
-              onClick={() => window.dispatchEvent(new CustomEvent('openCampaignTest'))}
-            >
-              <Zap className="h-6 w-6" />
-              <div className="text-center">
-                <div className="font-medium">🧪 Testar Campanha</div>
-                <div className="text-sm opacity-90">Evolution + N8N + CRM</div>
-              </div>
-            </Button>
-            <Button 
-              className="h-auto p-4 flex flex-col items-center gap-2" 
-              variant="outline"
-              onClick={() => window.dispatchEvent(new CustomEvent('openCampaignManager'))}
-            >
-              <Target className="h-6 w-6" />
-              <div className="text-center">
-                <div className="font-medium">Campanhas</div>
-                <div className="text-sm text-muted-foreground">Gerenciar e criar</div>
-              </div>
-            </Button>
-            <Button 
-              className="h-auto p-4 flex flex-col items-center gap-2" 
-              variant="outline"
-              onClick={() => setShowScheduler(!showScheduler)}
-            >
-              <Clock className="h-6 w-6" />
-              <div className="text-center">
-                <div className="font-medium">Agendamento</div>
-                <div className="text-sm text-muted-foreground">1000 disparos/dia</div>
-              </div>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+
 
 
       {/* Upgrade Modal */}

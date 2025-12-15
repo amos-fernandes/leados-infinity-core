@@ -110,7 +110,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
 
     try {
       setLoading(true);
-      
+
       // Fetch leads
       const { data: leads } = await supabase
         .from('leads')
@@ -188,7 +188,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
 
     try {
       setLoadingInsights(true);
-      
+
       const { data, error } = await supabase.functions.invoke('crm-ai-insights', {
         body: { userId: user.id, action: 'insights' }
       });
@@ -198,7 +198,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
       if (data?.success && data?.data) {
         setInsights(data.data.insights || []);
         setSummary(data.data.summary || '');
-        
+
         // Update metrics from AI response if available
         if (data.metrics) {
           setMetrics(prev => ({ ...prev, ...data.metrics }));
@@ -217,7 +217,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
 
     try {
       setLoadingInsights(true);
-      
+
       const { data, error } = await supabase.functions.invoke('crm-ai-insights', {
         body: { userId: user.id, action: 'recommendations' }
       });
@@ -293,7 +293,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="shadow-soft">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -305,7 +305,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="shadow-soft">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -317,7 +317,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="shadow-soft">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -329,7 +329,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="shadow-soft">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -341,7 +341,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="shadow-soft">
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
@@ -373,12 +373,12 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" className="text-xs" />
                 <YAxis dataKey="stage" type="category" width={100} className="text-xs" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
-                  }} 
+                  }}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                   {funnelData.map((entry, index) => (
@@ -430,24 +430,20 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
             <div className="flex items-center gap-2">
               <Brain className="h-5 w-5 text-primary" />
               <CardTitle className="text-base">Insights com IA (Gemini 2.5 Flash)</CardTitle>
-              <Badge variant="secondary" className="gap-1">
-                <Sparkles className="h-3 w-3" />
-                AI-Powered
-              </Badge>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={loadAIInsights}
                 disabled={loadingInsights}
               >
                 <RefreshCw className={cn("h-4 w-4 mr-2", loadingInsights && "animate-spin")} />
                 Gerar Insights
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={loadRecommendations}
                 disabled={loadingInsights}
               >
@@ -472,7 +468,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
           ) : insights.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {insights.map((insight, index) => (
-                <div 
+                <div
                   key={index}
                   className={cn(
                     "border-l-4 rounded-lg p-4 space-y-2",
@@ -511,7 +507,7 @@ export const BIDashboard = ({ onStatsUpdate }: BIDashboardProps) => {
               )}
               <div className="space-y-3">
                 {recommendations.map((rec, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"
                   >
