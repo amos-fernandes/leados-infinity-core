@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import StatsCard from "./StatsCard";
 import InAppCommunication from "./InAppCommunication";
 import UpgradeModal from "./UpgradeModal";
@@ -8,6 +9,24 @@ import LeadQualificationEngine from "./LeadQualificationEngine";
 import { CampaignScheduler } from "./CampaignScheduler";
 import { DailyCompaniesManager } from "./CRM/DailyCompaniesManager";
 import { useUserPlan } from "./UserPlanProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { format, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import {
   Users,
   Calendar,
@@ -23,12 +42,52 @@ import {
   Search,
   Zap,
   Clock,
-  Building2
+  Building2,
+  Brain,
+  Sparkles,
+  BarChart3,
+  PieChartIcon,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowRight,
+  RefreshCw,
+  Lightbulb,
+  Activity
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { format, formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+
+interface AIInsight {
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  action: string;
+}
+
+interface Metrics {
+  stageDistribution: Record<string, number>;
+  statusDistribution: Record<string, number>;
+  totalLeads: number;
+  qualifiedLeads: number;
+  totalOpportunities: number;
+  closedOpportunities: number;
+}
+
+const CHART_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--success))',
+  'hsl(142.1, 76.2%, 36.3%)',
+  'hsl(47.9, 95.8%, 53.1%)',
+  'hsl(204.4, 100%, 69.2%)',
+  'hsl(0, 84.2%, 60.2%)',
+];
+
+const STATUS_COLORS: Record<string, string> = {
+  novo: '#3b82f6',
+  em_contato: '#f59e0b',
+  qualificado: '#10b981',
+  proposta: '#8b5cf6',
+  convertido: '#22c55e',
+  perdido: '#ef4444',
+};
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
@@ -50,9 +109,19 @@ const Dashboard = () => {
   const [showScheduler, setShowScheduler] = useState(false);
   const [showDailyCompanies, setShowDailyCompanies] = useState(false);
 
+  // New state for Charts and AI
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
+  const [insights, setInsights] = useState<AIInsight[]>([]);
+  const [summary, setSummary] = useState<string>('');
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [weeklyFocus, setWeeklyFocus] = useState<string>('');
+
   useEffect(() => {
     if (user) {
       loadDashboardData();
+      loadAIInsights();
+      loadRecommendations();
     }
   }, [user]);
 
@@ -168,6 +237,45 @@ const Dashboard = () => {
 
       setRecentActivities(activities);
 
+      // Calcular distribuições para gráficos
+      const statusDistribution: Record<string, number> = {
+        novo: 0,
+        em_contato: 0,
+        qualificado: 0,
+        proposta: 0,
+        convertido: 0,
+        perdido: 0,
+      };
+
+      leadsData.forEach(lead => {
+        if (statusDistribution[lead.status] !== undefined) {
+          statusDistribution[lead.status]++;
+        }
+      });
+
+      const stageDistribution: Record<string, number> = {
+        prospeccao: 0,
+        qualificacao: 0,
+        proposta: 0,
+        negociacao: 0,
+        fechamento: 0,
+      };
+
+      opportunitiesData?.forEach(opp => {
+        if (stageDistribution[opp.estagio] !== undefined) {
+          stageDistribution[opp.estagio]++;
+        }
+      });
+
+      setMetrics({
+        stageDistribution,
+        statusDistribution,
+        totalLeads: leadsData.length,
+        qualifiedLeads: statusDistribution.qualificado,
+        totalOpportunities: totalOportunidades,
+        closedOpportunities: fechamentos
+      });
+
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
     } finally {
@@ -240,6 +348,86 @@ const Dashboard = () => {
     }
   };
 
+  const loadAIInsights = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingInsights(true);
+
+      const { data, error } = await supabase.functions.invoke('crm-ai-insights', {
+        body: { userId: user.id, action: 'insights' }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.data) {
+        setInsights(data.data.insights || []);
+        setSummary(data.data.summary || '');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar insights:', error);
+      toast.error('Erro ao gerar insights com IA');
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  const loadRecommendations = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingInsights(true);
+
+      const { data, error } = await supabase.functions.invoke('crm-ai-insights', {
+        body: { userId: user.id, action: 'recommendations' }
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.data) {
+        setRecommendations(data.data.recommendations || []);
+        setWeeklyFocus(data.data.weekly_focus || '');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar recomendações:', error);
+      // toast.error('Erro ao gerar recomendações com IA'); // Avoid double toast
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'medium': return <Zap className="h-4 w-4 text-amber-500" />;
+      case 'low': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+      default: return <Lightbulb className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'border-l-red-500 bg-red-50 dark:bg-red-950/20';
+      case 'medium': return 'border-l-amber-500 bg-amber-50 dark:bg-amber-950/20';
+      case 'low': return 'border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/20';
+      default: return 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/20';
+    }
+  };
+
+  // Prepare chart data
+  const statusChartData = metrics ? Object.entries(metrics.statusDistribution).map(([name, value]) => ({
+    name: name.replace('_', ' ').replace(/^\w/, c => c.toUpperCase()),
+    value,
+    fill: STATUS_COLORS[name] || CHART_COLORS[0],
+  })) : [];
+
+  const funnelData = metrics ? [
+    { stage: 'Leads', value: metrics.totalLeads, fill: '#3b82f6' },
+    { stage: 'Qualificados', value: metrics.qualifiedLeads, fill: '#f59e0b' },
+    { stage: 'Oportunidades', value: metrics.totalOpportunities, fill: '#8b5cf6' },
+    { stage: 'Fechados', value: metrics.closedOpportunities, fill: '#22c55e' },
+  ] : [];
+
   return (
     <div className="space-y-6">
       {/* Header with User Info */}
@@ -292,37 +480,165 @@ const Dashboard = () => {
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 gap-6">
-        {/* Atividades Recentes */}
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Funnel Chart */}
+          <Card className="shadow-soft">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Funil de Conversão</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={funnelData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis type="number" className="text-xs" />
+                  <YAxis dataKey="stage" type="category" width={100} className="text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {funnelData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Status Distribution Pie */}
+          <Card className="shadow-soft">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <PieChartIcon className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Distribuição por Status</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                    labelLine={false}
+                  >
+                    {statusChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* AI Insights Section */}
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Atividades Recentes
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base">Insights com IA (Gemini 2.5 Flash)</CardTitle>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadAIInsights}
+                  disabled={loadingInsights}
+                >
+                  <RefreshCw className={cn("h-4 w-4 mr-2", loadingInsights && "animate-spin")} />
+                  Gerar Insights
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadRecommendations}
+                  disabled={loadingInsights}
+                >
+                  <Lightbulb className="h-4 w-4 mr-2" />
+                  Recomendações
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivities.length > 0 ? (
-                recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      {getActivityIcon(activity.type)}
+            {insights.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {insights.map((insight, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "border-l-4 rounded-lg p-4 space-y-2",
+                      getPriorityColor(insight.priority)
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      {getPriorityIcon(insight.priority)}
+                      <h4 className="font-medium text-sm">{insight.title}</h4>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{activity.prospect}</p>
-                      <p className="text-sm text-muted-foreground">{activity.company}</p>
+                    <p className="text-sm text-muted-foreground">{insight.description}</p>
+                    <div className="flex items-center gap-2 text-sm text-primary">
+                      <ArrowRight className="h-3 w-3" />
+                      <span>{insight.action}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{activity.time}</span>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-                  <p className="text-muted-foreground">Nenhuma atividade recente</p>
-                  <p className="text-sm text-muted-foreground">Comece criando interações com seus contatos</p>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Brain className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>Clique em "Gerar Insights" para obter análises com IA</p>
+              </div>
+            )}
+
+            {/* Weekly Focus & Recommendations */}
+            {recommendations.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-medium mb-4 flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  Recomendações da Semana
+                </h4>
+                {weeklyFocus && (
+                  <div className="bg-primary/5 rounded-lg p-3 mb-4">
+                    <p className="text-sm font-medium text-primary">🎯 Foco: {weeklyFocus}</p>
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {recommendations.map((rec, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"
+                    >
+                      <Badge variant="outline" className="shrink-0">{rec.priority || index + 1}</Badge>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{rec.action}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{rec.reason}</p>
+                        {rec.expected_impact && (
+                          <p className="text-xs text-emerald-600 mt-1">
+                            📈 {rec.expected_impact}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
