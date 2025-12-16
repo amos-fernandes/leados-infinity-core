@@ -1,5 +1,5 @@
 # Etapa 1: build
-FROM node:18 as builder
+FROM node:18 AS builder
 WORKDIR /app
 
 # Aceita variáveis de ambiente como build args
@@ -12,11 +12,15 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
 
+# Copia apenas package.json primeiro para cache de dependências
+COPY package*.json ./
+RUN npm ci --legacy-peer-deps
+
+# Copia o resto dos arquivos e faz o build
 COPY . .
-RUN npm install
 RUN npm run build
 
-# Etapa 2: servir com 'serve'
+# Etapa 2: servir com 'serve' (imagem mínima)
 FROM node:18-slim
 WORKDIR /app
 RUN npm install -g serve
