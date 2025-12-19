@@ -33,7 +33,7 @@ export default function DisparadorPage() {
 
   const loadHistory = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("campaigns")
@@ -43,7 +43,7 @@ export default function DisparadorPage() {
         .limit(10);
 
       if (error) throw error;
-      
+
       setHistory(data?.map(d => ({
         id: d.id,
         campaign_name: d.name,
@@ -60,14 +60,14 @@ export default function DisparadorPage() {
 
   const handleTestarConexao = async () => {
     setIsTesting(true);
-    
+
     try {
       const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
       const { data, error } = await supabase.functions.invoke('n8n-proxy', {
         body: {
           url: fullUrl,
           method: 'POST',
-          body: { 
+          body: {
             test: true,
             user_id: user?.id,
             message: "Teste de conexão Leados Infinity"
@@ -95,9 +95,9 @@ export default function DisparadorPage() {
       toast.error("Você precisa estar logado");
       return;
     }
-    
+
     setIsSyncing(true);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('sync-to-n8n-postgres', {
         body: {
@@ -124,14 +124,14 @@ export default function DisparadorPage() {
 
   const handleDispararCampanha = async () => {
     setIsSending(true);
-    
+
     try {
       const fullUrl = `${n8nBaseUrl}${n8nWebhookPath}`;
       const { data, error } = await supabase.functions.invoke('n8n-proxy', {
         body: {
           url: fullUrl,
           method: 'POST',
-          body: { 
+          body: {
             action: "disparar_campanha",
             user_id: user?.id,
             timestamp: new Date().toISOString()
@@ -157,7 +157,7 @@ export default function DisparadorPage() {
       } else {
         toast.success("Campanha disparada e dados sincronizados com sucesso!");
       }
-      
+
       loadHistory();
     } catch (error: any) {
       console.error("Erro ao disparar campanha:", error);
@@ -201,7 +201,7 @@ export default function DisparadorPage() {
                   URL do seu servidor n8n na Hostinger
                 </p>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="webhook-path">Caminho do Webhook</Label>
                 <Input
@@ -247,7 +247,7 @@ export default function DisparadorPage() {
             <CardHeader>
               <CardTitle>🔄 Sincronização de Dados</CardTitle>
               <CardDescription>
-                Replica dados do Lovable Cloud para o PostgreSQL do n8n
+                Replica dados do Supabase Cloud para o PostgreSQL do n8n
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -261,8 +261,8 @@ export default function DisparadorPage() {
                   <li>Contatos</li>
                 </ul>
               </div>
-              <Button 
-                onClick={handleSyncToN8n} 
+              <Button
+                onClick={handleSyncToN8n}
                 disabled={isSyncing}
                 variant="outline"
                 className="w-full"
@@ -337,11 +337,10 @@ export default function DisparadorPage() {
                               {new Date(item.created_at).toLocaleString("pt-BR")}
                             </p>
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            item.status === "ativa" ? "bg-green-500/20 text-green-500" :
+                          <span className={`text-xs px-2 py-1 rounded ${item.status === "ativa" ? "bg-green-500/20 text-green-500" :
                             item.status === "erro" ? "bg-red-500/20 text-red-500" :
-                            "bg-blue-500/20 text-blue-500"
-                          }`}>
+                              "bg-blue-500/20 text-blue-500"
+                            }`}>
                             {item.status}
                           </span>
                         </div>

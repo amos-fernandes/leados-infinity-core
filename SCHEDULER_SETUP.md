@@ -4,13 +4,13 @@
 Este documento descreve como configurar a importação automática de leads do basededados.org todas as manhãs às 6h.
 
 ## Pré-requisitos
-- Acesso ao Lovable Cloud Backend
+- Acesso ao Supabase Cloud Backend
 - Token da basededados.org configurado
 - Extensões `pg_cron` e `pg_net` habilitadas
 
 ## Passo 1: Habilitar Extensões no Supabase
 
-Execute estes comandos SQL no Lovable Cloud Backend:
+Execute estes comandos SQL no Supabase Cloud Backend:
 
 ```sql
 -- Habilitar pg_cron para agendamento

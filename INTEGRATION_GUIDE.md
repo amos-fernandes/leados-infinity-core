@@ -115,7 +115,7 @@ https://seu-n8n.com/webhook/leados-notifications
 
 **Workflow 3: Qualificação Automática**
 - Trigger: Resposta recebida no WhatsApp
-- Ação: Analisar com IA (Lovable AI)
+- Ação: Analisar com IA 
 - Resultado: Atualizar score do lead
 
 ### 5. Dashboard Evolution
@@ -183,7 +183,7 @@ WhatsApp → Evolution API → Webhook
 ### 4. Qualificação e Follow-up
 
 ```typescript
-// Via N8N + Lovable AI
+
 Interação → Analisar sentimento
          → Calcular score BANT
          → Atualizar lead
@@ -297,7 +297,7 @@ SELECT * FROM cron.job WHERE jobname = 'import-leads-daily';
 2. Verificar token basededados.org
 3. Ver logs da função:
 ```bash
-# No Lovable Cloud backend, veja logs da função basededados-import
+
 ```
 
 ### Problema: Mensagens não estão chegando no CRM
