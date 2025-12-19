@@ -338,8 +338,8 @@ export default function DisparadorPage() {
                             </p>
                           </div>
                           <span className={`text-xs px-2 py-1 rounded ${item.status === "ativa" ? "bg-green-500/20 text-green-500" :
-                              item.status === "erro" ? "bg-red-500/20 text-red-500" :
-                                "bg-blue-500/20 text-blue-500"
+                            item.status === "erro" ? "bg-red-500/20 text-red-500" :
+                              "bg-blue-500/20 text-blue-500"
                             }`}>
                             {item.status}
                           </span>
